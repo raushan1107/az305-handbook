@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thinking Like an Architect</title>
+<meta name="description" content="Module 01 of the AZ-305 Architect Handbook: the solution architect mindset, requirements, the Well-Architected Framework, SLAs and trade-offs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part I · Foundations</div>
+    <span class="eyebrow">Module 01</span>
+    <h1>Thinking Like a Solution Architect</h1>
+    <p class="lead">Before we touch a single Azure service, we need to change the glasses we wear. The same problem looks completely different through a developer's eyes, an operator's eyes and an architect's eyes. This module is about the third pair.</p>
+    <div class="hero-meta">
+      <span class="chip">Mindset</span><span class="chip">Requirements</span><span class="chip">Well-Architected Framework</span><span class="chip">SLA · RTO · RPO</span><span class="chip">Trade-offs</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#lenses">Same problem, three lenses</a></li>
+        <li><a href="#role">What an architect actually does</a></li>
+        <li><a href="#requirements">Requirements: the iceberg</a></li>
+        <li><a href="#waf">The Well-Architected Framework</a></li>
+        <li><a href="#numbers">SLA, SLO, RTO, RPO</a></li>
+        <li><a href="#composite">Composite SLA maths</a></li>
+        <li><a href="#tradeoffs">Trade-offs and decisions</a></li>
+        <li><a href="#toolkit">The architect's toolkit</a></li>
+        <li><a href="#exam">Reading an AZ-305 question</a></li>
+        <li><a href="#case">Meet Meridian Retail</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">01.0</span>
+      <h2>The mental map</h2>
+      <p>In every batch I teach, someone asks on the first morning: <em>"Sir, which services do I need to memorise for AZ-305?"</em> My honest answer: fewer than you think. The exam and the job both reward <strong>a way of thinking</strong> far more than a list of service names.</p>
+      <p>Here's that way of thinking as one loop. Keep this picture in your head; every module after this one is just this loop applied to a different area.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 380" role="img" aria-labelledby="m1t m1d">
+            <title id="m1t">The architect's thinking loop</title>
+            <desc id="m1d">Six steps in a loop around a business outcome: understand the business, capture requirements, map constraints, compare options, weigh trade-offs, decide and document, then repeat.</desc>
+
+            <ellipse cx="450" cy="190" rx="120" ry="52" class="s-blue"/>
+            <text x="450" y="186" class="t-h mid">Business outcome</text>
+            <text x="450" y="208" class="t-s mid">every decision traces back here</text>
+
+            <!-- nodes -->
+            <rect x="355" y="22" width="190" height="56" rx="12" class="s-surface"/>
+            <text x="450" y="45" class="t-b mid">1 · Understand</text>
+            <text x="450" y="64" class="t-s mid">goals, users, money, risk</text>
+
+            <rect x="641" y="92" width="190" height="56" rx="12" class="s-surface"/>
+            <text x="736" y="115" class="t-b mid">2 · Requirements</text>
+            <text x="736" y="134" class="t-s mid">what it must do and be</text>
+
+            <rect x="641" y="232" width="190" height="56" rx="12" class="s-surface"/>
+            <text x="736" y="255" class="t-b mid">3 · Constraints</text>
+            <text x="736" y="274" class="t-s mid">budget, law, skills, time</text>
+
+            <rect x="355" y="302" width="190" height="56" rx="12" class="s-surface"/>
+            <text x="450" y="325" class="t-b mid">4 · Options</text>
+            <text x="450" y="344" class="t-s mid">at least two real choices</text>
+
+            <rect x="69" y="232" width="190" height="56" rx="12" class="s-surface"/>
+            <text x="164" y="255" class="t-b mid">5 · Trade-offs</text>
+            <text x="164" y="274" class="t-s mid">what we gain, what we give</text>
+
+            <rect x="69" y="92" width="190" height="56" rx="12" class="s-surface"/>
+            <text x="164" y="115" class="t-b mid">6 · Decide &amp; record</text>
+            <text x="164" y="134" class="t-s mid">and revisit when facts change</text>
+
+            <!-- arrows -->
+            <path d="M548 48 Q640 52 700 88" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M736 150 V226" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M700 292 Q640 328 550 332" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M352 332 Q260 328 200 294" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M164 230 V154" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M200 88 Q260 52 350 48" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+          </svg>
+        </div>
+        <figcaption><b>The architect's loop.</b> Notice where Azure services show up: only at step 4. Steps 1–3 are about listening. Steps 5–6 are about judgement.</figcaption>
+      </figure>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>A developer's first question is "<em>how</em> do I build this?" An architect's first question is "<em>why</em> are we building this, and what happens if it fails?"</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 3 quick portal walkthroughs · about 10 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>Module 01 is about thinking, so the demos are short. The aim is to show that the frameworks aren't theory: Azure itself scores, prices and asks about the same things.</p>
+          <h4>You'll need</h4>
+          <ul><li>Any Azure subscription you can at least read (Reader is enough for Advisor). One with a few running resources gives better Advisor results.</li><li>A second browser tab for the public Azure pricing calculator. No sign-in needed.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li>Advisor right after the Well-Architected section.</li><li>Pricing calculator and SLA page during the composite-SLA maths; do the multiplication on the whiteboard.</li><li>Availability zones while discussing the exam question about a datacentre failure.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m01-advisor">See the five pillars in Azure Advisor</a><span>~3m</span></li><li><a href="#demo-m01-pricing">Price one design two ways, then find its SLA</a><span>~5m</span></li><li><a href="#demo-m01-zones">Where availability zones appear when you create things</a><span>~2m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Nothing is created in this module. Just cancel the VM create form.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= LENSES ======================= -->
+    <section id="lenses">
+      <span class="sec-num">01.1</span>
+      <h2>Same problem, three lenses</h2>
+      <p>Let me give you a situation I've seen at more than one company. The business head walks in and says:</p>
+      <blockquote class="voice">"Our online store becomes painfully slow every Friday evening. Fix it."<cite>A very real Monday-morning email</cite></blockquote>
+      <p>Now watch how three smart people react to the <em>same sentence</em>.</p>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Lens</th><th>First instinct</th><th>What they might miss</th></tr></thead>
+          <tbody>
+            <tr><td>Developer</td><td>"Let me profile the code. Probably a slow SQL query or a missing index."</td><td>It might not be the code at all. And fixing one query doesn't stop the next Friday surprise.</td></tr>
+            <tr><td>Operations</td><td>"Add more VMs. Bigger SKU on the database."</td><td>Cost doubles for a problem that lasts three hours a week. Scaling the wrong layer changes nothing.</td></tr>
+            <tr><td>Solution architect</td><td>"How slow, for whom, and what does it cost us? Is it a predictable peak? What does 'good' look like, in numbers?"</td><td>Nothing yet, because the architect hasn't decided anything. They're still collecting the facts the decision depends on.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The architect will probably end up with a mix: autoscale rules tied to the Friday pattern, a cache in front of the product catalogue, a CDN for images, an alert when page response crosses a threshold, and a monthly review of the cost. But they got there by asking questions, not by guessing a fix.</p>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>The system is <strong>code</strong>. Problems are bugs. Success is "it works on my machine and passes tests".</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>The system is a <strong>set of decisions</strong> serving a business. Problems are risks to an outcome. Success is "it meets the agreed targets at an acceptable cost, and we can prove it".</p>
+        </div>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Not a ranking</div>
+        <p>None of these lenses is "better". A good architect has usually worn the other two hats. The point is that AZ-305 tests the third one, and you have to consciously switch to it, especially if you come from a hands-on admin or developer background.</p>
+      </div>
+    </section>
+
+    <!-- ======================= ROLE ======================= -->
+    <section id="role">
+      <span class="sec-num">01.2</span>
+      <h2>What a solution architect actually does</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>A solution architect translates business requirements into a technical design that is secure, reliable, cost-effective and operable, and is accountable for the trade-offs made along the way.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>You're the person who decides <em>what</em> gets built and <em>why it's shaped that way</em>, so that the people who build and run it don't have to guess. You don't need to write the code yourself. You do need to know when the plan is going to hurt someone later.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>You're building a house. The <strong>mason</strong> knows bricks. The <strong>electrician</strong> knows wiring. The <strong>interior designer</strong> knows tiles and colours. The <strong>architect</strong> is the one who first asks: How many people will live here? Do you plan to have kids? Is this an earthquake zone? What's the budget, really? Will you add a floor in five years?</p>
+        <p>Only after that do they draw the plan. And if the family says "we want a swimming pool on the third floor", the architect is the one who explains, calmly, what that does to the foundation and the budget.</p>
+      </div>
+
+      <h3>The four things you're paid for</h3>
+      <div class="terms">
+        <div class="term"><b>Clarity</b><span>Turning vague wishes ("it should be fast") into measurable targets ("95% of pages load in under 2 seconds").</span></div>
+        <div class="term"><b>Options</b><span>Always having at least two viable designs, so the choice is a choice and not an accident.</span></div>
+        <div class="term"><b>Trade-offs</b><span>Knowing what each option costs: in money, risk, complexity and future flexibility.</span></div>
+        <div class="term"><b>Accountability</b><span>Writing the decision down, with reasons, so it can be defended or revisited later.</span></div>
+      </div>
+    </section>
+
+    <!-- ======================= REQUIREMENTS ======================= -->
+    <section id="requirements">
+      <span class="sec-num">01.3</span>
+      <h2>Requirements: the iceberg</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>Functional requirements</strong> describe what a system must <em>do</em>. <strong>Non-functional requirements</strong> (NFRs, also called quality attributes) describe how well it must do it: availability, performance, security, compliance, cost, recoverability and so on.</p>
+      </div>
+
+      <p>Business people talk almost entirely in functional requirements: "customers should be able to search, pay and track orders". Those are the tip of the iceberg. The bulk of an architect's work, and nearly all of the AZ-305 exam, lives <em>below the waterline</em>.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 820 400" role="img" aria-labelledby="ibt ibd">
+            <title id="ibt">The requirements iceberg</title>
+            <desc id="ibd">Functional requirements sit above the waterline. Below it are the larger, hidden non-functional requirements such as availability, security, compliance, performance, cost and recoverability.</desc>
+            <rect x="0" y="150" width="820" height="250" class="s-blue" style="stroke:none;opacity:.55"/>
+            <path d="M0 150 H820" class="s-arrow-accent" style="stroke-dasharray:6 6"/>
+            <text x="808" y="142" class="t-m end t-accent">WATERLINE</text>
+
+            <polygon points="410,30 330,150 490,150" class="s-surface"/>
+            <polygon points="330,150 490,150 610,250 560,380 260,380 210,250" class="s-surface"/>
+
+            <text x="410" y="105" class="t-b mid">What it does</text>
+            <text x="410" y="125" class="t-s mid">functional</text>
+
+            <text x="410" y="215" class="t-h mid">How well it does it</text>
+            <text x="410" y="238" class="t-s mid">non-functional: where architecture lives</text>
+            <text x="320" y="285" class="t mid">Availability</text>
+            <text x="500" y="285" class="t mid">Security</text>
+            <text x="320" y="315" class="t mid">Performance</text>
+            <text x="500" y="315" class="t mid">Compliance</text>
+            <text x="320" y="345" class="t mid">Recoverability</text>
+            <text x="500" y="345" class="t mid">Cost</text>
+
+            <!-- left labels -->
+            <text x="40" y="70" class="t-b">Customers can…</text>
+            <text x="40" y="92" class="t-s">• search products</text>
+            <text x="40" y="110" class="t-s">• pay online</text>
+            <text x="40" y="128" class="t-s">• track an order</text>
+            <path d="M190 95 Q260 90 330 110" class="s-dash" marker-end="url(#ah)"/>
+
+            <text x="640" y="200" class="t-b">…but nobody said:</text>
+            <text x="640" y="222" class="t-s">• "survive a region outage"</text>
+            <text x="640" y="240" class="t-s">• "EU data stays in the EU"</text>
+            <text x="640" y="258" class="t-s">• "lose at most 5 min of orders"</text>
+            <text x="640" y="276" class="t-s">• "pass a PCI DSS audit"</text>
+            <text x="640" y="294" class="t-s">• "stay under ₹X per month"</text>
+          </svg>
+        </div>
+        <figcaption><b>The iceberg.</b> Business stakeholders describe the top. Your design succeeds or fails on the bottom. The architect's job is to <em>surface</em> those hidden requirements by asking.</figcaption>
+      </figure>
+
+      <h3>Questions that pull requirements above water</h3>
+      <ul>
+        <li><strong>Availability:</strong> "If this is down for an hour on a Tuesday, what does that cost you? On Black Friday?"</li>
+        <li><strong>Data loss:</strong> "If we lose the last 15 minutes of orders, is that an inconvenience or a disaster?"</li>
+        <li><strong>Compliance:</strong> "Which regulations apply? Where are your customers? Where may the data physically live?"</li>
+        <li><strong>Security:</strong> "Who must never see this data, including our own admins?"</li>
+        <li><strong>Scale:</strong> "What does peak look like today, and in three years?"</li>
+        <li><strong>Operations:</strong> "Who runs this at 2 a.m.? What skills does that team have today?"</li>
+        <li><strong>Cost:</strong> "Is there a budget ceiling, or a preference for predictable monthly spend over lowest possible spend?"</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>AZ-305 case studies hide NFRs inside long paragraphs: "The company plans to expand into Germany" (data residency), "auditors must be able to review access quarterly" (access reviews), "developers must not store credentials in code" (managed identities and Key Vault). Train yourself to <strong>underline the NFRs</strong> as you read.</p>
+      </div>
+    </section>
+
+    <!-- ======================= WAF ======================= -->
+    <section id="waf">
+      <span class="sec-num">01.4</span>
+      <h2>The Well-Architected Framework</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>The Azure Well-Architected Framework (WAF) is a set of guiding tenets for building high-quality workloads, organised into five pillars: Reliability, Security, Cost Optimization, Operational Excellence and Performance Efficiency.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>It's a checklist of the five things that go wrong with cloud systems. If you've thought about all five on purpose, your design is defensible. If you've ignored one, that's where the trouble will come from.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 420" role="img" aria-labelledby="waft wafd">
+            <title id="waft">The five pillars of the Well-Architected Framework</title>
+            <desc id="wafd">A building whose roof is your workload, held up by five pillars: reliability, security, cost optimization, operational excellence and performance efficiency, standing on a foundation of business requirements and constraints.</desc>
+            <polygon points="450,18 60,108 840,108" class="s-blue"/>
+            <text x="450" y="80" class="t-h mid">Your workload</text>
+            <text x="450" y="99" class="t-s mid">the thing the business actually cares about</text>
+
+            <rect x="60" y="120" width="140" height="210" rx="8" class="s-teal"/>
+            <rect x="215" y="120" width="140" height="210" rx="8" class="s-violet"/>
+            <rect x="370" y="120" width="160" height="210" rx="8" class="s-green"/>
+            <rect x="545" y="120" width="140" height="210" rx="8" class="s-amber"/>
+            <rect x="700" y="120" width="140" height="210" rx="8" class="s-rose"/>
+
+            <text x="130" y="152" class="t-b mid">Reliability</text>
+            <text x="130" y="200" class="t-s mid">Does it keep working,</text>
+            <text x="130" y="216" class="t-s mid">and recover when</text>
+            <text x="130" y="232" class="t-s mid">it doesn't?</text>
+            <text x="130" y="300" class="t-m mid t-teal">RESILIENCE</text>
+
+            <text x="285" y="152" class="t-b mid">Security</text>
+            <text x="285" y="200" class="t-s mid">Can only the right</text>
+            <text x="285" y="216" class="t-s mid">people do the right</text>
+            <text x="285" y="232" class="t-s mid">things?</text>
+            <text x="285" y="300" class="t-m mid t-violet">TRUST</text>
+
+            <text x="450" y="152" class="t-b mid">Cost Optimization</text>
+            <text x="450" y="200" class="t-s mid">Is every rupee spent</text>
+            <text x="450" y="216" class="t-s mid">creating value?</text>
+            <text x="450" y="300" class="t-m mid t-green">VALUE</text>
+
+            <text x="615" y="146" class="t-b mid">Operational</text>
+            <text x="615" y="164" class="t-b mid">Excellence</text>
+            <text x="615" y="200" class="t-s mid">Can we deploy,</text>
+            <text x="615" y="216" class="t-s mid">observe and fix it</text>
+            <text x="615" y="232" class="t-s mid">calmly?</text>
+            <text x="615" y="300" class="t-m mid t-amber">RUNNABILITY</text>
+
+            <text x="770" y="146" class="t-b mid">Performance</text>
+            <text x="770" y="164" class="t-b mid">Efficiency</text>
+            <text x="770" y="200" class="t-s mid">Does it handle load</text>
+            <text x="770" y="216" class="t-s mid">and scale with</text>
+            <text x="770" y="232" class="t-s mid">demand?</text>
+            <text x="770" y="300" class="t-m mid t-rose">SCALE</text>
+
+            <rect x="40" y="342" width="820" height="56" rx="8" class="s-surface2"/>
+            <text x="450" y="366" class="t-b mid">Foundation: business requirements and constraints</text>
+            <text x="450" y="386" class="t-s mid">pillars are only "strong enough" relative to what the business needs</text>
+          </svg>
+        </div>
+        <figcaption><b>Five pillars, one roof.</b> Make one pillar much taller than the others (say, gold-plated reliability on a tiny budget) and the roof tilts. Balance is the point.</figcaption>
+      </figure>
+
+      <h3>The pillars in one line each</h3>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Pillar</th><th>The question it asks</th><th>Typical Azure levers</th></tr></thead>
+          <tbody>
+            <tr><td>Reliability</td><td>What happens when a component, zone or region fails?</td><td>Availability zones, multi-region, backups, Site Recovery, health probes, retries</td></tr>
+            <tr><td>Security</td><td>Who can reach what, and how do we know?</td><td>Entra ID, Conditional Access, RBAC, Key Vault, private endpoints, Defender for Cloud</td></tr>
+            <tr><td>Cost Optimization</td><td>Are we paying for value or for waste?</td><td>Right-sizing, reservations and savings plans, autoscale, budgets, tags, Azure Advisor</td></tr>
+            <tr><td>Operational Excellence</td><td>Can we change and run it safely and repeatably?</td><td>Infrastructure as Code, CI/CD, Azure Policy, Azure Monitor, runbooks</td></tr>
+            <tr><td>Performance Efficiency</td><td>Does it meet response targets as load changes?</td><td>Autoscale, caching, CDN, right data store, load testing</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Pillars pull against each other</h3>
+      <p>This is the part people skip, and it's the most important. The pillars are <em>not</em> independent. Improving one almost always costs you something in another.</p>
+      <div class="two-col">
+        <div>
+          <h4>Reliability ↔ Cost</h4>
+          <p>A second region doubles a big chunk of your bill. Worth it for payments; probably not for the internal canteen-menu app.</p>
+        </div>
+        <div>
+          <h4>Security ↔ Operational ease</h4>
+          <p>Private endpoints everywhere and just-in-time admin access are safer, but every deployment and every 2 a.m. fix now has extra steps.</p>
+        </div>
+        <div>
+          <h4>Performance ↔ Cost</h4>
+          <p>Premium SKUs and over-provisioning make things fast and expensive. Caching can make things fast <em>and</em> cheaper, at the cost of complexity.</p>
+        </div>
+        <div>
+          <h4>Reliability ↔ Performance</h4>
+          <p>Synchronous replication across regions protects data but adds latency to every write. Asynchronous is faster but can lose recent data.</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>"Best practice" without context is a myth. The right design is the one whose trade-offs the business has <em>knowingly accepted</em>.</p>
+      </div>
+      <details class="demo" id="demo-m01-advisor">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">See the five pillars in Azure Advisor</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that the Well-Architected pillars are built into the platform: Azure scores your real environment against them.</p>
+          <ol class="demo-steps">
+            <li>Sign in to <code>portal.azure.com</code>. In the top search bar type <b>Advisor</b> and open <span class="ui">Advisor</span>.</li>
+            <li>On <span class="ui">Overview</span>, point at the <b>Advisor score</b> and the category tiles: <span class="ui">Reliability</span> <span class="ui">Security</span> <span class="ui">Performance</span> <span class="ui">Cost</span> <span class="ui">Operational excellence</span>. These are the five pillars, almost word for word.</li>
+            <li>Open the category with the most recommendations, open one recommendation, and show its <b>impact</b>, the affected resources and the suggested action.</li>
+            <li>Open <span class="ui">Advisor score</span> in the left menu: a score per pillar and its trend over time.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Security recommendations come from Microsoft Defender for Cloud. Advisor brings them into the same view.</li><li>You can <b>postpone</b> or <b>dismiss</b> a recommendation. The tool suggests; the architect decides, based on requirements Advisor doesn't know.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Advisor is a junior architect who never sleeps. It knows your resources, but it doesn't know your business. That part is still your job.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= NUMBERS ======================= -->
+    <section id="numbers">
+      <span class="sec-num">01.5</span>
+      <h2>SLA, SLO, RTO, RPO: putting numbers on "reliable"</h2>
+      <p>"Highly available" means nothing until it has a number. These four terms appear in almost every module from here on, so let's nail them down now.</p>
+
+      <div class="terms">
+        <div class="term"><b>SLA (Service Level Agreement)</b><span>A provider's <em>contractual</em> commitment, e.g. "99.99% uptime per month, or we refund service credits". Microsoft publishes one per service.</span></div>
+        <div class="term"><b>SLO (Service Level Objective)</b><span>Your <em>internal target</em> for your own workload, e.g. "99.9% of checkout requests succeed". Usually set tighter than your SLA to customers.</span></div>
+        <div class="term"><b>SLI (Service Level Indicator)</b><span>The actual <em>measurement</em>: what percentage of requests really did succeed last month.</span></div>
+        <div class="term"><b>RTO (Recovery Time Objective)</b><span>The maximum acceptable time the workload can be <em>down</em> after a disaster.</span></div>
+        <div class="term"><b>RPO (Recovery Point Objective)</b><span>The maximum acceptable amount of <em>data loss</em>, measured in time. "RPO 15 min" = we can lose at most the last 15 minutes of data.</span></div>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 230" role="img" aria-labelledby="rtot rtod">
+            <title id="rtot">RPO and RTO on a timeline</title>
+            <desc id="rtod">A timeline with three points: last good backup, disaster, and service restored. RPO is the gap between the last backup and the disaster. RTO is the gap between the disaster and the service being restored.</desc>
+            <path d="M40 130 H860" class="s-line" marker-end="url(#ah)"/>
+            <text x="860" y="156" class="t-s end">time</text>
+
+            <circle cx="250" cy="130" r="9" class="s-teal"/>
+            <circle cx="480" cy="130" r="11" class="s-rose"/>
+            <circle cx="720" cy="130" r="9" class="s-green"/>
+
+            <text x="250" y="170" class="t-b mid">Last good copy</text>
+            <text x="250" y="188" class="t-s mid">backup / replica point</text>
+            <text x="480" y="170" class="t-b mid t-rose">Disaster</text>
+            <text x="480" y="188" class="t-s mid">region outage, ransomware…</text>
+            <text x="720" y="170" class="t-b mid">Service restored</text>
+            <text x="720" y="188" class="t-s mid">users working again</text>
+
+            <path d="M256 92 V80 H474 V92" class="s-arrow" style="stroke:var(--teal)"/>
+            <text x="365" y="48" class="t-b mid t-teal">RPO</text>
+            <text x="365" y="68" class="t-s mid">how much data we lose (look back)</text>
+
+            <path d="M486 92 V80 H714 V92" class="s-arrow" style="stroke:var(--green)"/>
+            <text x="600" y="48" class="t-b mid t-green">RTO</text>
+            <text x="600" y="68" class="t-s mid">how long we're down (look forward)</text>
+          </svg>
+        </div>
+        <figcaption><b>RPO looks backwards, RTO looks forwards.</b> Smaller numbers on either side mean more money: more frequent backups or replication for RPO, warmer standby environments for RTO.</figcaption>
+      </figure>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>You're writing a long document and the laptop dies. <strong>RPO</strong> is how much you lose: if auto-save runs every 10 minutes, you lose up to 10 minutes of typing. <strong>RTO</strong> is how long until you're typing again: borrow a colleague's laptop (fast) or wait for the repair shop (slow). Two completely different problems, solved with two different investments.</p>
+      </div>
+
+      <h3>What the nines really mean</h3>
+      <p>People throw around "four nines" casually. Here's what each one actually allows. Keep this table handy; it calms down a lot of meeting-room arguments.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Availability</th><th>Downtime per month</th><th>Downtime per year</th><th>Feels like</th></tr></thead>
+          <tbody>
+            <tr><td>99%</td><td>~7.2 hours</td><td>~3.65 days</td><td>Fine for internal tools</td></tr>
+            <tr><td>99.9%</td><td>~43 minutes</td><td>~8.8 hours</td><td>Typical single-instance PaaS</td></tr>
+            <tr><td>99.95%</td><td>~22 minutes</td><td>~4.4 hours</td><td>A well-built single-region app</td></tr>
+            <tr><td>99.99%</td><td>~4.3 minutes</td><td>~53 minutes</td><td>Zones or multiple regions, serious money</td></tr>
+            <tr><td>99.999%</td><td>~26 seconds</td><td>~5.3 minutes</td><td>Multi-region active-active, rare and expensive</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ======================= COMPOSITE ======================= -->
+    <section id="composite">
+      <span class="sec-num">01.6</span>
+      <h2>Composite SLA: the maths every architect should do once</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>A composite SLA is the expected availability of a workload that depends on several services. For services in a chain (all must work), multiply their availabilities. For redundant copies (any one is enough), availability = 1 − (probability that all copies fail).</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 360" role="img" aria-labelledby="cst csd">
+            <title id="cst">Composite SLA in series and in parallel</title>
+            <desc id="csd">Top: a web app at 99.95 percent depends on a database at 99.99 percent, giving 99.94 percent overall. Bottom: the same stack deployed in two regions behind a global load balancer gives about 99.99996 percent, ignoring the load balancer itself.</desc>
+
+            <text x="30" y="36" class="t-m t-accent">IN SERIES · BOTH MUST WORK</text>
+            <rect x="30" y="54" width="180" height="62" rx="10" class="s-surface"/>
+            <text x="120" y="80" class="t-b mid">Users</text>
+            <text x="120" y="100" class="t-s mid">browser / mobile</text>
+            <rect x="270" y="54" width="180" height="62" rx="10" class="s-blue"/>
+            <text x="360" y="80" class="t-b mid">Web app</text>
+            <text x="360" y="100" class="t-s mid">99.95%</text>
+            <rect x="510" y="54" width="180" height="62" rx="10" class="s-teal"/>
+            <text x="600" y="80" class="t-b mid">Database</text>
+            <text x="600" y="100" class="t-s mid">99.99%</text>
+            <path d="M210 85 H264" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M450 85 H504" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="720" y="80" class="t-b">= 99.94%</text>
+            <text x="720" y="100" class="t-s">0.9995 × 0.9999</text>
+
+            <path d="M30 150 H870" class="s-dash"/>
+
+            <text x="30" y="186" class="t-m t-accent">IN PARALLEL · EITHER REGION IS ENOUGH</text>
+            <rect x="30" y="236" width="150" height="62" rx="10" class="s-surface"/>
+            <text x="105" y="262" class="t-b mid">Users</text>
+            <text x="105" y="282" class="t-s mid">via global router</text>
+
+            <rect x="250" y="204" width="400" height="56" rx="10" class="s-blue"/>
+            <text x="270" y="228" class="t-b">Region A</text>
+            <text x="270" y="247" class="t-s">web app + database · 99.94%</text>
+            <rect x="250" y="276" width="400" height="56" rx="10" class="s-blue"/>
+            <text x="270" y="300" class="t-b">Region B</text>
+            <text x="270" y="319" class="t-s">web app + database · 99.94%</text>
+            <path d="M180 260 Q215 240 244 234" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M180 274 Q215 296 244 302" class="s-arrow" marker-end="url(#ah)"/>
+
+            <text x="680" y="262" class="t-b">≈ 99.99996%</text>
+            <text x="680" y="282" class="t-s">1 − (0.0006 × 0.0006)</text>
+            <text x="680" y="300" class="t-s">before adding the router's own SLA</text>
+          </svg>
+        </div>
+        <figcaption><b>Chains lose nines, redundancy adds them.</b> Every extra dependency in series pulls availability <em>down</em>. Redundant copies push it <em>up</em>, and the global router you add for that (Front Door, Traffic Manager) is itself a new link in the chain.</figcaption>
+      </figure>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>A junior design proudly lists "App Service 99.95%" as the app's availability, forgetting the database, the storage account, the Key Vault and the identity provider it also depends on. Your workload is <em>never</em> more available than the product of everything it can't live without.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>SLA questions are quick wins if you remember two rules: <strong>multiply</strong> for dependencies, <strong>1 − (failure × failure)</strong> for redundancy. Also remember that most single-instance SLAs only apply when you follow the documented configuration, e.g. VMs need premium SSD or two or more instances across zones or an availability set to get their higher SLA.</p>
+      </div>
+      <details class="demo" id="demo-m01-pricing">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Price one design two ways, then find its SLA</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Make the reliability-versus-cost trade-off visible in rupees, not just percentages.</p>
+          <ol class="demo-steps">
+            <li>Open <code>azure.microsoft.com/pricing/calculator</code> in a new tab.</li>
+            <li>Add <span class="ui">App Service</span>: Premium v3, P1v3, 2 instances, Central India. Add <span class="ui">Azure SQL Database</span>: single database, General Purpose, 2 vCores, same region. Note the monthly total.</li>
+            <li>Now build the two-region version: add the same two services again in South India, plus <span class="ui">Azure Front Door</span> as the global entry point. Compare the new total.</li>
+            <li>Search the web for <b>“Service Level Agreements for Online Services”</b> (Microsoft licensing site) and look up the SLA for App Service and SQL Database.</li>
+            <li>On the whiteboard: multiply the two for one region, then use <code>1 − (failure × failure)</code> for two regions, and put the price difference next to the extra nines.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Roughly double the cost for one or two extra nines. That is the conversation you must have with the business, with numbers.</li><li>SLAs depend on configuration (tier, zone redundancy), which is why the calculator and the SLA page go together.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The price of one more nine is right there on the screen. Now ask the business whether an hour of outage costs more than that.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= TRADEOFFS ======================= -->
+    <section id="tradeoffs">
+      <span class="sec-num">01.7</span>
+      <h2>Trade-offs and decisions</h2>
+      <p>"It depends" is a famous architect joke. Here's the part people forget: <strong>"it depends" is where your answer starts, not where it ends.</strong> The professional version is "it depends on X and Y, and given what you've told me, I recommend Z because…".</p>
+
+      <h3>One-way doors and two-way doors</h3>
+      <div class="two-col">
+        <div>
+          <h4>Two-way door (reversible)</h4>
+          <p>VM size, App Service plan tier, autoscale thresholds, alert rules. Easy to change later. <strong>Decide quickly</strong>, measure, adjust.</p>
+        </div>
+        <div>
+          <h4>One-way door (hard to reverse)</h4>
+          <p>Tenant design, management group hierarchy, primary region, IP address plan, database engine, identity model. <strong>Slow down</strong>, involve stakeholders, write it down.</p>
+        </div>
+      </div>
+      <p>Notice how many of the one-way doors are exactly what Part I of this handbook covers: governance, identity and the foundation. That's not an accident. Get these wrong and everything built on top inherits the mistake.</p>
+
+      <h3>Write it down: the decision record</h3>
+      <p>Good architects leave a trail. A lightweight <strong>Architecture Decision Record (ADR)</strong> is enough. Months later, when someone asks "why on earth did we pick this?", the answer is there, with the context that made it sensible at the time.</p>
+      <div class="callout note">
+        <div class="c-label">A one-page ADR template</div>
+        <ol>
+          <li><strong>Context:</strong> what problem, which requirements and constraints.</li>
+          <li><strong>Options considered:</strong> at least two, with pros and cons.</li>
+          <li><strong>Decision:</strong> what we chose.</li>
+          <li><strong>Consequences:</strong> what we gain, what we accept, what we must now watch.</li>
+          <li><strong>Revisit when:</strong> the trigger that should reopen this decision (cost doubles, new region launches, regulation changes).</li>
+        </ol>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll use Cosmos DB because it's fast and I like it."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Cosmos DB, because we need multi-region writes with single-digit-millisecond latency for global users. We accept higher cost and a team learning curve. Revisit if we stay in one region for 12 months."</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= TOOLKIT ======================= -->
+    <section id="toolkit">
+      <span class="sec-num">01.8</span>
+      <h2>The architect's toolkit</h2>
+      <p>You don't have to invent everything from scratch. Microsoft gives you a set of free tools that experienced architects use all the time.</p>
+      <div class="terms">
+        <div class="term"><b>Azure Architecture Center</b><span>Reference architectures, design patterns (retry, circuit breaker, queue-based load levelling…) and technology choice guides.</span></div>
+        <div class="term"><b>Well-Architected Review</b><span>A free self-assessment questionnaire that scores a workload against the five pillars.</span></div>
+        <div class="term"><b>Azure Advisor</b><span>Personalised recommendations from your actual environment, grouped by the same five pillars.</span></div>
+        <div class="term"><b>Pricing Calculator &amp; TCO Calculator</b><span>Estimate run cost before you build, and compare against on-premises total cost of ownership.</span></div>
+        <div class="term"><b>Cloud Adoption Framework (CAF)</b><span>The organisation-level playbook: strategy, plan, ready, adopt, govern, manage. WAF is per workload; CAF is per organisation.</span></div>
+        <div class="term"><b>Azure landing zones</b><span>A ready-made, opinionated foundation for subscriptions, identity, network and policy. We'll meet them in Module 02.</span></div>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p><strong>CAF</strong> is the town planning department: zoning rules, roads, water and electricity for the whole city. <strong>WAF</strong> is the building code you check each individual house against. A city needs both, and so does a cloud estate.</p>
+      </div>
+    </section>
+
+    <!-- ======================= EXAM ======================= -->
+    <section id="exam">
+      <span class="sec-num">01.9</span>
+      <h2>Reading an AZ-305 question like an architect</h2>
+      <p>AZ-305 questions are rarely about "what does service X do?". They're about "which of these four valid services is <em>best here</em>?". The difference is always hidden in a few words.</p>
+
+      <ol class="steps">
+        <li><strong>Read the last line first.</strong> What is being asked: a service, a configuration, a sequence? Now you know what to look for.</li>
+        <li><strong>Underline the requirement words.</strong> "Must", "minimise", "ensure", "without".</li>
+        <li><strong>Circle the constraint words.</strong> Cost, admin effort, code changes, existing licences, region.</li>
+        <li><strong>Eliminate the over-engineered and the under-powered.</strong> Two options usually fall away immediately.</li>
+        <li><strong>Pick the option that meets every "must" with the least of whatever is being minimised.</strong></li>
+      </ol>
+
+      <h3>The keyword decoder</h3>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>When the question says…</th><th>It's usually pushing you towards…</th></tr></thead>
+          <tbody>
+            <tr><td>"Minimise administrative effort"</td><td>PaaS or managed services over IaaS; built-in features over custom scripts.</td></tr>
+            <tr><td>"Minimise cost"</td><td>The cheapest option that still meets <em>every</em> requirement, never the cheapest overall.</td></tr>
+            <tr><td>"Without modifying the application code"</td><td>Lift-and-shift, platform-level features, configuration rather than refactoring.</td></tr>
+            <tr><td>"Must remain available if a region fails"</td><td>Multi-region deployment plus geo-replicated data and a global entry point.</td></tr>
+            <tr><td>"Must remain available if a datacentre fails"</td><td>Availability zones (zone-redundant services) in one region.</td></tr>
+            <tr><td>"Ensure compliance" / "prevent"</td><td>Azure Policy with a deny-type effect, not a report after the fact.</td></tr>
+            <tr><td>"Least privilege"</td><td>The narrowest built-in role at the narrowest scope, ideally time-bound (PIM).</td></tr>
+            <tr><td>"No credentials stored in code"</td><td>Managed identity, with Key Vault for anything that genuinely must be a secret.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Try one</div>
+        <p><em>"A company runs a stateless web app in one Azure region. It must stay available if a single datacentre fails. The solution must minimise cost. What should you recommend?"</em></p>
+        <p>Underline: <strong>datacentre</strong> (not region) and <strong>minimise cost</strong>. A second region would work but is over-engineered and pricier. The answer is to <strong>deploy across availability zones</strong> in the existing region.</p>
+      </div>
+      <details class="demo" id="demo-m01-zones">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Where availability zones appear when you create things</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Connect the exam phrase “if a datacentre fails” to a real setting on the first tab of a create form.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Virtual machines</span> › <span class="ui">+ Create</span> › <span class="ui">Azure virtual machine</span>.</li>
+            <li>On <span class="ui">Basics</span>, pick a region with zones (for example Central India) and open <span class="ui">Availability options</span>: no redundancy, availability zone, scale set, availability set.</li>
+            <li>Choose <span class="ui">Availability zone</span> and show that you can select zone 1, 2 or 3 (picking several creates one VM per zone).</li>
+            <li>Switch the region to one without zones and show that the zone option disappears. Then <b>cancel</b>; don't create anything.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Zone choice sits on the very first tab: reliability is a day-zero decision, not a later fix.</li><li>PaaS services show this as a <b>zone redundancy</b> switch instead (for example App Service Premium plans and Azure SQL).</li></ul>
+          <p class="demo-say"><b>Say:</b> “When the exam says ‘a datacentre fails’, this dropdown is the answer. When it says ‘a region fails’, you need a second region.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">01.10</span>
+      <h2>Meet Meridian Retail, our case company</h2>
+      <p>Abstract knowledge fades. Decisions about a real company stick. So from here on, every module ends by applying what we learned to one fictional but very realistic organisation.</p>
+
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· the case we'll design for throughout this handbook</span></div>
+        <div class="case-body">
+          <p>A 30-year-old retail chain with <strong>180 stores</strong> across India, headquartered in Bengaluru, now launching a serious <strong>online store</strong> and opening a subsidiary in <strong>Germany</strong>.</p>
+          <ul>
+            <li><strong>Three business units:</strong> Stores, Online and Logistics, each with its own IT budget.</li>
+            <li><strong>Today:</strong> an on-premises datacentre with ~600 VMs, Active Directory, SQL Server, file shares, and a lot of "temporary" scripts from 2014.</li>
+            <li><strong>Leadership wants:</strong> move to Azure within 18 months; predictable monthly cost per business unit; online checkout that survives a regional outage; pass a PCI DSS audit for card payments; keep EU customer data in the EU.</li>
+            <li><strong>Pain points:</strong> nobody knows who owns half the servers, admins share accounts, and outages are discovered by customers on social media.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>Read that list again with the iceberg in mind. Almost everything leadership asked for is non-functional. And the pain points map neatly onto the next three modules:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pain point</th><th>Module that fixes it</th></tr></thead>
+          <tbody>
+            <tr><td>"Nobody knows who owns what", "cost per business unit"</td><td><a href="02-governance.html">02 · Governance</a></td></tr>
+            <tr><td>"Admins share accounts", "PCI audit", "EU partners need access"</td><td><a href="03-identity.html">03 · Identity &amp; Access</a></td></tr>
+            <tr><td>"Customers find outages before we do"</td><td><a href="04-monitoring.html">04 · Monitoring &amp; Logging</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">01.11</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's checklist for any new design</h3>
+      <ul class="checklist">
+        <li>I can state the business outcome in one sentence.</li>
+        <li>I've listed the non-functional requirements, with numbers where possible.</li>
+        <li>I know the constraints: budget, compliance, skills, timeline.</li>
+        <li>I've compared at least two options against all five WAF pillars.</li>
+        <li>I've calculated a rough composite SLA and checked it against the target.</li>
+        <li>I know which of my decisions are one-way doors, and I've documented those.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. A stakeholder says "the system must be highly available". What do you do next?</summary>
+          <div><p>Turn it into a number and a context: "What availability percentage? Over what period? Measured how? What does an hour of downtime cost?" Only then can you choose between a single zone, availability zones and multiple regions.</p></div>
+        </details>
+        <details>
+          <summary>2. Your app (99.95%) depends on a database (99.99%) and a storage account (99.9%). Rough composite SLA?</summary>
+          <div><p>0.9995 × 0.9999 × 0.999 ≈ <strong>99.84%</strong>. The weakest dependency drags everything down, so that's where to invest first.</p></div>
+        </details>
+        <details>
+          <summary>3. The business can tolerate 4 hours of downtime but only 5 minutes of data loss. Which number is RTO and which is RPO?</summary>
+          <div><p>RTO = 4 hours (time to recover). RPO = 5 minutes (data loss window). This combination calls for frequent or continuous data replication, but a cold or warm standby for compute could be acceptable.</p></div>
+        </details>
+        <details>
+          <summary>4. Which WAF pillar is most at risk if every developer has Owner access to production "to move faster"?</summary>
+          <div><p>Security first, with Operational Excellence a close second: untracked manual changes make the environment unpredictable. This is exactly the trade-off governance and identity (Modules 02 and 03) help you manage.</p></div>
+        </details>
+        <details>
+          <summary>5. Name one one-way-door decision Meridian Retail must get right early.</summary>
+          <div><p>Any of: the Entra tenant model, the management group hierarchy, the subscription strategy per business unit, the primary Azure region, or the IP address plan for hybrid connectivity.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 02</div>
+        <p>Before anyone deploys anything for Meridian, we need to decide <em>how the cloud is organised</em>: who owns what, who pays for what, and which rules can't be broken. That's governance, and that's next.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="../index.html"><small>Back to</small><span>Handbook home</span></a>
+        <a class="next" href="02-governance.html"><small>Next module</small><span>02 · Governance →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

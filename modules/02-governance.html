@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Governance in Azure</title>
+<meta name="description" content="Module 02 of the AZ-305 Architect Handbook: management groups, subscriptions, resource groups, tags, Azure Policy vs RBAC, resource locks and landing zones.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part I · Foundations</div>
+    <span class="eyebrow">Module 02</span>
+    <h1>Governance: Organising the Cloud Before You Build</h1>
+    <p class="lead">Anyone can create a VM in five minutes. The hard part is making sure that, two years and two thousand resources later, you still know who owns what, who's paying for it, and which rules nobody is allowed to break. That's governance.</p>
+    <div class="hero-meta">
+      <span class="chip">Management groups</span><span class="chip">Subscriptions</span><span class="chip">Resource groups</span><span class="chip">Tags</span><span class="chip">Azure Policy</span><span class="chip">Locks</span><span class="chip">Landing zones</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why governance comes first</a></li>
+        <li><a href="#mg">Management groups</a></li>
+        <li><a href="#subs">Subscriptions</a></li>
+        <li><a href="#rg">Resource groups</a></li>
+        <li><a href="#tags">Tags and cost visibility</a></li>
+        <li><a href="#policy">Azure Policy</a></li>
+        <li><a href="#policy-rbac">Policy vs RBAC</a></li>
+        <li><a href="#locks">Resource locks</a></li>
+        <li><a href="#lz">Azure landing zones</a></li>
+        <li><a href="#case">Meridian: the governance design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">02.0</span>
+      <h2>The mental map</h2>
+      <p>Everything in Azure governance hangs off <strong>one hierarchy</strong>. If you can draw this picture from memory, you can answer most governance questions in the exam. Settings applied at a higher level <em>flow down</em> to everything below.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1080 440" role="img" aria-labelledby="g0t g0d">
+            <title id="g0t">The Azure governance hierarchy</title>
+            <desc id="g0d">Tenant root group at the top, then management groups, then subscriptions, then resource groups, then resources. Azure Policy and RBAC assignments inherit downward from whichever level they are assigned at.</desc>
+
+            <!-- inheritance arrow -->
+            <path d="M44 40 V410" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <text transform="translate(30 230) rotate(-90)" class="t-m mid t-accent">POLICY + RBAC INHERIT DOWNWARD</text>
+
+            <!-- level labels -->
+            <text x="1070" y="50" class="t-m end">TENANT ROOT</text>
+            <text x="1070" y="140" class="t-m end">MANAGEMENT GROUPS</text>
+            <text x="1070" y="230" class="t-m end">SUBSCRIPTIONS</text>
+            <text x="1070" y="320" class="t-m end">RESOURCE GROUPS</text>
+            <text x="1070" y="404" class="t-m end">RESOURCES</text>
+
+            <!-- connectors -->
+            <path d="M500 68 V90 H200 V110 M500 90 V110 M500 90 H820 V110" class="s-line"/>
+            <path d="M200 158 V200 M500 158 V180 H410 V200 M500 180 H590 V200 M820 158 V200" class="s-line"/>
+            <path d="M410 248 V270 H335 V290 M410 270 H490 V290" class="s-line"/>
+            <path d="M335 338 V360 H255 V380 M335 360 V380 M335 360 H415 V380" class="s-line"/>
+
+            <!-- root -->
+            <rect x="400" y="20" width="200" height="48" rx="10" class="s-blue"/>
+            <text x="500" y="49" class="t-b mid">Tenant root group</text>
+
+            <!-- MGs -->
+            <rect x="110" y="110" width="180" height="48" rx="10" class="s-violet"/>
+            <text x="200" y="139" class="t-b mid">Platform</text>
+            <rect x="410" y="110" width="180" height="48" rx="10" class="s-violet"/>
+            <text x="500" y="139" class="t-b mid">Landing zones</text>
+            <rect x="740" y="110" width="160" height="48" rx="10" class="s-violet"/>
+            <text x="820" y="139" class="t-b mid">Sandbox</text>
+
+            <!-- subs -->
+            <rect x="120" y="200" width="160" height="48" rx="10" class="s-amber"/>
+            <text x="200" y="229" class="t-b mid">Connectivity</text>
+            <rect x="335" y="200" width="150" height="48" rx="10" class="s-amber"/>
+            <text x="410" y="229" class="t-b mid">Online · Prod</text>
+            <rect x="515" y="200" width="150" height="48" rx="10" class="s-amber"/>
+            <text x="590" y="229" class="t-b mid">Stores · Prod</text>
+            <rect x="745" y="200" width="150" height="48" rx="10" class="s-amber"/>
+            <text x="820" y="229" class="t-b mid">Team sandbox</text>
+
+            <!-- RGs -->
+            <rect x="265" y="290" width="140" height="48" rx="10" class="s-teal"/>
+            <text x="335" y="319" class="t-b mid">rg-checkout</text>
+            <rect x="420" y="290" width="140" height="48" rx="10" class="s-teal"/>
+            <text x="490" y="319" class="t-b mid">rg-catalog</text>
+
+            <!-- resources -->
+            <rect x="215" y="380" width="80" height="34" rx="8" class="s-surface"/>
+            <text x="255" y="402" class="t-s mid">Web app</text>
+            <rect x="300" y="380" width="70" height="34" rx="8" class="s-surface"/>
+            <text x="335" y="402" class="t-s mid">SQL DB</text>
+            <rect x="375" y="380" width="80" height="34" rx="8" class="s-surface"/>
+            <text x="415" y="402" class="t-s mid">Key Vault</text>
+
+            <!-- example assignment -->
+            <rect x="600" y="282" width="320" height="92" rx="10" class="s-surface2"/>
+            <text x="616" y="306" class="t-b">Example</text>
+            <text x="616" y="326" class="t-s">"Allowed locations = India" assigned at</text>
+            <text x="616" y="344" class="t-s">Landing zones applies to every subscription,</text>
+            <text x="616" y="362" class="t-s">resource group and resource below it.</text>
+          </svg>
+        </div>
+        <figcaption><b>One tree, four levels of scope.</b> Assign a rule or a permission at the highest level where it is <em>universally true</em>, and let inheritance do the rest.</figcaption>
+      </figure>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Think of a large university. The <strong>university</strong> (tenant root) sets rules for everyone: no smoking, exams are proctored. <strong>Faculties</strong> (management groups) add their own: the chemistry faculty requires lab coats. Each <strong>department</strong> (subscription) gets its own budget. Inside a department, each <strong>lab</strong> (resource group) holds the equipment for one project. The <strong>equipment</strong> (resources) is what people actually use. A rule made at the university level reaches every test tube without anyone repeating it.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 8 quick portal walkthroughs · about 24 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos build a miniature version of Meridian's governance: a small management group tree, one resource group with tags, a policy that blocks a deployment, a lock, and a budget. Everything lives in one resource group so it's easy to clean up.</p>
+          <h4>You'll need</h4>
+          <ul><li>A <b>demo or trial subscription</b> where you are <b>Owner</b>. Never move or lock production subscriptions in class.</li><li>Permission to create management groups in the tenant (by default any user can, unless hierarchy settings restrict it).</li><li>Naming used below: resource group <code>rg-az305-m02-demo</code>, region <b>Central India</b>, storage account <code>staz305m02</code> plus your initials.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li><b>Before class or at the start of the module</b>, assign the “Allowed locations” policy (policy demo, steps 1–4). New assignments can take several minutes, sometimes up to about 30, to start enforcing.</li><li>Run the rest in page order: management groups, subscription tour, resource group and tags, then show the policy blocking a deployment.</li><li>Do the lock demo last, because you must remove the lock before you can clean up.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m02-mg">Build a mini management group hierarchy</a><span>~4m</span></li><li><a href="#demo-m02-subs">Tour a subscription's three boundaries</a><span>~2m</span></li><li><a href="#demo-m02-rg">Create a resource group the architect's way</a><span>~3m</span></li><li><a href="#demo-m02-tags">Prove tags don't inherit, then use them for cost</a><span>~3m</span></li><li><a href="#demo-m02-policy">Assign “Allowed locations” and watch it block a deployment</a><span>~6m</span></li><li><a href="#demo-m02-policy-rbac">Check access vs check compliance</a><span>~2m</span></li><li><a href="#demo-m02-locks">Lock it, try to delete it</a><span>~2m</span></li><li><a href="#demo-m02-lz">Peek inside the landing zone accelerator</a><span>~2m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Remove the lock, then delete <code>rg-az305-m02-demo</code>.</li><li><span class="ui">Policy</span> › <span class="ui">Assignments</span>: delete “Demo – India only”.</li><li>Move the demo subscription back to its original management group, then delete the child management groups and finally the demo parent (they must be empty).</li><li>Delete the demo budget if you created it at subscription scope.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">02.1</span>
+      <h2>Why governance comes first</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Cloud governance is the set of structures, rules and controls an organisation uses to make sure its cloud resources stay compliant, secure, cost-controlled and accountable as they grow.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Governance answers four boring but critical questions for every resource: <strong>Who owns it? Who pays for it? Who can touch it? What rules must it follow?</strong> If you can't answer those, you don't have a cloud, you have a mess with a monthly invoice.</p>
+      </div>
+
+      <p>I often compare good governance to the <strong>guardrails on a mountain highway</strong>. Guardrails don't slow you down. In fact, they're the reason you dare to drive fast. Bad governance is a toll booth every 200 metres: so annoying that people find a dirt road around it. As an architect, you're designing guardrails, not toll booths.</p>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Governance is the thing that blocks my deployment at 6 p.m. on a Friday."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Governance is how 40 teams can deploy on their own <em>without</em> a central team approving every change, because the rules are built into the platform."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Governance is a one-way door (Module 01). Restructuring a hierarchy with 300 subscriptions and live workloads is painful. Spend the time up front.</p>
+      </div>
+    </section>
+
+    <!-- ======================= MG ======================= -->
+    <section id="mg">
+      <span class="sec-num">02.2</span>
+      <h2>Management groups</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg></span>
+        <h3>Containers for subscriptions</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>A management group is a container that organises subscriptions (and other management groups) into a hierarchy, so that Azure Policy and role assignments can be applied once and inherited by everything beneath it.</p>
+      </div>
+
+      <div class="www">
+        <div><b>What</b>Folders for subscriptions. Every tenant has one <em>tenant root group</em> at the top.</div>
+        <div><b>Why</b>Apply rules and access to many subscriptions at once, consistently.</div>
+        <div><b>When</b>As soon as you have more than a handful of subscriptions, or know you will.</div>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Up to <strong>10,000 management groups</strong> in a single directory.</li>
+        <li>Up to <strong>six levels of depth</strong>, not counting the root level or the subscription level.</li>
+        <li>Each management group and subscription has <strong>exactly one parent</strong>. No shared children.</li>
+        <li>The <strong>tenant root group</strong> can't be moved or deleted. By default nobody has access to it; a Global Administrator can elevate their own access to manage it.</li>
+        <li>New subscriptions land in the root group by default, unless you change the default management group, which you should.</li>
+      </ul>
+
+      <h4>How to design the hierarchy</h4>
+      <p>The single most common mistake I see: copying the <strong>org chart</strong> into management groups. Org charts change every reorganisation; your hierarchy shouldn't have to.</p>
+      <div class="lens">
+        <div>
+          <h5>Tempting but fragile</h5>
+          <ul>
+            <li>One MG per department head</li>
+            <li>Separate trees for Dev, Test and Prod at the top</li>
+            <li>Six levels deep "for flexibility"</li>
+          </ul>
+        </div>
+        <div>
+          <h5>Architect's approach</h5>
+          <ul>
+            <li>Group by <strong>what rules and access they need</strong> (e.g. internet-facing vs internal, regulated vs not)</li>
+            <li>Keep it <strong>shallow</strong>: three or four levels is plenty</li>
+            <li>Handle environments at the <strong>subscription</strong> level, not the MG level</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Apply a policy to <strong>all current and future subscriptions</strong>" or "to subscriptions across several departments" → assign at a <strong>management group</strong>. If a single subscription is mentioned, the subscription scope is usually enough.</p>
+      </div>
+      <details class="demo" id="demo-m02-mg">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Build a mini management group hierarchy</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the tree from the mental map being created for real, and where inheritance comes from.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Management groups</span>. You'll see the <span class="ui">Tenant Root Group</span>. In a brand-new tenant you may first need to click <b>Start using management groups</b>.</li>
+            <li><span class="ui">+ Create</span> › ID <code>mg-az305-meridian</code>, display name <b>Meridian (Demo)</b> › <span class="ui">Submit</span>.</li>
+            <li>Open <b>Meridian (Demo)</b> and create two children the same way: <b>Platform (Demo)</b> and <b>Landing zones (Demo)</b>.</li>
+            <li>Back in the tree, find your <b>demo</b> subscription, open its <span class="ui">…</span> menu, choose <span class="ui">Move</span> and pick <b>Landing zones (Demo)</b>.</li>
+            <li>Open a management group and show its left menu: <span class="ui">Policies</span> and <span class="ui">Access control (IAM)</span> exist here too. Rules and roles can be assigned at this level.</li>
+            <li>Open the Tenant Root Group › <span class="ui">Settings</span>: show the <b>default management group</b> for new subscriptions and the option to require permissions before people can create management groups.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The management group <b>ID can't be changed</b> later, only the display name. Name it properly.</li><li>Moving a subscription instantly changes the policies and roles it inherits. That's why moves are change-controlled in real companies.</li></ul>
+          <p class="demo-say"><b>Say:</b> “One assignment at this level reaches every subscription below it, including ones that don't exist yet.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Move the subscription back, then delete the child groups before the parent.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SUBS ======================= -->
+    <section id="subs">
+      <span class="sec-num">02.3</span>
+      <h2>Subscriptions</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>
+        <h3>The unit of billing, scale and isolation</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>An Azure subscription is a logical container that is linked to a billing account and an Entra ID tenant. It is a boundary for billing, for service quotas and limits, and for access and policy management.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A subscription is a bank account for cloud spending. Each one gets its own bill, its own limits (how many cores, how many public IPs…) and its own set of people with keys.</p>
+      </div>
+
+      <p>A subscription gives you three kinds of boundary. An architect uses all three when deciding "do we need another subscription?":</p>
+      <div class="terms">
+        <div class="term"><b>Billing boundary</b><span>Cost shows up per subscription naturally. Easiest way to charge a business unit back.</span></div>
+        <div class="term"><b>Scale boundary</b><span>Quotas (vCPUs per region, number of resource groups and so on) are per subscription. Big workloads can hit them.</span></div>
+        <div class="term"><b>Security boundary</b><span>Owners of one subscription have no rights in another by default. Great for isolating production from experiments.</span></div>
+      </div>
+
+      <h4>When to create a new subscription</h4>
+      <ul>
+        <li>A workload has a <strong>different compliance need</strong> (e.g. PCI card processing) and should be isolated.</li>
+        <li>A business unit needs a <strong>separate bill</strong> or budget.</li>
+        <li>You need to separate <strong>production from non-production</strong> so a dev mistake can't touch prod.</li>
+        <li>A workload is large enough to <strong>hit subscription limits</strong>.</li>
+      </ul>
+      <p>Mature organisations treat subscriptions as cheap and disposable, and hand them out through an automated <strong>subscription vending</strong> process: a team asks, a pipeline creates the subscription in the right management group with the right policies, network and budget already applied.</p>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>"One giant subscription for everything" feels simple in month one. By month twelve it has 3,000 resources, 90 people with Contributor, and a bill no one can explain. Subscriptions are free; confusion isn't.</p>
+      </div>
+      <details class="demo" id="demo-m02-subs">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Tour a subscription's three boundaries</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Map billing, scale and security boundaries to real blades.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Subscriptions</span> and open your demo subscription.</li>
+            <li><b>Billing boundary:</b> <span class="ui">Cost Management</span> › <span class="ui">Cost analysis</span>: this month's cost, grouped by service.</li>
+            <li><b>Scale boundary:</b> <span class="ui">Settings</span> › <span class="ui">Usage + quotas</span>: filter by a region and show vCPU limits. These quotas are per subscription.</li>
+            <li><b>Security boundary:</b> <span class="ui">Access control (IAM)</span> › <span class="ui">Role assignments</span>: who holds the keys to this “bank account”.</li>
+            <li>Back on <span class="ui">Subscriptions</span>, show <span class="ui">+ Add</span>: creating a subscription needs a billing account or an agreement. <b>Don't complete it</b>; just show where vending starts.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Same three questions every time: who pays, how big can it get, and who has the keys.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= RG ======================= -->
+    <section id="rg">
+      <span class="sec-num">02.4</span>
+      <h2>Resource groups</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+        <h3>Things that live and die together</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>A resource group is a container that holds related resources for an Azure solution. Every resource belongs to exactly one resource group, and resource groups cannot be nested.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A resource group is a <strong>tiffin box</strong>. Everything for one meal goes in one box. You carry it together, you wash it together, and when lunch is over, you empty the whole box. You don't keep tomorrow's lunch in today's box.</p>
+      </div>
+
+      <h4>The golden rule: group by lifecycle</h4>
+      <p>Put resources in the same resource group when they are <strong>deployed, updated and deleted together</strong>. Deleting a resource group deletes everything inside it, so this is both a convenience and a danger.</p>
+
+      <div class="two-col">
+        <div>
+          <h4>Good grouping</h4>
+          <p><code>rg-checkout-prod</code>: the checkout web app, its database and its Key Vault. They ship together.</p>
+          <p><code>rg-network-hub</code>: shared network that lives for years, owned by another team.</p>
+        </div>
+        <div>
+          <h4>Poor grouping</h4>
+          <p><code>rg-all-databases</code>: databases from five apps with five lifecycles and five owners. One "cleanup" could wipe out all five.</p>
+        </div>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>A resource group has a <strong>location</strong>, but that is only where its <em>metadata</em> is stored. Resources inside it can be in other regions.</li>
+        <li>Many resource types can be <strong>moved</strong> between resource groups and subscriptions; not all can, so check before you promise.</li>
+        <li>Resource groups are a natural scope for <strong>RBAC</strong>: "the checkout team is Contributor on <code>rg-checkout-prod</code>".</li>
+      </ul>
+      <details class="demo" id="demo-m02-rg">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a resource group the architect's way</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Create the demo resource group with tags from day one, and prove that the group's region is only metadata.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Resource groups</span> › <span class="ui">+ Create</span>. Subscription: demo. Name: <code>rg-az305-m02-demo</code>. Region: <b>Central India</b>.</li>
+            <li>Open the <span class="ui">Tags</span> tab and add <code>Owner</code> = your email, <code>CostCenter</code> = <code>CC-DEMO</code>, <code>Environment</code> = <code>demo</code>. Then <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Inside the new group: <span class="ui">+ Create</span> › <span class="ui">Storage account</span>. Name <code>staz305m02</code> plus your initials, region <b>South India</b> (a different region from the group), redundancy <b>LRS</b> › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the resource group: a South India resource is sitting happily in a Central India group.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The group's region is only where its <b>metadata</b> lives.</li><li>Deleting the group deletes everything in it. That's the tiffin-box rule: group by lifecycle.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Tags on day one cost nothing. Tags added after a year of growth cost a project.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= TAGS ======================= -->
+    <section id="tags">
+      <span class="sec-num">02.5</span>
+      <h2>Tags and cost visibility</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></span>
+        <h3>Labels that make the bill readable</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Tags are name/value pairs applied to resources, resource groups and subscriptions to add business metadata such as cost centre, owner or environment.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>The hierarchy can only organise things one way. Tags let you slice the same resources many ways: by owner, by cost centre, by data sensitivity, by project. They're the price stickers and name labels of the cloud.</p>
+      </div>
+
+      <h4>A starter tag taxonomy</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Tag name</th><th>Example value</th><th>Answers the question</th></tr></thead>
+          <tbody>
+            <tr><td><code>CostCenter</code></td><td>CC-4021</td><td>Who pays?</td></tr>
+            <tr><td><code>BusinessUnit</code></td><td>Online</td><td>Which part of the company?</td></tr>
+            <tr><td><code>Owner</code></td><td>checkout-team@…</td><td>Who do we call when it breaks or costs too much?</td></tr>
+            <tr><td><code>Environment</code></td><td>prod / dev / test</td><td>How careful must we be?</td></tr>
+            <tr><td><code>Application</code></td><td>checkout</td><td>Which workload does it belong to?</td></tr>
+            <tr><td><code>DataClassification</code></td><td>confidential</td><td>How sensitive is what it holds?</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Up to <strong>50 tag pairs</strong> per resource, resource group or subscription.</li>
+        <li>Tags are <strong>not inherited</strong> by default. A tag on a resource group does <em>not</em> automatically appear on its resources.</li>
+        <li>To enforce or inherit tags, use <strong>Azure Policy</strong> (e.g. <em>"Require a tag on resource groups"</em> with Deny, and <em>"Inherit a tag from the resource group if missing"</em> with Modify).</li>
+        <li><strong>Cost Management</strong> can also apply tag inheritance to cost data, and lets you set <strong>budgets</strong> with alerts per subscription or resource group.</li>
+        <li>Tags are plain text, readable by anyone with read access. <strong>Never put secrets in tags.</strong></li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Generate a cost report <strong>by department / cost centre</strong>" across resources in several resource groups → <strong>tags</strong> plus Cost Management. "Ensure every new resource <strong>has</strong> a CostCenter tag" → <strong>Azure Policy</strong>. The tag is the label, Policy is how you make sure it's there.</p>
+      </div>
+      <details class="demo" id="demo-m02-tags">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Prove tags don't inherit, then use them for cost</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the inheritance gap, and how tags and budgets turn into cost visibility.</p>
+          <ol class="demo-steps">
+            <li>Open the storage account › <span class="ui">Tags</span>. It has <b>no tags</b>, even though its resource group has three. Tags are not inherited.</li>
+            <li>Add <code>CostCenter</code> = <code>CC-DEMO</code> manually › <span class="ui">Apply</span>. Ask: “Will anyone remember to do this for 3,000 resources?” Policy will fix it in the next demo.</li>
+            <li>Subscription › <span class="ui">Cost Management</span> › <span class="ui">Cost analysis</span> › <span class="ui">Group by</span> › <b>Tag</b> › <code>CostCenter</code>. New resources can take up to a day to show cost, so use existing data if you have some.</li>
+            <li><span class="ui">Cost Management</span> › <span class="ui">Budgets</span> › <span class="ui">+ Add</span>: scope the resource group, monthly, a small amount (for example ₹1,000), and an alert at 80% to your email › <span class="ui">Create</span>.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Tags are plain text that anyone with read access can see. <b>Never put secrets in tags.</b></li><li>Budgets <b>alert</b>; they don't stop spending. Spending limits are an architecture and governance conversation, not a checkbox.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Labels are free. Untagged spend is a monthly mystery.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= POLICY ======================= -->
+    <section id="policy">
+      <span class="sec-num">02.6</span>
+      <h2>Azure Policy</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>
+        <h3>Rules that the platform enforces for you</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Policy evaluates Azure resources against business rules, defined in JSON, and can audit, block, modify or automatically deploy configurations so that resources stay compliant with organisational standards.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Policy is a rulebook that Azure itself reads before saying "yes" to a deployment, and keeps re-reading afterwards. "Only in India regions." "No public IPs on databases." "Every resource group must have an Owner tag." You write the rule once; the platform does the policing forever.</p>
+      </div>
+
+      <h3>The building blocks</h3>
+      <div class="terms">
+        <div class="term"><b>Policy definition</b><span>One rule: a condition ("if storage account allows public access") and an effect ("then deny").</span></div>
+        <div class="term"><b>Initiative</b><span>A named bundle of definitions with a shared goal, e.g. "PCI DSS v4" or "Microsoft cloud security benchmark".</span></div>
+        <div class="term"><b>Assignment</b><span>Attaching a definition or initiative to a <em>scope</em>: management group, subscription, resource group or resource.</span></div>
+        <div class="term"><b>Exclusion / exemption</b><span>Carving out a child scope from an assignment, or a time-bound, documented waiver for a specific resource.</span></div>
+        <div class="term"><b>Remediation task</b><span>Fixes <em>existing</em> non-compliant resources for Modify and DeployIfNotExists effects, using a managed identity.</span></div>
+        <div class="term"><b>Compliance view</b><span>A dashboard of what is and isn't compliant, at every scope, refreshed automatically.</span></div>
+      </div>
+
+      <h3>Policy effects: what happens when a rule matches</h3>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Effect</th><th>What it does</th><th>Use it when…</th></tr></thead>
+          <tbody>
+            <tr><td>Deny</td><td>Blocks the create or update request.</td><td>The rule is non-negotiable: allowed regions, banned SKUs, no public endpoints.</td></tr>
+            <tr><td>Audit</td><td>Allows it, but marks the resource non-compliant.</td><td>You want visibility first, or you're testing a rule before switching to Deny.</td></tr>
+            <tr><td>AuditIfNotExists</td><td>Flags a resource when a related resource is missing.</td><td>"VMs without the monitoring agent extension."</td></tr>
+            <tr><td>DeployIfNotExists</td><td>Deploys the missing related resource automatically.</td><td>"Every new SQL server gets diagnostic settings sending logs to Log Analytics."</td></tr>
+            <tr><td>Modify</td><td>Adds, updates or removes tags or properties during create/update.</td><td>Inheriting tags, enforcing a property without blocking anyone.</td></tr>
+            <tr><td>Append</td><td>Adds fields to the request (older effect, Modify is usually preferred).</td><td>Adding a specific IP rule to storage firewall settings.</td></tr>
+            <tr><td>DenyAction</td><td>Blocks a specific action, such as delete, on matching resources.</td><td>Protecting critical resources from deletion at scale.</td></tr>
+            <tr><td>Disabled</td><td>Switches the rule off without removing the assignment.</td><td>Temporarily pausing a rule, or parameterising it per scope.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Where Policy sits in a deployment</h3>
+      <p>Every create, update or delete in Azure goes through <strong>Azure Resource Manager (ARM)</strong>. That's what makes Policy so powerful: it doesn't matter if you used the portal, CLI, Bicep, Terraform or a pipeline. Everyone passes the same checkpoint.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="pft pfd">
+            <title id="pft">How a request flows through Azure Resource Manager</title>
+            <desc id="pfd">A request from portal, CLI or pipeline goes to Azure Resource Manager. It is first authenticated by Entra ID, then authorised by RBAC, then evaluated by Azure Policy, then handed to the resource provider which creates the resource. RBAC failures return authorization failed; policy denials return request disallowed by policy. After creation, audit and deploy-if-not-exists effects run.</desc>
+
+            <rect x="10" y="50" width="140" height="70" rx="10" class="s-surface"/>
+            <text x="80" y="80" class="t-b mid">Request</text>
+            <text x="80" y="100" class="t-s mid">portal · CLI · IaC</text>
+
+            <rect x="180" y="50" width="150" height="70" rx="10" class="s-blue"/>
+            <text x="255" y="80" class="t-b mid">Resource Manager</text>
+            <text x="255" y="100" class="t-s mid">authenticate (Entra ID)</text>
+
+            <rect x="360" y="50" width="150" height="70" rx="10" class="s-teal"/>
+            <text x="435" y="80" class="t-b mid">RBAC</text>
+            <text x="435" y="100" class="t-s mid">may <tspan font-style="italic">you</tspan> do this?</text>
+
+            <rect x="540" y="50" width="150" height="70" rx="10" class="s-violet"/>
+            <text x="615" y="80" class="t-b mid">Azure Policy</text>
+            <text x="615" y="100" class="t-s mid">is <tspan font-style="italic">this</tspan> allowed?</text>
+
+            <rect x="720" y="50" width="130" height="70" rx="10" class="s-surface"/>
+            <text x="785" y="80" class="t-b mid">Resource</text>
+            <text x="785" y="100" class="t-s mid">provider</text>
+
+            <rect x="878" y="50" width="112" height="70" rx="10" class="s-green"/>
+            <text x="934" y="90" class="t-b mid">Created</text>
+
+            <path d="M150 85 H174" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M330 85 H354" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M510 85 H534" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M690 85 H714" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M850 85 H872" class="s-arrow" marker-end="url(#ah)"/>
+
+            <!-- fail branches -->
+            <path d="M435 120 V176" class="s-dash" marker-end="url(#ah)"/>
+            <rect x="360" y="182" width="150" height="52" rx="10" class="s-rose"/>
+            <text x="435" y="205" class="t-b mid">Denied</text>
+            <text x="435" y="223" class="t-s mid">AuthorizationFailed</text>
+
+            <path d="M615 120 V176" class="s-dash" marker-end="url(#ah)"/>
+            <rect x="525" y="182" width="180" height="52" rx="10" class="s-rose"/>
+            <text x="615" y="205" class="t-b mid">Denied</text>
+            <text x="615" y="223" class="t-s mid">RequestDisallowedByPolicy</text>
+
+            <!-- after -->
+            <path d="M934 120 V176" class="s-dash" marker-end="url(#ah)"/>
+            <rect x="760" y="182" width="230" height="70" rx="10" class="s-surface2"/>
+            <text x="875" y="206" class="t-b mid">Afterwards</text>
+            <text x="875" y="225" class="t-s mid">Audit · AuditIfNotExists ·</text>
+            <text x="875" y="242" class="t-s mid">DeployIfNotExists run</text>
+
+            <text x="10" y="284" class="t-s">Deny and Modify act <tspan font-weight="600">before</tspan> creation; the "if not exists" effects act <tspan font-weight="600">after</tspan>. Existing resources are re-evaluated on a regular compliance scan.</text>
+          </svg>
+        </div>
+        <figcaption><b>Two gates, two different questions.</b> RBAC checks the <em>person</em>. Policy checks the <em>resource</em>. Both must say yes.</figcaption>
+      </figure>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Assigning a new <strong>Deny</strong> policy does <em>not</em> delete or fix resources that already break the rule. They simply show up as non-compliant. To fix existing resources, you need Modify or DeployIfNotExists with a <strong>remediation task</strong>, or a manual clean-up.</p>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Good practice: roll out like a feature</div>
+        <p>Start a new rule as <strong>Audit</strong> at a broad scope, look at the compliance report, talk to the affected teams, then switch to <strong>Deny</strong>. Policy-as-code in a Git repo, deployed through a pipeline, makes every rule reviewable and reversible.</p>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">What about Azure Blueprints?</div>
+        <p>Older material uses <strong>Azure Blueprints</strong> to package role assignments, policies and templates together. Blueprints has been deprecated, with retirement scheduled for July 2026. The modern replacement is <strong>Template Specs</strong> and <strong>Deployment Stacks</strong> for the infrastructure, plus <strong>Azure Policy</strong> for the rules. If an exam question offers both, prefer the modern combination unless the wording clearly points to Blueprints.</p>
+      </div>
+      <details class="demo" id="demo-m02-policy">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Assign “Allowed locations” and watch it block a deployment</span><span class="demo-time">~6 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Let learners see Policy refuse a deployment from an <b>Owner</b>, which makes “Policy is about the resource, not the person” land.</p>
+          <p class="demo-note"><b>Before you start:</b> Do steps 1–4 at the start of the module or before a break. A new assignment can take several minutes, sometimes up to about 30, to start enforcing.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Policy</span> › <span class="ui">Authoring</span> › <span class="ui">Definitions</span> › search <b>Allowed locations</b> and open it. Show the JSON briefly: <i>if</i> location is not in the list, <i>then</i> deny.</li>
+            <li><span class="ui">Assign policy</span> › <span class="ui">Basics</span>: Scope = demo subscription › <code>rg-az305-m02-demo</code>. Assignment name: <b>Demo – India only</b>.</li>
+            <li><span class="ui">Parameters</span>: untick <i>Only show parameters that need input</i> if the list is hidden, then choose <b>Central India</b> and <b>South India</b>.</li>
+            <li><span class="ui">Non-compliance messages</span>: “Meridian: only India regions are allowed.” › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Later, in the resource group: <span class="ui">+ Create</span> › <span class="ui">Storage account</span>, region <b>East US</b> › <span class="ui">Review + create</span>. Validation fails, the request is <b>disallowed by policy</b>, and your custom message appears.</li>
+            <li><span class="ui">Policy</span> › <span class="ui">Compliance</span>: find your assignment and show compliant and non-compliant resources (the first scan can lag).</li>
+            <li>Bonus: <span class="ui">Definitions</span> › filter <b>Type: Initiative</b>, category <b>Regulatory Compliance</b> › open a PCI DSS initiative. This is how Meridian's PCI management group gets hundreds of rules in one assignment.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>You are Owner, and you were still blocked. RBAC said yes; Policy said no.</li><li>Existing resources aren't deleted by a Deny policy. They're only reported as non-compliant.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Write the rule once, and the platform enforces it for every portal click, CLI command and pipeline, forever.”</p>
+          <p class="demo-clean"><b>Clean up:</b> <span class="ui">Policy</span> › <span class="ui">Assignments</span> › delete <b>Demo – India only</b>.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= POLICY vs RBAC ======================= -->
+    <section id="policy-rbac">
+      <span class="sec-num">02.7</span>
+      <h2>Azure Policy vs RBAC</h2>
+      <p>This is one of the most-tested distinctions in the whole exam, and the one people confuse most. So let's slow down.</p>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>You walk into an office building. Your <strong>ID card</strong> decides which floors you can enter: that's <strong>RBAC</strong>. It's about <em>you</em>. The <strong>building's fire code</strong> says no room may hold more than 40 people and fire exits can never be blocked, <em>no matter who you are</em>, even the CEO. That's <strong>Policy</strong>. It's about the <em>thing</em>.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 250" role="img" aria-labelledby="prt prd">
+            <title id="prt">RBAC and Policy evaluate the same request differently</title>
+            <desc id="prd">Priya, a Contributor, tries to create a large M-series VM in East US. RBAC allows it because Contributors can create VMs. Policy denies it because only India regions and approved sizes are allowed.</desc>
+
+            <rect x="10" y="80" width="190" height="90" rx="12" class="s-surface"/>
+            <text x="105" y="110" class="t-b mid">Priya (Contributor)</text>
+            <text x="105" y="132" class="t-s mid">creates a VM:</text>
+            <text x="105" y="150" class="t-s mid">M128 · East US</text>
+
+            <path d="M200 125 H262" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="268" y="40" width="270" height="170" rx="12" class="s-teal"/>
+            <text x="403" y="70" class="t-m mid t-teal">GATE 1 · RBAC</text>
+            <text x="403" y="100" class="t-b mid">"Is Priya allowed to</text>
+            <text x="403" y="120" class="t-b mid">create VMs here?"</text>
+            <text x="403" y="158" class="t-h mid t-green">Yes ✓</text>
+            <text x="403" y="184" class="t-s mid">Contributor includes VM write</text>
+
+            <path d="M538 125 H600" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="606" y="40" width="284" height="170" rx="12" class="s-violet"/>
+            <text x="748" y="70" class="t-m mid t-violet">GATE 2 · POLICY</text>
+            <text x="748" y="100" class="t-b mid">"Is an M128 VM in East US</text>
+            <text x="748" y="120" class="t-b mid">allowed at this scope?"</text>
+            <text x="748" y="158" class="t-h mid t-rose">No ✗</text>
+            <text x="748" y="184" class="t-s mid">Allowed locations: India only</text>
+          </svg>
+        </div>
+        <figcaption><b>Being allowed to act isn't the same as the action being allowed.</b> Even an Owner is blocked by a Deny policy.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Azure RBAC</th><th>Azure Policy</th></tr></thead>
+          <tbody>
+            <tr><td>Focus</td><td><strong>Who</strong> can perform <strong>which actions</strong></td><td><strong>What state</strong> resources must be in</td></tr>
+            <tr><td>Question</td><td>"Can this user/app delete VMs in this RG?"</td><td>"Are VMs here allowed to be this size, in this region, without a tag?"</td></tr>
+            <tr><td>Default</td><td>Deny: no access until a role is granted</td><td>Allow: everything permitted until a rule says otherwise</td></tr>
+            <tr><td>Applies to</td><td>Users, groups, service principals, managed identities</td><td>Resources and their properties, regardless of who deploys</td></tr>
+            <tr><td>Scope</td><td>MG, subscription, RG, resource</td><td>MG, subscription, RG, resource</td></tr>
+            <tr><td>Typical exam phrase</td><td>"least privilege", "allow the team to manage…"</td><td>"ensure", "prevent", "enforce", "audit compliance"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>We'll go much deeper into RBAC (roles, scopes, custom roles, Privileged Identity Management) in <a href="03-identity.html#rbac">Module 03</a>, because RBAC is fundamentally an <em>identity</em> decision.</p>
+      <details class="demo" id="demo-m02-policy-rbac">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Check access vs check compliance</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Put the two gates side by side in the portal.</p>
+          <ol class="demo-steps">
+            <li>Resource group › <span class="ui">Access control (IAM)</span> › <span class="ui">Check access</span> › <span class="ui">View my access</span>: you are Owner. Gate 1 (RBAC) says yes.</li>
+            <li>Recall the blocked storage account from the previous demo. Gate 2 (Policy) said no.</li>
+            <li><span class="ui">Roles</span> tab › search <b>Contributor</b> › open it and view <span class="ui">Permissions</span> or <span class="ui">JSON</span>: <code>Actions: *</code> but <code>NotActions</code> include <code>Microsoft.Authorization/*/Write</code>. Contributor can build anything but can't grant access.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “IAM answers ‘who may act’. Policy answers ‘what is allowed to exist’. You need both.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= LOCKS ======================= -->
+    <section id="locks">
+      <span class="sec-num">02.8</span>
+      <h2>Resource locks</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>A resource lock prevents users from accidentally deleting or modifying a resource, resource group or subscription, overriding any permissions they have. The two lock levels are <strong>CanNotDelete</strong> and <strong>ReadOnly</strong>.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A lock is the plastic cover over the big red emergency button. It doesn't stop the right person pressing it on purpose (they lift the cover first). It stops someone leaning on it by accident.</p>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <h4>CanNotDelete</h4>
+          <p>Users can read and modify, but not delete. Perfect for the production hub network, the central Log Analytics workspace or the Key Vault holding your certificates.</p>
+        </div>
+        <div>
+          <h4>ReadOnly</h4>
+          <p>Users can read but not modify or delete. Use sparingly: it can break things you don't expect, because some "read" operations are technically writes.</p>
+        </div>
+      </div>
+
+      <ul>
+        <li>Locks are <strong>inherited</strong>: a lock on a resource group protects every resource in it.</li>
+        <li>Locks apply even to <strong>Owners</strong>. To delete, someone with permission to manage locks must remove the lock first, which is the point.</li>
+        <li>Locks protect the <strong>management plane</strong> (the resource itself), not the data inside. A lock on a storage account doesn't stop someone deleting blobs.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>A <strong>ReadOnly</strong> lock on a storage account blocks listing its access keys (that's a POST operation), so apps and portal views that rely on keys break. A ReadOnly lock on a resource group with an App Service can stop scaling and deployments. Prefer CanNotDelete unless you truly mean "frozen".</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Prevent <strong>accidental deletion</strong>" → CanNotDelete lock. "Prevent <strong>anyone</strong> from creating resources of type X" → Policy, not a lock. "Prevent a <strong>specific team</strong> from deleting" → RBAC (give them a role without delete rights).</p>
+      </div>
+      <details class="demo" id="demo-m02-locks">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Lock it, try to delete it</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that a lock beats even Owner permissions, and that locks inherit.</p>
+          <ol class="demo-steps">
+            <li>Resource group › <span class="ui">Settings</span> › <span class="ui">Locks</span> › <span class="ui">+ Add</span>: name <code>do-not-delete</code>, lock type <span class="ui">Delete</span> › <span class="ui">OK</span>. (The portal says <b>Delete</b> and <b>Read-only</b>; the exam says <b>CanNotDelete</b> and <b>ReadOnly</b>.)</li>
+            <li><span class="ui">Overview</span> › <span class="ui">Delete resource group</span> › type the name › <span class="ui">Delete</span>. It fails because the group is locked.</li>
+            <li>Open the storage account › <span class="ui">Locks</span>: the lock shows as inherited from the parent.</li>
+            <li>Back on the resource group › <span class="ui">Locks</span>: delete the lock (you'll need it gone for clean-up).</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Locks protect the <b>resource</b> (management plane), not the <b>data</b>. A delete lock on a storage account doesn't stop someone deleting blobs.</li></ul>
+          <p class="demo-say"><b>Say:</b> “It's the plastic cover over the red button: it doesn't stop you pressing it on purpose, it stops you pressing it by accident.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= LANDING ZONES ======================= -->
+    <section id="lz">
+      <span class="sec-num">02.9</span>
+      <h2>Azure landing zones</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20V10l7-5 7 5v10"/><path d="M9 20v-6h6v6"/></svg></span>
+        <h3>Everything above, packaged as a ready foundation</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>An Azure landing zone is a pre-configured, scalable environment, built from management groups, subscriptions, policies, identity, networking and monitoring, into which workloads can be deployed securely and consistently. It is part of the Cloud Adoption Framework's "Ready" phase.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A landing zone is a <strong>plot in a well-planned township</strong>. Before anyone builds a house, the developer has already laid the roads, water, electricity, drainage, a security gate and the society rules. A family (workload team) only has to build their house. Nobody has to dig their own well or run their own power line.</p>
+      </div>
+
+      <h3>Two kinds of landing zone</h3>
+      <div class="two-col">
+        <div>
+          <h4>Platform landing zones</h4>
+          <p>Shared services owned by a central platform team: <strong>Identity</strong> (e.g. domain controllers), <strong>Management</strong> (central Log Analytics, automation) and <strong>Connectivity</strong> (hub network, firewall, ExpressRoute/VPN, DNS).</p>
+        </div>
+        <div>
+          <h4>Application landing zones</h4>
+          <p>Subscriptions handed to workload teams, pre-wired to the platform. Often split into <strong>Corp</strong> (internal, connected to on-premises) and <strong>Online</strong> (internet-facing).</p>
+        </div>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1100 400" role="img" aria-labelledby="lzt lzd">
+            <title id="lzt">Reference Azure landing zone management group hierarchy</title>
+            <desc id="lzd">Tenant root group, then an intermediate company management group. Under it: Platform with Identity, Management and Connectivity; Landing zones with Corp and Online; Sandbox; and Decommissioned. Platform is owned by the platform team; landing zones by workload teams.</desc>
+
+            <!-- bands -->
+            <rect x="10" y="250" width="490" height="120" rx="14" class="s-surface2"/>
+            <text x="255" y="358" class="t-m mid">PLATFORM TEAM OWNS</text>
+            <rect x="510" y="250" width="330" height="120" rx="14" class="s-surface2"/>
+            <text x="675" y="358" class="t-m mid">WORKLOAD TEAMS OWN</text>
+
+            <!-- connectors -->
+            <path d="M550 60 V90" class="s-line"/>
+            <path d="M550 130 V150 H255 V170 M550 150 H675 V170 M550 150 H855 V170 M855 150 H1010 V170" class="s-line"/>
+            <path d="M255 216 V238 H95 V262 M255 238 V262 M255 238 H415 V262" class="s-line"/>
+            <path d="M675 216 V238 H595 V262 M675 238 H755 V262" class="s-line"/>
+
+            <rect x="450" y="20" width="200" height="40" rx="10" class="s-blue"/>
+            <text x="550" y="45" class="t-b mid">Tenant root group</text>
+            <rect x="450" y="90" width="200" height="40" rx="10" class="s-blue"/>
+            <text x="550" y="115" class="t-b mid">Meridian</text>
+
+            <rect x="175" y="170" width="160" height="46" rx="10" class="s-violet"/>
+            <text x="255" y="198" class="t-b mid">Platform</text>
+            <rect x="595" y="170" width="160" height="46" rx="10" class="s-violet"/>
+            <text x="675" y="198" class="t-b mid">Landing zones</text>
+            <rect x="790" y="170" width="130" height="60" rx="10" class="s-surface"/>
+            <text x="855" y="194" class="t-b mid">Sandbox</text>
+            <text x="855" y="214" class="t-s mid">experiments only</text>
+            <rect x="940" y="170" width="140" height="60" rx="10" class="s-surface"/>
+            <text x="1010" y="194" class="t-b mid">Decommissioned</text>
+            <text x="1010" y="214" class="t-s mid">parked, then deleted</text>
+
+            <rect x="20" y="262" width="150" height="70" rx="10" class="s-amber"/>
+            <text x="95" y="288" class="t-b mid">Identity</text>
+            <text x="95" y="306" class="t-s mid">DCs, identity sync</text>
+            <rect x="180" y="262" width="150" height="70" rx="10" class="s-amber"/>
+            <text x="255" y="288" class="t-b mid">Management</text>
+            <text x="255" y="306" class="t-s mid">Log Analytics,</text>
+            <text x="255" y="322" class="t-s mid">automation</text>
+            <rect x="340" y="262" width="150" height="70" rx="10" class="s-amber"/>
+            <text x="415" y="288" class="t-b mid">Connectivity</text>
+            <text x="415" y="306" class="t-s mid">hub VNet, firewall,</text>
+            <text x="415" y="322" class="t-s mid">ExpressRoute, DNS</text>
+
+            <rect x="520" y="262" width="150" height="70" rx="10" class="s-teal"/>
+            <text x="595" y="288" class="t-b mid">Corp</text>
+            <text x="595" y="306" class="t-s mid">internal apps,</text>
+            <text x="595" y="322" class="t-s mid">on-prem connected</text>
+            <rect x="680" y="262" width="150" height="70" rx="10" class="s-teal"/>
+            <text x="755" y="288" class="t-b mid">Online</text>
+            <text x="755" y="306" class="t-s mid">internet-facing</text>
+            <text x="755" y="322" class="t-s mid">apps</text>
+
+          </svg>
+        </div>
+        <figcaption><b>The reference hierarchy.</b> Notice that it's organised by <em>what rules apply</em> (internal vs internet-facing, platform vs workload), not by department. Business units become subscriptions <em>inside</em> these groups.</figcaption>
+      </figure>
+
+      <h4>How you get one</h4>
+      <ul>
+        <li>The <strong>Azure landing zone accelerator</strong> in the portal deploys the reference architecture through a guided wizard.</li>
+        <li>Infrastructure-as-code versions exist in <strong>Bicep</strong> and <strong>Terraform</strong>, for teams that want the foundation in Git with pipelines.</li>
+        <li>You can start small (a "start small and expand" approach) and grow into the full design. The <em>hierarchy</em> is the part you should get right on day zero; everything else can mature.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Provide a <strong>repeatable, governed environment</strong> for new workloads", "<strong>enterprise-scale</strong> foundation", or "prepare the environment <strong>before migration</strong>" → Azure landing zones (CAF Ready phase).</p>
+      </div>
+      <details class="demo" id="demo-m02-lz">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Peek inside the landing zone accelerator</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that a landing zone is everything in this module (and the next two), packaged as a wizard.</p>
+          <ol class="demo-steps">
+            <li>On Microsoft Learn, search <b>“Azure landing zone portal accelerator”</b> and click its <b>Deploy to Azure</b> button. The wizard opens in your portal.</li>
+            <li>Walk the tabs <b>without deploying</b>: deployment location and management group prefix, management and monitoring (Log Analytics, Defender), network topology (hub and spoke or Virtual WAN), identity, and landing zone policies.</li>
+            <li>Close the wizard. Nothing is created until the final tab.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Every tab maps to a module of this handbook: governance, monitoring, identity and networking.</li><li>Real teams usually deploy the same design with the Bicep or Terraform versions, so it lives in Git.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Roads, water and electricity before the first house. That's a landing zone.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">02.10</span>
+      <h2>Meridian: the governance design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 02</span></div>
+        <div class="case-body">
+          <p>Recall the pain points: <em>nobody knows who owns what</em>, <em>cost per business unit</em>, <em>PCI for card payments</em>, <em>EU data stays in the EU</em>. Here's how an architect would translate those into governance.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why this and not something else</th></tr></thead>
+              <tbody>
+                <tr><td>Consistent foundation</td><td>Adopt the landing zone hierarchy: <code>Meridian → Platform / Landing zones / Sandbox / Decommissioned</code></td><td>Proven structure, organised by rules not by org chart, survives reorganisations.</td></tr>
+                <tr><td>PCI DSS for checkout</td><td>A dedicated <code>PCI</code> management group under Landing zones, with the PCI DSS initiative assigned there</td><td>Only the card environment pays the price of strict controls; other apps stay agile.</td></tr>
+                <tr><td>EU data residency</td><td>An <code>Online-EU</code> management group with "Allowed locations" set to EU regions (Deny)</td><td>Enforced by the platform, not by memory. Applies to future subscriptions automatically.</td></tr>
+                <tr><td>Cost per business unit</td><td>Separate subscriptions per business unit and environment, e.g. <code>sub-online-prod</code>, <code>sub-stores-dev</code>; budgets with alerts on each</td><td>Subscriptions give a natural bill split. Budgets warn before month-end surprises.</td></tr>
+                <tr><td>Who owns what</td><td>Required tags <code>Owner</code>, <code>CostCenter</code>, <code>Environment</code> on resource groups (Deny if missing), inherited to resources (Modify)</td><td>No anonymous resources from day one, with no extra work for developers.</td></tr>
+                <tr><td>Don't break shared things</td><td>CanNotDelete locks on the hub network, firewall and central Log Analytics workspace</td><td>Protects the platform from a mistaken cleanup script.</td></tr>
+                <tr><td>Safe experimentation</td><td>Sandbox subscriptions with tight budgets and no connection to on-premises</td><td>Developers can learn without touching production or the corporate network.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Notice that every line has a "why". In a real project, each of these would be an Architecture Decision Record.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">02.11</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's governance checklist</h3>
+      <ul class="checklist">
+        <li>The management group hierarchy is shallow and organised by policy and access needs.</li>
+        <li>Subscriptions separate billing, environments and compliance boundaries.</li>
+        <li>Resource groups follow lifecycle: things that deploy and die together live together.</li>
+        <li>A tag taxonomy exists and is enforced by Policy, not by hope.</li>
+        <li>Non-negotiable rules use Deny; everything else starts as Audit.</li>
+        <li>Critical shared resources have CanNotDelete locks.</li>
+        <li>New workloads land in a landing zone, never in a hand-built subscription.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. You must ensure resources in all current and future subscriptions can only be deployed to two specific regions. Where and how?</summary>
+          <div><p>Assign the built-in <strong>Allowed locations</strong> policy with a <strong>Deny</strong> effect at the <strong>management group</strong> that contains those subscriptions (or the intermediate root). New subscriptions placed under it inherit the rule automatically.</p></div>
+        </details>
+        <details>
+          <summary>2. Finance wants a monthly cost report per cost centre. Resources for one cost centre are spread across several resource groups. What do you recommend?</summary>
+          <div><p>A <strong>CostCenter tag</strong>, enforced and inherited with Azure Policy, then group by that tag in <strong>Cost Management</strong>. Resource groups alone can't express this because cost centres cut across them.</p></div>
+        </details>
+        <details>
+          <summary>3. A user with the Owner role can't delete a resource group. Name two possible reasons.</summary>
+          <div><p>A <strong>CanNotDelete</strong> (or ReadOnly) <strong>lock</strong> on the group or a parent, or a <strong>policy</strong> with the DenyAction effect blocking deletion. Owners aren't exempt from either.</p></div>
+        </details>
+        <details>
+          <summary>4. You assigned a Deny policy "storage accounts must not allow public blob access". Will existing non-compliant accounts be fixed?</summary>
+          <div><p>No. Deny only affects new creates and updates. Existing accounts show as <strong>non-compliant</strong>. To fix them, use a policy with <strong>Modify</strong> and a <strong>remediation task</strong>, or update them manually.</p></div>
+        </details>
+        <details>
+          <summary>5. Why is "one management group per department" usually a poor design?</summary>
+          <div><p>Departments change with reorganisations, and departments rarely need <em>different rules</em>. Management groups should reflect differences in <strong>policy and access</strong>; departments are better represented as subscriptions and tags.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 03</div>
+        <p>Governance decides the <em>rules of the building</em>. Now we need to decide <em>who gets in</em>, how they prove who they are, and what their badge allows. That's identity.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="01-architect-mindset.html"><small>Previous module</small><span>← 01 · Thinking Like an Architect</span></a>
+        <a class="next" href="03-identity.html"><small>Next module</small><span>03 · Identity &amp; Access →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

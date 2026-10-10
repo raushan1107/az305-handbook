@@ -1,0 +1,6 @@
+# Internal authoring docs (not deployed)
+*.md
+
+# Internal build tooling (not deployed)
+tools/
+__pycache__/

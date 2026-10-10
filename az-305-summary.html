@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Comprehensive Guide to Microsoft Azure Services</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* General body and container styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 960px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Heading styles */
+        h1 {
+            color: #1a237e;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        h2 {
+            color: #3f51b5;
+            font-size: 1.8em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        h3 {
+            color: #5c6bc0;
+            font-size: 1.4em;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        /* Paragraph and list styles */
+        p {
+            margin-bottom: 16px;
+        }
+        a {
+            color: #03a9f4;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        ul {
+            margin-bottom: 16px;
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+
+        /* References section */
+        .references {
+            margin-top: 40px;
+            border-top: 2px solid #e0e0e0;
+            padding-top: 20px;
+        }
+        .references h2 {
+            color: #1a237e;
+            border: none;
+        }
+        .references ul {
+            padding-left: 0;
+        }
+        .references li {
+            list-style-type: none;
+            margin-bottom: 10px;
+        }
+        .references a {
+            word-wrap: break-word;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+            }
+            h1 { font-size: 2em; }
+            h2 { font-size: 1.6em; }
+            h3 { font-size: 1.2em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>A Comprehensive Guide to Microsoft Azure Services</h1>
+        <p>Navigating the vast ecosystem of Microsoft Azure can be a challenge. This guide consolidates key services and documentation from official Microsoft learning paths, focusing on core concepts for solutions architects and administrators.</p>
+
+        <p>This document is structured to provide a clear overview of different service categories, with direct links to official documentation and hands-on lab simulations to deepen your understanding.</p>
+
+        <h2 id="governance">Governance & Compliance (Module 1)</h2>
+        <p>Establishing a strong governance framework is the first step in any Azure journey. It ensures your cloud environment is secure, compliant, and well-managed.</p>
+        <ul>
+            <li><strong>Management Group:</strong> A container for subscriptions that allows you to apply policies and access control at a higher level. Learn more about <a href="https://learn.microsoft.com/en-us/azure/governance/management-groups/overview" target="_blank">Management Groups</a>.</li>
+            <li><strong>Subscription:</strong> A logical container for your Azure services that provides a billing boundary. See documentation on <a href="https://learn.microsoft.com/en-us/microsoft-365/enterprise/subscriptions-licenses-accounts-and-tenants-for-microsoft-cloud-offerings?view=o365-worldwide" target="_blank">Azure Subscriptions</a>.</li>
+            <li><strong>Resource Group:</strong> A container that holds related resources for an Azure solution. A Resource Group provides a lifecycle boundary for the contained resources. Read about <a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal" target="_blank">Resource Groups</a>.</li>
+            <li><strong>Azure Tag:</strong> A key-value pair used to categorize resources for management and billing purposes. Learn to <a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/tag-resources" target="_blank">tag resources</a>.</li>
+            <li><strong>Azure Policy:</strong> A service that helps you enforce organizational standards and assess compliance at scale. Explore the <a href="https://learn.microsoft.com/en-us/azure/governance/policy/overview" target="_blank">overview of Azure Policy</a>.</li>
+            <li><strong>RBAC (Role-Based Access Control):</strong> A system for managing access to Azure resources. Learn about <a href="https://learn.microsoft.com/en-us/azure/role-based-access-control/" target="_blank">RBAC</a>.</li>
+            <li><strong>Azure Blueprint:</strong> A service that defines a repeatable set of Azure resources that implement an organization's standards. Discover the <a href="https://learn.microsoft.com/en-us/azure/governance/blueprints/overview" target="_blank">overview of Azure Blueprints</a>.</li>
+        </ul>
+
+        <h2 id="compute">Compute Services (Module 2)</h2>
+        <p>Azure offers a wide range of compute options, from virtual machines to serverless functions, to meet any application need.</p>
+        <ul>
+            <li><strong>VM Scale Set:</strong> A service for managing a group of identical, load-balanced virtual machines. Learn about <a href="https://learn.microsoft.com/en-us/azure/virtual-machine-scale-sets/virtual-machine-scale-sets-orchestration-modes" target="_blank">VM Scale Sets orchestration modes</a>.</li>
+            <li><strong>Azure Batch:</strong> A service for running large-scale parallel and high-performance computing (HPC) applications efficiently in the cloud. Read the <a href="https://learn.microsoft.com/en-us/azure/batch/batch-technical-overview" target="_blank">technical overview of Azure Batch</a>.</li>
+            <li><strong>Azure Container Instances (ACI):</strong> A fast and simple way to run containers in Azure without managing virtual machines. See the <a href="https://learn.microsoft.com/en-us/azure/container-instances/container-instances-quickstart-portal" target="_blank">quickstart for ACI</a>.</li>
+            <li><strong>Azure Container Registry (ACR):</strong> A private registry for building, storing, and managing Docker and Open Container Initiative (OCI) images. Learn about <a href="https://learn.microsoft.com/en-us/azure/container-registry/" target="_blank">ACR</a>.</li>
+            <li><strong>App Service:</strong> A platform for building and hosting web apps, mobile backends, and REST APIs. View the <a href="https://mslabs.cloudguides.com/guides/AZ-104%20Exam%20Guide%20-%20Microsoft%20Azure%20Administrator%20Exercise%2013" target="_blank">App Service lab simulation</a>.</li>
+            <li><strong>Azure Functions:</strong> A serverless compute service that lets you run code triggered by an event without explicitly provisioning or managing infrastructure. See <a href="https://learn.microsoft.com/en-us/azure/azure-functions/functions-scenarios?pivots=programming-language-powershell" target="_blank">Azure Functions scenarios</a>.</li>
+            <li><strong>Azure Logic App:</strong> A service for automating workflows and business processes. Read about <a href="https://learn.microsoft.com/en-us/azure/logic-apps/" target="_blank">Logic Apps</a>.</li>
+        </ul>
+
+        <h2 id="storage">Storage Solutions (Module 3)</h2>
+        <p>Azure provides robust and scalable storage options, from simple blob storage to file shares and specialized data lakes.</p>
+        <ul>
+            <li><strong>Storage Account:</strong> A container that holds all your Azure Storage data objects. See the <a href="https://learn.microsoft.com/en-us/azure/storage/common/storage-introduction?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json" target="_blank">Storage Account introduction</a>.</li>
+            <li><strong>Type of Disk:</strong> Azure offers different types of disks for virtual machines, including Standard HDD, Standard SSD, Premium SSD, and Ultra Disk. Learn about <a href="https://learn.microsoft.com/en-us/azure/virtual-machines/disks-types?toc=https%3A%2F%2Flearn.microsoft.com%2Fen-us%2Fazure%2Farchitecture%2Ftoc.json&bc=https%3A%2F%2Flearn.microsoft.com%2Fen-us%2Fazure%2Farchitecture%2Fbread%2Ftoc.json" target="_blank">disk types</a>.</li>
+            <li><strong>Immutable Storage:</strong> A feature that allows you to store data in a write-once, read-many (WORM) state for data retention and compliance. Read the <a href="https://learn.microsoft.com/en-us/azure/storage/blobs/immutable-storage-overview" target="_blank">overview of immutable storage</a>.</li>
+            <li><strong>Data Lake Storage Gen2:</strong> A scalable and secure data lake solution built on Azure Blob Storage. Learn about <a href="https://learn.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-introduction" target="_blank">Data Lake Storage Gen2</a>.</li>
+            <li><strong>Azure Files:</strong> A service that offers managed file shares in the cloud. See the <a href="https://learn.microsoft.com/en-us/azure/storage/files/storage-files-introduction" target="_blank">introduction to Azure Files</a>.</li>
+            <li><strong>NetApp Files:</strong> A service that provides enterprise-grade, high-performance file storage. Get started with <a href="https://learn.microsoft.com/en-us/azure/azure-netapp-files/azure-netapp-files-quickstart-set-up-account-create-volumes?tabs=azure-portal" target="_blank">Azure NetApp Files</a>.</li>
+        </ul>
+
+        <h2 id="database">Database Solutions (Module 4)</h2>
+        <p>Azure provides a variety of database services, from relational SQL databases to globally distributed NoSQL solutions.</p>
+        <ul>
+            <li><strong>Azure SQL Database:</strong> A managed relational database service in Azure. Explore the <a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/?view=azuresql" target="_blank">documentation for Azure SQL Database</a>.</li>
+            <li><strong>Azure SQL Edge:</strong> A small-footprint, edge-optimized SQL database engine. See the <a href="https://learn.microsoft.com/en-us/azure/azure-sql-edge/" target="_blank">full documentation for Azure SQL Edge</a>.</li>
+            <li><strong>Azure Cosmos DB:</strong> A globally distributed, multi-model database service. Learn about <a href="https://learn.microsoft.com/en-us/azure/cosmos-db/" target="_blank">Azure Cosmos DB</a>.</li>
+            <li><strong>Database Modernization:</strong> A guide to help you transition your databases to the cloud. Read the <a href="https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/modernize/modernize-strategies/database-modernization" target="_blank">database modernization guide</a>.</li>
+        </ul>
+        
+        <h2 id="bigdata">Big Data & Analytics (Module 5)</h2>
+        <p>Analyze and transform massive datasets with Azure's powerful big data services.</p>
+        <ul>
+            <li><strong>Azure Data Factory:</strong> A service for creating and orchestrating data-driven workflows for data integration. Explore <a href="https://learn.microsoft.com/en-us/azure/data-factory/" target="_blank">Data Factory documentation</a>.</li>
+            <li><strong>Azure Databricks:</strong> A fast, easy, and collaborative Apache Spark-based analytics service. See the <a href="https://learn.microsoft.com/en-us/azure/databricks/" target="_blank">Databricks documentation</a>.</li>
+            <li><strong>Azure Synapse Analytics:</strong> A unified analytics service that brings together enterprise data warehousing and big data analytics. Learn about <a href="https://learn.microsoft.com/en-us/azure/synapse-analytics/" target="_blank">Azure Synapse Analytics</a>.</li>
+            <li><strong>Azure Stream Analytics:</strong> A real-time analytics service for processing fast-moving streams of data. Read about <a href="https://learn.microsoft.com/en-us/azure/stream-analytics/" target="_blank">Stream Analytics solutions</a>.</li>
+        </ul>
+        
+        <h2 id="messaging">Messaging & Integration (Module 6)</h2>
+        <p>Connect applications and services with reliable and scalable messaging solutions.</p>
+        <ul>
+            <li><strong>Azure Queue Storage:</strong> A simple and durable message queue service. Read the <a href="https://learn.microsoft.com/en-us/azure/storage/queues/storage-queues-introduction" target="_blank">introduction to Queue Storage</a>.</li>
+            <li><strong>Azure Service Bus:</strong> A reliable messaging service for connecting applications, services, and devices. Learn about <a href="https://learn.microsoft.com/en-us/azure/service-bus-messaging/" target="_blank">Service Bus Messaging</a>.</li>
+            <li><strong>Azure Event Hubs:</strong> A highly scalable data streaming platform and event ingestion service. Explore the <a href="https://learn.microsoft.com/en-us/azure/event-hubs/" target="_blank">Event Hubs documentation</a>.</li>
+            <li><strong>Azure Event Grid:</strong> A service that enables you to build event-driven applications with a pub/sub model. Read the <a href="https://learn.microsoft.com/en-us/azure/event-grid/" target="_blank">Event Grid overview</a>.</li>
+            <li><strong>IoT Hub:</strong> A managed service that acts as a central message hub for bidirectional communication between IoT applications and the devices it manages. Discover <a href="https://docs.microsoft.com/azure/iot-hub/iot-concepts-and-iot-hub" target="_blank">IoT Hub concepts</a>.</li>
+            <li><strong>Azure API Management:</strong> A service for publishing, securing, and analyzing APIs. Learn about <a href="https://learn.microsoft.com/en-us/azure/api-management/api-management-key-concepts" target="_blank">API Management concepts</a>.</li>
+        </ul>
+
+        <h2 id="security">Identity & Security (Module 7)</h2>
+        <p>Secure your cloud environment with Azure's comprehensive identity and access management services.</p>
+        <ul>
+            <li><strong>Entra ID:</strong> The identity and access management solution for Azure. See documentation on <a href="https://learn.microsoft.com/en-us/windows-server/identity/identity-and-access" target="_blank">Identity and Access Management</a>.</li>
+            <li><strong>Conditional Access:</strong> A feature of Entra ID that enables you to enforce policies to protect your cloud apps. Read the <a href="https://learn.microsoft.com/en-us/entra/identity/conditional-access/overview" target="_blank">Conditional Access overview</a>.</li>
+            <li><strong>Entra ID Protection:</strong> A tool that allows you to detect, investigate, and remediate identity-based risks. Learn about <a href="https://learn.microsoft.com/en-us/entra/id-protection/overview-identity-protection" target="_blank">Entra ID Protection</a>.</li>
+            <li><strong>Managed Identity:</strong> A feature that provides an identity for your Azure service, removing the need to manage credentials. Read the <a href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview" target="_blank">Managed Identity overview</a>.</li>
+            <li><strong>Azure Key Vault:</strong> A service for securely storing and managing secrets, keys, and certificates. Explore the <a href="https://learn.microsoft.com/en-us/azure/key-vault/" target="_blank">Key Vault documentation</a>.</li>
+        </ul>
+
+        <h2 id="monitoring">Monitoring & Operations (Module 8)</h2>
+        <p>Gain deep insights into your applications and infrastructure with Azure's monitoring tools.</p>
+        <ul>
+            <li><strong>Azure Monitor:</strong> A comprehensive solution for collecting, analyzing, and acting on telemetry data. See the <a href="https://docs.microsoft.com/azure/azure-monitor/overview" target="_blank">Azure Monitor overview</a>.</li>
+            <li><strong>Log Analytics:</strong> A service that allows you to query and analyze logs collected by Azure Monitor. Learn about <a href="https://docs.microsoft.com/azure/azure-monitor/logs/log-analytics-overview" target="_blank">Log Analytics</a>.</li>
+            <li><strong>Azure Workbooks:</strong> A flexible canvas for data analysis and the creation of rich visual reports. Read the <a href="https://docs.microsoft.com/azure/azure-monitor/visualize/workbooks-overview" target="_blank">Workbooks overview</a>.</li>
+            <li><strong>Azure Insights:</strong> A service that monitors the performance and availability of your live web applications. Learn about <a href="https://docs.microsoft.com/azure/azure-monitor/app/app-insights-overview" target="_blank">Application Insights</a>.</li>
+            <li><strong>Azure Data Explorer:</strong> A fast and highly scalable data exploration service for log and telemetry data. See the <a href="https://azure.microsoft.com/services/data-explorer/" target="_blank">Azure Data Explorer service page</a>.</li>
+        </ul>
+
+        <h2 id="networking">Networking (Module 9)</h2>
+        <p>Connect your resources and secure your network with Azure's robust networking services.</p>
+        <ul>
+            <li><strong>Azure Virtual Networks (VNETs):</strong> The fundamental building block for your private network in Azure. Read the <a href="https://learn.microsoft.com/en-us/azure/virtual-network/" target="_blank">Virtual Networks documentation</a>.</li>
+            <li><strong>Hub & Spoke Model:</strong> A popular network topology for managing connectivity and security. Learn about the <a href="https://learn.microsoft.com/en-us/azure/architecture/networking/architecture/hub-spoke?tabs=cli" target="_blank">hub-spoke model</a>.</li>
+            <li><strong>Azure Firewall:</strong> A managed, cloud-based network security service that protects your Azure Virtual Network resources. See the <a href="https://learn.microsoft.com/en-us/azure/firewall/" target="_blank">Azure Firewall overview</a>.</li>
+            <li><strong>Load Balancer:</strong> A service that distributes incoming traffic among healthy virtual machines. Explore the <a href="https://learn.microsoft.com/en-us/azure/load-balancer/" target="_blank">Load Balancer documentation</a>.</li>
+            <li><strong>Application Gateway:</strong> A web traffic load balancer that enables you to manage traffic to your web applications. Learn about <a href="https://docs.microsoft.com/azure/application-gateway/overview" target="_blank">Application Gateway</a>.</li>
+            <li><strong>Traffic Manager:</strong> A DNS-based traffic load balancer that enables you to distribute traffic to public-facing applications across global Azure regions. Read about <a href="https://docs.microsoft.com/azure/traffic-manager/traffic-manager-overview" target="_blank">Traffic Manager</a>.</li>
+            <li><strong>Azure Front Door:</strong> A scalable and secure entry point for fast delivery of global web applications. See the <a href="https://docs.microsoft.com/azure/frontdoor/front-door-overview" target="_blank">Front Door overview</a>.</li>
+            <li><strong>Network Security Groups (NSGs):</strong> A service that filters network traffic to and from Azure resources. Read the <a href="https://docs.microsoft.com/azure/virtual-network/network-security-groups-overview" target="_blank">NSG overview</a>.</li>
+            <li><strong>DDoS Protection:</strong> A service that protects your applications and resources from distributed denial of service attacks. Learn about <a href="https://docs.microsoft.com/azure/ddos-protection/ddos-protection-reference-architectures" target="_blank">DDoS Protection</a>.</li>
+        </ul>
+
+        <h2 id="backup">Backup & Disaster Recovery (Module 10)</h2>
+        <p>Ensure business continuity with Azure's native backup and disaster recovery solutions.</p>
+        <ul>
+            <li><strong>Azure Backup:</strong> A service for backing up data in Azure and on-premises to the cloud. Explore <a href="https://learn.microsoft.com/en-us/azure/backup/" target="_blank">Azure Backup</a>.</li>
+            <li><strong>Point-in-time restore in Blob Storage:</strong> A feature that lets you restore a block blob to an earlier state. Learn about <a href="https://learn.microsoft.com/en-us/azure/storage/blobs/point-in-time-restore-overview" target="_blank">point-in-time restore</a>.</li>
+            <li><strong>Azure Site Recovery:</strong> A service that ensures business continuity by keeping business apps and workloads running during outages. See the <a href="https://docs.microsoft.com/azure/site-recovery/site-recovery-overview" target="_blank">Site Recovery overview</a>.</li>
+        </ul>
+        
+        <h2 id="migration">Migration & Adoption (Module 11)</h2>
+        <p>Plan and execute your cloud migration with the Cloud Adoption Framework and specialized tools.</p>
+        <ul>
+            <li><strong>Cloud Adoption Framework:</strong> A set of guidelines to help you create and implement strategies for cloud adoption. Read the <a href="https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/" target="_blank">Cloud Adoption Framework</a>.</li>
+            <li><strong>Azure Migrate:</strong> A service that helps you assess and migrate on-premises workloads to Azure. Explore the <a href="https://learn.microsoft.com/en-us/azure/migrate/" target="_blank">Azure Migrate documentation</a>.</li>
+            <li><strong>Azure Database Migration Service:</strong> A service that enables seamless migration of databases to Azure. Learn about <a href="https://learn.microsoft.com/en-us/azure/dms/resource-scenario-status" target="_blank">DMS supported scenarios</a>.</li>
+            <li><strong>Azure File Sync:</strong> A service that allows you to centralize your organization's file shares in Azure Files. See the <a href="https://docs.microsoft.com/azure/storage/file-sync/file-sync-planning" target="_blank">Azure File Sync planning guide</a>.</li>
+            <li><strong>Data Box:</strong> A family of products that helps you transfer large amounts of data to Azure. Read the <a href="https://docs.microsoft.com/azure/databox/data-box-overview" target="_blank">Data Box overview</a>.</li>
+        </ul>
+        
+        <div class="references">
+            <h2>References</h2>
+            <p>Below are the direct links to the official Microsoft documentation and labs referenced in this guide.</p>
+            <ul>
+                <li><a href="https://learn.microsoft.com/en-us/credentials/certifications/exams/az-305/" target="_blank">AZ-305 MSLEARN Documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/training/courses/az-104t00" target="_blank">Az-104 course Documentation MSLEARN</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/architecture/" target="_blank">Azure Architecture Centre</a></li>
+                <li><a href="https://azurecharts.com/" target="_blank">Azure Charts</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/" target="_blank">Cloud Adoption Framework</a></li>
+                <li><a href="https://techcommunity.microsoft.com/t5/itops-talk-blog/the-impact-of-conflicting-azure-policies/ba-p/2227063" target="_blank">Impact of conflicting Azure Policies</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/governance/management-groups/overview" target="_blank">Management Group</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/microsoft-365/enterprise/subscriptions-licenses-accounts-and-tenants-for-microsoft-cloud-offerings?view=o365-worldwide" target="_blank">Subscription</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal" target="_blank">Resource group</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/tag-resources" target="_blank">Azure Tag</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/governance/policy/overview" target="_blank">Azure Policy</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/role-based-access-control/" target="_blank">RBAC</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/governance/blueprints/overview" target="_blank">Azure Blueprint</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/" target="_blank">Azure Landing Zone</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-machine-scale-sets/virtual-machine-scale-sets-orchestration-modes" target="_blank">VM Scale Set</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/batch/batch-technical-overview" target="_blank">Azure Batch Solutions</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/container-instances/container-instances-quickstart-portal" target="_blank">Azure container Instances</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/container-registry/" target="_blank">Azure Container Registry</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/container-registry/container-registry-intro" target="_blank">Azure Container Registry Intro</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-functions/functions-scenarios?pivots=programming-language-powershell" target="_blank">Azure Function Scenario</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/logic-apps/" target="_blank">Azure logic app</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/common/storage-introduction?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json" target="_blank">Storage account</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-machines/disks-types?toc=https%3A%2F%2Flearn.microsoft.com%2Fen-us%2Fazure%2Farchitecture%2Ftoc.json&bc=https%3A%2F%2Flearn.microsoft.com%2Fen-us%2Fazure%2Farchitecture%2Fbread%2Ftoc.json" target="_blank">Type of Disk</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/" target="_blank">Azure Storage documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/architecture/guide/technology-choices/storage-options" target="_blank">storage options</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/immutable-storage-overview" target="_blank">Immutable Storage</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-introduction" target="_blank">Data Lake Storage Gen2</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/files/storage-files-introduction" target="_blank">Azure Files</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-netapp-files/azure-netapp-files-quickstart-set-up-account-create-volumes?tabs=azure-portal" target="_blank">Netapp Files</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/training/modules/introduction-to-azure-data-lake-storage/1-introduction" target="_blank">MSLEARN MODULE for Data Lake</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/security-recommendations" target="_blank">Storage security</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/?view=azuresql" target="_blank">Azure SQL Database documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/scale-resources?view=azuresql" target="_blank">database scalability in azure</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/high-availability-sla?view=azuresql&tabs=azure-powershell" target="_blank">database availability in azure</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/security-overview?view=azuresql" target="_blank">security capability of database in use</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/modernize/modernize-strategies/database-modernization" target="_blank">Modernization of database guide</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql-edge/" target="_blank">Azure SQL Edge full Documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql-edge/deploy-portal" target="_blank">DEPLOY</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/cosmos-db/" target="_blank">Azure Cosmos DB full Documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/cosmos-db/introduction" target="_blank">Azure Cosmos DB Introduction</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/training/courses/dp-203t00" target="_blank">DP-203</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/data-factory/" target="_blank">Data Factory</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/databricks/" target="_blank">Azure Databricks</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/synapse-analytics/" target="_blank">Azure Synapse Analytics</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/synapse-analytics/get-started" target="_blank">Azure Synapse Analytics get started</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/stream-analytics/" target="_blank">Azure Stream Analytics solution for Data Analysis</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/stream-analytics/feature-comparison" target="_blank">Azure Stream Analytics feature comparison</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/stream-analytics/stream-analytics-solution-patterns" target="_blank">Azure Stream Analytics solution patterns</a></li>
+                <li><a href="https://techcommunity.microsoft.com/t5/fasttrack-for-azure/hot-warm-and-cold-data-paths-with-iot-on-azure/ba-p/2336035" target="_blank">hot/warm/cold data path</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/queues/storage-queues-introduction" target="_blank">Azure Queue storage</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/queues/storage-quickstart-queues-portal" target="_blank">Azure Queue storage quickstart</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/service-bus-messaging/" target="_blank">Azure Service Bus Messaging documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal" target="_blank">Azure Service Bus quickstart</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/messaging-services/" target="_blank">Azure messaging services documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/event-hubs/" target="_blank">Azure Event Hubs documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/event-hubs/event-hubs-create" target="_blank">Azure Event Hubs create</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/event-grid/" target="_blank">Azure Event Grid documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/event-grid/overview" target="_blank">Azure Event Grid overview</a></li>
+                <li><a href="https://docs.microsoft.com/azure/iot-hub/iot-concepts-and-iot-hub" target="_blank">IOT HUB</a></li>
+                <li><a href="https://docs.microsoft.com/en-us/azure/azure-cache-for-redis/cache-overview" target="_blank">Azure Cache for Redis</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/api-management/api-management-key-concepts" target="_blank">Azure API management</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/devops/deliver/what-is-infrastructure-as-code" target="_blank">Infrastructure as Code</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-app-configuration/" target="_blank">Azure App Configuration</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/identity-and-access" target="_blank">Identity and access management</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/windows-server/identity/solution-guides/solutions-and-scenario-guides" target="_blank">Solutions and Scenario</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/external-id/what-is-b2b" target="_blank">B2B collaboration</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/external-id/index-b2b" target="_blank">External ID for business guests</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-create-external-tenant-portal" target="_blank">Create an external tenant</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/external-id/self-service-sign-up-user-flow#enable-self-service-sign-up-for-your-tenant" target="_blank">self-service sign-up user flow</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/identity/conditional-access/overview" target="_blank">Conditional access</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/id-protection/overview-identity-protection" target="_blank">Entra ID Protection</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/id-governance/" target="_blank">EntraID Governance/ Identity Governance</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/id-governance/access-reviews-overview" target="_blank">Access reviews</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview" target="_blank">Managed Identity</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/identity-platform/app-objects-and-service-principals?tabs=browser" target="_blank">Application service principals</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal-portal" target="_blank">Create a service Principal</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/key-vault/" target="_blank">Azure Key Vault</a></li>
+                <li><a href="https://docs.microsoft.com/azure/azure-monitor/overview" target="_blank">Azure Monitor</a></li>
+                <li><a href="https://docs.microsoft.com/azure/azure-monitor/agents/data-sources" target="_blank">Identify data sources and access method</a></li>
+                <li><a href="https://docs.microsoft.com/azure/azure-monitor/logs/log-analytics-overview" target="_blank">Log Analytics</a></li>
+                <li><a href="https://docs.microsoft.com/azure/azure-monitor/visualize/workbooks-overview" target="_blank">Azure Workbooks</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-monitor/visualize/workbooks-create-workbook" target="_blank">Azure Workbooks create</a></li>
+                <li><a href="https://docs.microsoft.com/azure/azure-monitor/app/app-insights-overview" target="_blank">Azure Insights</a></li>
+                <li><a href="https://azure.microsoft.com/services/data-explorer/" target="_blank">Azure Data Explorer</a></li>
+                <li><a href="https://docs.microsoft.com/azure/virtual-network/virtual-network-vnet-plan-design-arm" target="_blank">Gather Network Requirements</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/" target="_blank">Azure Virtual networks</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/architecture/networking/architecture/hub-spoke?tabs=cli" target="_blank">hub & spoke model</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/tutorial-connect-virtual-networks-portal" target="_blank">Virtual Networks with peering in between them</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/network-watcher/view-network-topology?tabs=portal" target="_blank">Topology of an Azure virtual network</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/ready/azure-best-practices/define-an-azure-network-topology" target="_blank">Cloud Adoption Framework define network topology</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/nat-gateway/" target="_blank">Virtual Network NAT</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/nat-gateway/quickstart-create-nat-gateway-portal" target="_blank">Create NAT Gateway</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/network-watcher/connection-troubleshoot-portal" target="_blank">Troubleshoot outbound connections</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/firewall/" target="_blank">Azure Firewall</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/load-balancer/" target="_blank">Azure Load balancer</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-udr-overview" target="_blank">Virtual network traffic routing</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/tutorial-create-route-table-portal" target="_blank">Route network traffic with a route table</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/vpn-gateway/" target="_blank">VPN connection</a></li>
+                <li><a href="https://docs.microsoft.com/azure/expressroute/expressroute-introduction" target="_blank">Azure ExpressRoute</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/expressroute/expressroute-howto-circuit-portal-resource-manager?pivots=expressroute-current" target="_blank">Create and modify ExpressRoute</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-wan/" target="_blank">Azure Virtual WAN</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-wan/migrate-from-hub-spoke-topology" target="_blank">Architecture</a></li>
+                <li><a href="https://docs.microsoft.com/azure/architecture/guide/technology-choices/load-balancing-overview#decision-tree-for-load-balancing-in-azure" target="_blank">Choosing a load balancer</a></li>
+                <li><a href="https://docs.microsoft.com/azure/application-gateway/overview" target="_blank">Application Gateway</a></li>
+                <li><a href="https://docs.microsoft.com/azure/traffic-manager/traffic-manager-overview" target="_blank">Traffic Manager</a></li>
+                <li><a href="https://docs.microsoft.com/azure/frontdoor/front-door-overview" target="_blank">Azure Front Door</a></li>
+                <li><a href="https://docs.microsoft.com/azure/cdn/cdn-overview" target="_blank">Content Delivery Network</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-network/virtual-network-service-endpoints-overview" target="_blank">Service endpoints</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/private-link/" target="_blank">Azure Private Link</a></li>
+                <li><a href="https://docs.microsoft.com/azure/virtual-network/network-security-groups-overview" target="_blank">Network security groups</a></li>
+                <li><a href="https://docs.microsoft.com/en-us/azure/firewall/overview" target="_blank">Azure Firewall overview</a></li>
+                <li><a href="https://docs.microsoft.com/azure/web-application-firewall/overview" target="_blank">Web Application Firewall</a></li>
+                <li><a href="https://docs.microsoft.com/azure/ddos-protection/ddos-protection-reference-architectures" target="_blank">DDoS Protection</a></li>
+                <li><a href="https://docs.microsoft.com/azure/ddos-protection/manage-ddos-protection" target="_blank">DDoS Protection management</a></li>
+                <li><a href="https://docs.microsoft.com/azure/bastion/bastion-overview" target="_blank">Azure Bastion</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/defender-for-cloud/just-in-time-access-overview?tabs=defender-for-container-arch-aks" target="_blank">Just in Time (JIT) Network Access</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/backup/" target="_blank">Azure Backup</a></li>
+                <li><a href="https://docs.microsoft.com/azure/backup/backup-overview" target="_blank">Backup overview</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/point-in-time-restore-overview" target="_blank">Point-in-time restore in Blob Storage</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/storage/blobs/point-in-time-restore-manage?tabs=portal" target="_blank">Enable Point-in-time restore on block blob</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/backup/backup-azure-files?tabs=backup-center" target="_blank">Back up Azure File shares</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/backup/restore-afs?tabs=full-share-recovery" target="_blank">Restore Azure File shares</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-machines/backup-recovery" target="_blank">Backup and restore options for virtual machines</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-machines/snapshot-copy-managed-disk?tabs=portal" target="_blank">Create a snapshot of a virtual hard disk</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/virtual-machines/disks-incremental-snapshots?tabs=azure-cli" target="_blank">Create an incremental snapshot for managed disks</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/automated-backups-overview?view=azuresql" target="_blank">Automated backups in Azure SQL Database</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/automated-backups-change-settings?view=azuresql&tabs=azure-portal" target="_blank">Change automated backup settings for Azure SQL Database</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/azure-sql/database/long-term-backup-retention-configure?view=azuresql&tabs=portal" target="_blank">Manage Azure SQL Database long-term backup retention</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/backup/backup-sql-server-database-azure-vms" target="_blank">Azure SQL backup</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/backup/restore-sql-database-azure-vm" target="_blank">Restore SQL Server databases on Azure VMs</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/backup/manage-monitor-sql-database-backup" target="_blank">Manage and monitor backed up SQL Server databases</a></li>
+                <li><a href="https://docs.microsoft.com/azure/site-recovery/site-recovery-overview" target="_blank">Azure Site Recovery</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/site-recovery/site-recovery-backup-interoperability" target="_blank">Combine Azure Site Recovery with Azure Backup</a></li>
+                <li><a href="https://azure.microsoft.com/cloud-adoption-framework/#cloud-adoption-journey" target="_blank">Review the Cloud Adoption Framework</a></li>
+                <li><a href="https://docs.microsoft.com/azure/cloud-adoption-framework/migrate/migration-considerations/" target="_blank">Focus on migration efforts</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/migrate/" target="_blank">Azure Migrate documentation</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/migrate/how-to-migrate" target="_blank">Add migration tools</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/azure/dms/resource-scenario-status" target="_blank">Azure Database Migration Service supported scenarios</a></li>
+                <li><a href="https://learn.microsoft.com/en-us/data-migration/sql-server/database/database-migration-service?tabs=azure-data-studio" target="_blank">Azure Database Migration Service</a></li>
+                <li><a href="https://docs.microsoft.com/azure/storage/file-sync/file-sync-planning" target="_blank">Azure File Sync</a></li>
+                <li><a href="https://docs.microsoft.com/windows-server/storage/storage-migration-service/overview" target="_blank">Storage Migration Service</a></li>
+                <li><a href="https://docs.microsoft.com/azure/import-export/storage-import-export-service" target="_blank">import/export service</a></li>
+                <li><a href="https://docs.microsoft.com/azure/databox/data-box-overview" target="_blank">Data Box family</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

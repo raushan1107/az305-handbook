@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoring and Logging</title>
+<meta name="description" content="Module 04 of the AZ-305 Architect Handbook: Azure Monitor, data sources, diagnostic settings, Log Analytics workspace design, Application Insights, alerts, Insights, Workbooks and Azure Data Explorer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part I · Foundations</div>
+    <span class="eyebrow">Module 04</span>
+    <h1>Monitoring &amp; Logging: The Eyes and Ears of Your Architecture</h1>
+    <p class="lead">You can't fix what you can't see, and you can't prove what you didn't record. Monitoring isn't something you "add later". It's a design decision that decides whether you hear about an outage from a dashboard or from an angry customer on social media.</p>
+    <div class="hero-meta">
+      <span class="chip">Azure Monitor</span><span class="chip">Metrics vs logs</span><span class="chip">Diagnostic settings</span><span class="chip">Log Analytics</span><span class="chip">Application Insights</span><span class="chip">Alerts</span><span class="chip">Workbooks</span><span class="chip">Data Explorer</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why monitoring is architecture</a></li>
+        <li><a href="#monitor">Azure Monitor and data sources</a></li>
+        <li><a href="#metrics-logs">Metrics vs logs</a></li>
+        <li><a href="#routing">Collecting and routing data</a></li>
+        <li><a href="#law">Log Analytics workspaces</a></li>
+        <li><a href="#appi">Application Insights</a></li>
+        <li><a href="#alerts">Alerts and action groups</a></li>
+        <li><a href="#visual">Insights, Workbooks and dashboards</a></li>
+        <li><a href="#adx">Azure Data Explorer</a></li>
+        <li><a href="#others">Other signals worth knowing</a></li>
+        <li><a href="#case">Meridian: the monitoring design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">04.0</span>
+      <h2>The mental map</h2>
+      <p>Every monitoring design, small or huge, follows the same pipeline: <strong>sources → collection → storage → use</strong>. When you're stuck on a monitoring question, locate yourself on this picture and the answer becomes obvious.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 440" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">The Azure Monitor pipeline</title>
+            <desc id="m0d">Sources (applications, guest operating systems, Azure resources, the subscription activity log, the Entra tenant and custom sources) flow through collection methods (diagnostic settings, the Azure Monitor Agent with data collection rules, and Application Insights instrumentation) into the data platform of metrics and logs. From there, data is analysed, visualised, acted on with alerts and autoscale, or exported to other systems.</desc>
+
+            <text x="20" y="26" class="t-m t-accent">1 · SOURCES</text>
+            <text x="270" y="26" class="t-m t-accent">2 · COLLECT</text>
+            <text x="520" y="26" class="t-m t-accent">3 · STORE</text>
+            <text x="760" y="26" class="t-m t-accent">4 · USE</text>
+
+            <!-- sources -->
+            <g>
+              <rect x="20" y="40" width="200" height="50" rx="10" class="s-surface"/><text x="36" y="62" class="t-b">Application</text><text x="36" y="80" class="t-s">your code, requests, traces</text>
+              <rect x="20" y="98" width="200" height="50" rx="10" class="s-surface"/><text x="36" y="120" class="t-b">Guest OS</text><text x="36" y="138" class="t-s">inside VMs: events, perf</text>
+              <rect x="20" y="156" width="200" height="50" rx="10" class="s-surface"/><text x="36" y="178" class="t-b">Azure resources</text><text x="36" y="196" class="t-s">resource logs, platform metrics</text>
+              <rect x="20" y="214" width="200" height="50" rx="10" class="s-surface"/><text x="36" y="236" class="t-b">Subscription</text><text x="36" y="254" class="t-s">activity log: who did what</text>
+              <rect x="20" y="272" width="200" height="50" rx="10" class="s-surface"/><text x="36" y="294" class="t-b">Tenant</text><text x="36" y="312" class="t-s">Entra sign-in &amp; audit logs</text>
+              <rect x="20" y="330" width="200" height="50" rx="10" class="s-surface"/><text x="36" y="352" class="t-b">Custom</text><text x="36" y="370" class="t-s">APIs, on-prem, other clouds</text>
+            </g>
+
+            <!-- collect -->
+            <rect x="270" y="60" width="200" height="74" rx="12" class="s-teal"/>
+            <text x="370" y="90" class="t-b mid">App Insights / OTel</text>
+            <text x="370" y="110" class="t-s mid">instrumented code</text>
+            <rect x="270" y="150" width="200" height="74" rx="12" class="s-teal"/>
+            <text x="370" y="180" class="t-b mid">Azure Monitor Agent</text>
+            <text x="370" y="200" class="t-s mid">+ data collection rules</text>
+            <rect x="270" y="240" width="200" height="74" rx="12" class="s-teal"/>
+            <text x="370" y="270" class="t-b mid">Diagnostic settings</text>
+            <text x="370" y="290" class="t-s mid">resource, activity, Entra</text>
+
+            <path d="M220 65 Q245 70 266 92" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M220 123 Q245 150 266 180" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M220 181 Q245 230 266 264" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M220 239 Q245 260 266 274" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M220 297 Q245 292 266 288" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M220 355 Q250 300 290 220" class="s-dash" marker-end="url(#ah)"/>
+
+            <!-- store -->
+            <rect x="520" y="60" width="200" height="110" rx="14" class="s-blue"/>
+            <text x="620" y="96" class="t-h mid">Metrics</text>
+            <text x="620" y="120" class="t-s mid">numbers over time</text>
+            <text x="620" y="138" class="t-s mid">lightweight, near real-time</text>
+            <rect x="520" y="190" width="200" height="124" rx="14" class="s-violet"/>
+            <text x="620" y="226" class="t-h mid">Logs</text>
+            <text x="620" y="250" class="t-s mid">Log Analytics workspace</text>
+            <text x="620" y="268" class="t-s mid">rich records, KQL queries</text>
+            <text x="620" y="286" class="t-s mid">(traces &amp; changes too)</text>
+
+            <path d="M470 97 H514" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M470 187 Q495 187 514 140" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M470 200 Q495 220 514 236" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M470 277 H514" class="s-arrow" marker-end="url(#ah)"/>
+
+            <!-- use -->
+            <rect x="760" y="40" width="220" height="64" rx="10" class="s-surface"/>
+            <text x="776" y="66" class="t-b">Analyse</text><text x="776" y="86" class="t-s">metrics explorer, KQL</text>
+            <rect x="760" y="114" width="220" height="64" rx="10" class="s-surface"/>
+            <text x="776" y="140" class="t-b">Visualise</text><text x="776" y="160" class="t-s">Insights, Workbooks, Grafana</text>
+            <rect x="760" y="188" width="220" height="64" rx="10" class="s-amber"/>
+            <text x="776" y="214" class="t-b">Respond</text><text x="776" y="234" class="t-s">alerts, action groups, autoscale</text>
+            <rect x="760" y="262" width="220" height="64" rx="10" class="s-surface"/>
+            <text x="776" y="288" class="t-b">Integrate</text><text x="776" y="308" class="t-s">Event Hubs, Sentinel, Logic Apps</text>
+
+            <path d="M720 115 Q740 115 756 72" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M720 140 Q740 146 756 146" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M720 240 Q740 230 756 220" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M720 280 Q740 294 756 294" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="270" y="350" width="710" height="60" rx="12" class="s-surface2"/>
+            <text x="625" y="376" class="t-b mid">The architect's job: decide what to collect, where it lands, how long it's kept,</text>
+            <text x="625" y="396" class="t-b mid">who can read it, and what should wake someone up at 2 a.m.</text>
+          </svg>
+        </div>
+        <figcaption><b>Sources → collect → store → use.</b> Most "monitoring is broken" stories are a gap in stage 2: the data existed, but nobody routed it anywhere.</figcaption>
+      </figure>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 10 quick portal walkthroughs · about 34 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos turn Module 03's resources into monitoring sources: we route Key Vault and activity logs into a workspace, query them with KQL, switch on Application Insights for the web app, and wire up alerts that actually email you.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are Owner or Contributor.</li><li>Module 03's <b>Key Vault</b>, <b>web app</b> and <b>storage account</b>. If you don't have them, create a Key Vault and a Free-tier web app first.</li><li>Optional: one small VM for the Azure Monitor Agent demo; skip that demo if you don't have one.</li><li>Names below: resource group <code>rg-az305-m04-demo</code>, workspace <code>law-az305-m04</code>, region Central India.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li><b>At the start of the module</b>, run the routing demo (create the workspace, add the Key Vault diagnostic setting and export the activity log), then read a secret a few times. The first logs take roughly 5–15 minutes to arrive.</li><li>While data arrives, do the Monitor hub tour, metrics and Application Insights.</li><li>Then come back for KQL in the workspace, alerts, Workbooks and Data Explorer.</li><li>Trigger the activity-log alert near the end (create and delete an empty resource group) so the email lands before class closes.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m04-hub">Tour the Azure Monitor hub</a><span>~2m</span></li><li><a href="#demo-m04-metrics">Chart a metric in 60 seconds, then find the logs missing</a><span>~3m</span></li><li><a href="#demo-m04-diag">Route Key Vault logs and the activity log to a workspace</a><span>~4m</span></li><li><a href="#demo-m04-ama">Optional: collect VM events with a data collection rule</a><span>~3m</span></li><li><a href="#demo-m04-law">Explore the workspace and run your first KQL</a><span>~5m</span></li><li><a href="#demo-m04-appi">Switch on Application Insights for the web app</a><span>~4m</span></li><li><a href="#demo-m04-alerts">An action group, a metric alert and an activity-log alert</a><span>~5m</span></li><li><a href="#demo-m04-visual">Insights first, then a Workbook</a><span>~3m</span></li><li><a href="#demo-m04-adx">Query millions of rows for free on the help cluster</a><span>~3m</span></li><li><a href="#demo-m04-others">Health, Advisor and Resource Graph in two minutes</a><span>~2m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m04-demo</code> (workspace, action group, alert rules, data collection rule) and <code>rg-az305-m03-demo</code>.</li><li>The <b>activity log diagnostic setting lives on the subscription</b>, not in a resource group: remove it under <span class="ui">Activity log</span> › <span class="ui">Export Activity Logs</span>.</li><li>Delete the service health alert if you created one, and the empty test resource group.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">04.1</span>
+      <h2>Why monitoring is architecture, not an afterthought</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A hospital ICU. The <strong>heart-rate monitor</strong> beeps constantly with numbers (metrics). The <strong>patient's file</strong> has detailed notes: what was given, when, by whom, and what happened (logs). The <strong>alarm</strong> calls the nurse when a number crosses a line (alerts). And the <strong>doctor's weekly review</strong> spots slow trends no single beep would show (workbooks and analytics). Remove any one of these and patients get hurt, even with the best doctors.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll add logging when there's a bug. For now, <code>Console.WriteLine</code> is fine."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Monitoring is how we <strong>prove</strong> the SLO from Module 01, <strong>detect</strong> failures before customers do, <strong>audit</strong> the identity controls from Module 03, and <strong>control cost</strong>. It's designed in, with an owner, a budget and a retention policy."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Your monitoring design should answer four questions without anyone logging in to a server: <em>Is it up? Is it fast? Is it secure? What did it cost?</em></p>
+      </div>
+    </section>
+
+    <!-- ======================= MONITOR ======================= -->
+    <section id="monitor">
+      <span class="sec-num">04.2</span>
+      <h2>Azure Monitor and its data sources</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></span>
+        <h3>One platform, many signals</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Monitor is a comprehensive monitoring solution for collecting, analysing and responding to telemetry from cloud and on-premises environments. It stores data as metrics and logs, and provides the tools to query, visualise and alert on it.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Azure Monitor isn't one tool. It's the <strong>umbrella name</strong> for the whole pipeline in the mental map. Log Analytics, Application Insights, alerts and Workbooks are all <em>parts</em> of Azure Monitor. That trips people up in the exam.</p>
+      </div>
+
+      <h4>The layers of data, from code to tenant</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Layer</th><th>What you get</th><th>Collected by</th><th>On by default?</th></tr></thead>
+          <tbody>
+            <tr><td>Application</td><td>Requests, dependencies, exceptions, traces, page views</td><td>Application Insights (SDK or OpenTelemetry, or auto-instrumentation)</td><td>No, enable it</td></tr>
+            <tr><td>Guest OS</td><td>Windows events, Syslog, performance counters inside the VM</td><td>Azure Monitor Agent + data collection rule</td><td>No, install the agent</td></tr>
+            <tr><td>Azure resource</td><td><strong>Platform metrics</strong> (automatic) and <strong>resource logs</strong> (e.g. Key Vault reads, SQL audit)</td><td>Metrics: automatic. Resource logs: diagnostic settings</td><td>Metrics yes; resource logs <strong>no</strong></td></tr>
+            <tr><td>Subscription</td><td>Activity log: control-plane changes, service health events</td><td>Automatic (90 days); diagnostic setting to keep longer</td><td>Yes, 90 days</td></tr>
+            <tr><td>Tenant</td><td>Entra sign-in logs, audit logs</td><td>Entra diagnostic settings</td><td>Short retention in portal only</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Resource logs are <strong>not collected</strong> until you create a diagnostic setting. Many teams discover this during their first security incident, when they go looking for "who read that secret?" in Key Vault and find nothing was ever recorded. Use Azure Policy (DeployIfNotExists, from Module 02) to switch them on everywhere automatically.</p>
+      </div>
+      <details class="demo" id="demo-m04-hub">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Tour the Azure Monitor hub</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that Azure Monitor is the umbrella: everything in the pipeline diagram has a menu entry here.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Monitor</span> › <span class="ui">Overview</span>.</li>
+            <li>Walk the left menu once, matching it to the mental map: <span class="ui">Activity log</span>, <span class="ui">Alerts</span>, <span class="ui">Metrics</span>, <span class="ui">Logs</span>, <span class="ui">Service Health</span>, <span class="ui">Workbooks</span>, <span class="ui">Insights</span>, and under <span class="ui">Settings</span>: <span class="ui">Diagnostic settings</span> and <span class="ui">Data Collection Rules</span>.</li>
+            <li><span class="ui">Activity log</span> › timespan <b>Last 24 hours</b> › open the event for a resource group you created earlier › <span class="ui">JSON</span>: caller, operation, status and time.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Activity log is on by default (90 days). Resource logs are not; that's the next demo.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Azure Monitor isn't one tool. It's the building that all these tools live in.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= METRICS vs LOGS ======================= -->
+    <section id="metrics-logs">
+      <span class="sec-num">04.3</span>
+      <h2>Metrics vs logs</h2>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 250" role="img" aria-labelledby="mlt mld">
+            <title id="mlt">Metrics compared with logs</title>
+            <desc id="mld">Left: a metric is a simple time series, such as CPU percentage plotted every minute. Right: logs are detailed records with many fields, such as time, operation, caller, result and IP address, queried with KQL.</desc>
+
+            <rect x="10" y="10" width="420" height="230" rx="14" class="s-blue"/>
+            <text x="30" y="40" class="t-m t-blue">METRICS</text>
+            <text x="30" y="62" class="t-b">CPU % · one number per minute</text>
+            <rect x="30" y="80" width="380" height="120" rx="8" class="s-surface"/>
+            <path d="M40 180 L80 170 L120 174 L160 150 L200 160 L240 120 L280 100 L320 140 L360 130 L400 110" class="s-arrow-accent"/>
+            <path d="M40 120 H400" class="s-dash" style="stroke:var(--rose)"/>
+            <text x="44" y="112" class="t-s t-rose">alert threshold 80%</text>
+            <text x="30" y="226" class="t-s">Fast, cheap, near real-time: "how much / how many?"</text>
+
+            <rect x="470" y="10" width="420" height="230" rx="14" class="s-violet"/>
+            <text x="490" y="40" class="t-m t-violet">LOGS</text>
+            <text x="490" y="62" class="t-b">Key Vault · one record per operation</text>
+            <rect x="490" y="80" width="380" height="120" rx="8" class="s-surface"/>
+            <text x="502" y="102" class="t-m" xml:space="preserve" style="white-space:pre">TIME      OPERATION    CALLER     RESULT</text>
+            <path d="M500 110 H860" class="s-line"/>
+            <text x="502" y="130" class="t-m" xml:space="preserve" style="white-space:pre;fill:var(--ink)">10:02:11  SecretGet    app-chk    200</text>
+            <text x="502" y="152" class="t-m" xml:space="preserve" style="white-space:pre;fill:var(--ink)">10:02:14  SecretGet    app-chk    200</text>
+            <text x="502" y="174" class="t-m" xml:space="preserve" style="white-space:pre;fill:var(--rose)">10:03:40  SecretList   unknown    403</text>
+            <text x="502" y="194" class="t-m">…</text>
+            <text x="490" y="226" class="t-s">Rich detail, queried with KQL: "what exactly happened, and who?"</text>
+          </svg>
+        </div>
+        <figcaption><b>Metrics tell you <em>that</em> something is wrong; logs tell you <em>why</em>.</b> Good designs use both: metric alerts for speed, log queries for diagnosis and audit.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Metrics</th><th>Logs</th></tr></thead>
+          <tbody>
+            <tr><td>Shape</td><td>Numeric values with a timestamp and a few dimensions</td><td>Records with many fields, structured or semi-structured</td></tr>
+            <tr><td>Speed</td><td>Near real-time, ideal for fast alerts and autoscale</td><td>Seconds to minutes of ingestion delay</td></tr>
+            <tr><td>Retention</td><td>Platform metrics kept 93 days</td><td>Set per workspace and table, from days to 12 years</td></tr>
+            <tr><td>Query tool</td><td>Metrics explorer</td><td>Log Analytics with KQL</td></tr>
+            <tr><td>Use for</td><td>"CPU above 80% for 10 minutes", scaling, health</td><td>Root cause, security investigation, audit, correlation across sources</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="demo" id="demo-m04-metrics">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Chart a metric in 60 seconds, then find the logs missing</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show metrics working instantly, and show that logs are empty until you route them.</p>
+          <ol class="demo-steps">
+            <li>Open the storage account (or web app) › <span class="ui">Monitoring</span> › <span class="ui">Metrics</span>.</li>
+            <li>Metric <b>Transactions</b>, aggregation <b>Sum</b>, time range <b>Last 24 hours</b>.</li>
+            <li><span class="ui">Apply splitting</span> › <b>API name</b> (or response type). One line becomes several.</li>
+            <li>Show <span class="ui">Pin to dashboard</span> and <span class="ui">New alert rule</span> on the chart toolbar. The alert button is a preview of a later demo.</li>
+            <li>Now open <span class="ui">Monitoring</span> › <span class="ui">Logs</span> on the same resource. There's nothing useful to query yet.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Metrics are automatic and cheap. Logs only exist if an architect decided they should.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= ROUTING ======================= -->
+    <section id="routing">
+      <span class="sec-num">04.4</span>
+      <h2>Collecting and routing data</h2>
+
+      <div class="topic" style="border-top:0;padding-top:0;margin-top:0">
+        <div class="topic-head">
+          <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M4 12h16M4 18h7"/><path d="M17 3l3 3-3 3"/></svg></span>
+          <h3>Diagnostic settings</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>A diagnostic setting specifies which categories of resource logs, activity log or platform metrics to collect from a resource, subscription or tenant, and which destinations to send them to.</p>
+        </div>
+        <p>You can create up to five diagnostic settings per resource, each with different categories and destinations. The architect's question is always: <em>what will this data be used for?</em> That decides where it goes.</p>
+
+        <figure class="diagram">
+          <div class="frame">
+            <svg viewBox="0 0 920 320" role="img" aria-labelledby="drt drd">
+              <title id="drt">Diagnostic setting destinations</title>
+              <desc id="drd">An Azure resource sends logs through a diagnostic setting to one or more destinations: a Log Analytics workspace for querying and alerting, a storage account for cheap long-term archive, Event Hubs for streaming to external SIEM or other systems, or a partner solution.</desc>
+
+              <rect x="20" y="120" width="190" height="80" rx="12" class="s-surface"/>
+              <text x="115" y="154" class="t-b mid">Azure resource</text>
+              <text x="115" y="174" class="t-s mid">e.g. Key Vault, SQL, Firewall</text>
+
+              <path d="M210 160 H254" class="s-arrow" marker-end="url(#ah)"/>
+              <rect x="260" y="125" width="170" height="70" rx="12" class="s-teal"/>
+              <text x="345" y="155" class="t-b mid">Diagnostic</text>
+              <text x="345" y="175" class="t-b mid">setting</text>
+
+              <path d="M430 145 Q470 60 514 52" class="s-arrow" marker-end="url(#ah)"/>
+              <path d="M430 155 Q470 130 514 126" class="s-arrow" marker-end="url(#ah)"/>
+              <path d="M430 168 Q470 200 514 204" class="s-arrow" marker-end="url(#ah)"/>
+              <path d="M430 178 Q470 270 514 276" class="s-dash" marker-end="url(#ah)"/>
+
+              <rect x="520" y="20" width="380" height="62" rx="10" class="s-violet"/>
+              <text x="536" y="45" class="t-b">Log Analytics workspace</text>
+              <text x="536" y="66" class="t-s">query with KQL, alert, correlate, Sentinel · "investigate"</text>
+
+              <rect x="520" y="96" width="380" height="62" rx="10" class="s-green"/>
+              <text x="536" y="121" class="t-b">Storage account</text>
+              <text x="536" y="142" class="t-s">cheapest long-term archive, immutable if needed · "keep"</text>
+
+              <rect x="520" y="172" width="380" height="62" rx="10" class="s-amber"/>
+              <text x="536" y="197" class="t-b">Event Hubs</text>
+              <text x="536" y="218" class="t-s">stream to third-party SIEM or custom apps · "send"</text>
+
+              <rect x="520" y="248" width="380" height="58" rx="10" class="s-surface2"/>
+              <text x="536" y="272" class="t-b">Partner solution</text>
+              <text x="536" y="292" class="t-s">integrated third-party monitoring (e.g. Datadog, Elastic)</text>
+            </svg>
+          </div>
+          <figcaption><b>Investigate, keep, or send.</b> Pick the destination by purpose. You can send the same logs to several destinations at once: workspace for 90 days of querying <em>and</em> storage for 7 years of compliance.</figcaption>
+        </figure>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+          <h3>Azure Monitor Agent and data collection rules</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>The Azure Monitor Agent (AMA) collects monitoring data from the guest operating system of Azure and hybrid machines. What it collects and where it sends the data is defined centrally in data collection rules (DCRs).</p>
+        </div>
+        <ul>
+          <li>AMA replaces the legacy <strong>Log Analytics agent</strong> (MMA/OMS), which was retired in August 2024. If an answer mentions installing the legacy agent for a new design, that's a red flag.</li>
+          <li>One DCR can apply to <strong>many machines</strong>; one machine can have <strong>several DCRs</strong> (e.g. a security team rule and an operations team rule).</li>
+          <li>DCRs can <strong>filter and transform</strong> data before it's stored, which is one of the best ways to cut ingestion cost.</li>
+          <li>For on-premises or other-cloud servers, onboard them with <strong>Azure Arc</strong>, then use the same AMA + DCR approach.</li>
+        </ul>
+        <div class="callout exam">
+          <div class="c-label">Exam cue</div>
+          <p>"Collect <strong>Windows event logs / performance counters</strong> from VMs", "<strong>on-premises servers</strong> into the same workspace", "collect only <strong>specific events</strong> to reduce cost" → Azure Monitor Agent + data collection rules (+ Azure Arc for non-Azure machines).</p>
+        </div>
+      </div>
+      <details class="demo" id="demo-m04-diag">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Route Key Vault logs and the activity log to a workspace</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Close the “who read that secret?” gap by building stages 2 and 3 of the pipeline.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Log Analytics workspaces</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m04-demo</code>, name <code>law-az305-m04</code>, region Central India › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the Module 03 Key Vault › <span class="ui">Monitoring</span> › <span class="ui">Diagnostic settings</span> › <span class="ui">+ Add diagnostic setting</span>: name <code>to-law</code>, logs category group <b>audit</b> (or <b>allLogs</b>), metrics <b>AllMetrics</b>.</li>
+            <li>Point at the four destinations: <span class="ui">Send to Log Analytics workspace</span>, <span class="ui">Archive to a storage account</span>, <span class="ui">Stream to an event hub</span>, <span class="ui">Send to partner solution</span>. Tick the workspace (choose <b>Resource specific</b> tables if offered) › <span class="ui">Save</span>.</li>
+            <li>Generate data: <span class="ui">Secrets</span> › open <code>SqlPassword</code> › <span class="ui">Show Secret Value</span> two or three times.</li>
+            <li>Subscription › <span class="ui">Activity log</span> › <span class="ui">Export Activity Logs</span> › <span class="ui">+ Add diagnostic setting</span>: Administrative, Policy and ServiceHealth › same workspace › <span class="ui">Save</span>.</li>
+            <li><span class="ui">Monitor</span> › <span class="ui">Diagnostic settings</span>: a list of resources showing which have a setting. This is your logging gap report.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Investigate = workspace, keep = storage, send = Event Hubs. One setting can do all three.</li><li>In real estates this is done by Azure Policy (DeployIfNotExists), not by hand. Search the policy definitions for <b>“Enable logging by category group”</b> to show the built-ins.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The data always existed. Until two minutes ago, nobody was writing it down.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m04-ama">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Optional: collect VM events with a data collection rule</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the modern agent model: one central rule, many machines.</p>
+          <p class="demo-note"><b>Before you start:</b> Needs a running VM. Skip this demo if you don't have one.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Monitor</span> › <span class="ui">Data Collection Rules</span> › <span class="ui">+ Create</span>: name <code>dcr-az305-windows</code>, platform Windows, region Central India.</li>
+            <li><span class="ui">Resources</span> › <span class="ui">+ Add resources</span> › pick the VM. The Azure Monitor Agent extension is installed for you.</li>
+            <li><span class="ui">Collect and deliver</span> › <span class="ui">+ Add data source</span> › <b>Windows Event Logs</b>: Application and System, Critical and Error only. Show the custom XPath option, which is how you cut cost.</li>
+            <li>Destination: <b>Azure Monitor Logs</b> › <code>law-az305-m04</code> › <span class="ui">Review + create</span>.</li>
+            <li>Later: VM › <span class="ui">Extensions + applications</span> shows <b>AzureMonitorWindowsAgent</b>; query the <code>Event</code> table in the workspace.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “One rule, a hundred machines, and only the events we actually care about.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= LAW ======================= -->
+    <section id="law">
+      <span class="sec-num">04.5</span>
+      <h2>Log Analytics workspaces</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><circle cx="17" cy="15" r="2.5"/><path d="M19 17l2 2"/></svg></span>
+        <h3>Where your logs live, and the most important design decision in this module</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>A Log Analytics workspace is a unique environment for log data from Azure Monitor and other Azure services such as Microsoft Sentinel and Defender for Cloud. Each workspace has its own data repository, region, configuration, retention and access control, and is queried with Kusto Query Language (KQL).</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A workspace is a <strong>library building</strong>. It stands in one city (region), has its own membership rules (access), its own policy on how long books are kept (retention), and its own running costs (billing). You can build one big central library or several branch libraries. Neither is wrong; it depends on who needs to read what, and where the books are legally allowed to be.</p>
+      </div>
+
+      <h3>One workspace or many?</h3>
+      <p>Microsoft's guidance is to start with <strong>as few workspaces as possible</strong>, ideally one, and add more only for a clear reason. A single workspace makes cross-resource queries, correlation and cost management much simpler.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 920 300" role="img" aria-labelledby="wst wsd">
+            <title id="wst">Centralised versus multiple Log Analytics workspaces</title>
+            <desc id="wsd">Left: a centralised design in which all subscriptions send logs to one workspace, controlled with resource-context access and table-level RBAC. Right: separate workspaces are justified by data residency, as with an India workspace and an EU workspace, by separate billing, or by different retention or ownership needs.</desc>
+
+            <rect x="10" y="10" width="430" height="280" rx="14" class="s-surface2"/>
+            <text x="30" y="38" class="t-m t-accent">CENTRALISED · DEFAULT CHOICE</text>
+            <rect x="30" y="58" width="110" height="40" rx="8" class="s-amber"/><text x="85" y="83" class="t-s mid">sub-online</text>
+            <rect x="170" y="58" width="110" height="40" rx="8" class="s-amber"/><text x="225" y="83" class="t-s mid">sub-stores</text>
+            <rect x="310" y="58" width="110" height="40" rx="8" class="s-amber"/><text x="365" y="83" class="t-s mid">sub-logistics</text>
+            <path d="M85 98 Q85 130 200 150 M225 98 V146 M365 98 Q365 130 250 150" class="s-arrow"/>
+            <rect x="110" y="150" width="230" height="66" rx="12" class="s-violet"/>
+            <text x="225" y="178" class="t-b mid">law-central-ind</text>
+            <text x="225" y="198" class="t-s mid">one place to query everything</text>
+            <text x="30" y="246" class="t-s">✓ easy correlation, one bill to optimise</text>
+            <text x="30" y="266" class="t-s">✓ teams see only their resources via</text>
+            <text x="30" y="282" class="t-s">   resource-context access</text>
+
+            <rect x="480" y="10" width="430" height="280" rx="14" class="s-surface2"/>
+            <text x="500" y="38" class="t-m t-accent">SPLIT · ONLY WITH A REASON</text>
+            <rect x="500" y="58" width="180" height="40" rx="8" class="s-amber"/><text x="590" y="83" class="t-s mid">India subscriptions</text>
+            <rect x="710" y="58" width="180" height="40" rx="8" class="s-amber"/><text x="800" y="83" class="t-s mid">Germany subscriptions</text>
+            <path d="M590 98 V146 M800 98 V146" class="s-arrow"/>
+            <rect x="500" y="150" width="180" height="66" rx="12" class="s-violet"/>
+            <text x="590" y="178" class="t-b mid">law-ind</text>
+            <text x="590" y="198" class="t-s mid">Central India</text>
+            <rect x="710" y="150" width="180" height="66" rx="12" class="s-violet"/>
+            <text x="800" y="178" class="t-b mid">law-eu</text>
+            <text x="800" y="198" class="t-s mid">Germany West Central</text>
+            <text x="500" y="246" class="t-s">Valid reasons: data residency, separate</text>
+            <text x="500" y="266" class="t-s">billing/ownership, very different retention,</text>
+            <text x="500" y="282" class="t-s">or hard isolation between tenants.</text>
+          </svg>
+        </div>
+        <figcaption><b>Default to one, split for a requirement.</b> "Each team wants its own" is usually solved with access control, not more workspaces.</figcaption>
+      </figure>
+
+      <h4>Design decisions inside a workspace</h4>
+      <div class="terms">
+        <div class="term"><b>Access control mode</b><span><strong>Resource-context</strong> lets people query logs only for resources they have access to, without workspace-wide rights. <strong>Table-level RBAC</strong> restricts sensitive tables (e.g. security events).</span></div>
+        <div class="term"><b>Retention</b><span>Interactive (queryable) retention defaults to 30 days and can be extended to 2 years. Long-term retention keeps data cheaply for up to <strong>12 years</strong>, with search jobs or restore to bring it back.</span></div>
+        <div class="term"><b>Table plans</b><span><strong>Analytics</strong> for full query and alerting. <strong>Basic</strong> and <strong>Auxiliary</strong> for high-volume, rarely-queried logs at a much lower price, with limited query features.</span></div>
+        <div class="term"><b>Cost controls</b><span><strong>Commitment tiers</strong> discount predictable daily volumes. A <strong>daily cap</strong> stops runaway cost (but drops data). DCR transformations filter noise before it's billed.</span></div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Logs must <strong>stay in the EU</strong>" → a workspace in an EU region. "Application teams must see <strong>only their own</strong> resources' logs" → resource-context access, not separate workspaces. "Retain audit logs for <strong>7 years</strong> at <strong>minimum cost</strong>" → long-term retention in the workspace, or archive to a storage account if they never need querying. "Verbose debug logs, <strong>rarely queried</strong>" → Basic or Auxiliary table plan.</p>
+      </div>
+      <details class="demo" id="demo-m04-law">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Explore the workspace and run your first KQL</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the workspace settings an architect decides, then answer “who read that secret?” with a query.</p>
+          <ol class="demo-steps">
+            <li>Open <code>law-az305-m04</code> › <span class="ui">Settings</span> › <span class="ui">Tables</span>. Find <code>AzureActivity</code> and the Key Vault table, then <span class="ui">…</span> › <span class="ui">Manage table</span>: <b>table plan</b> (Analytics / Basic), <b>interactive retention</b> and <b>total retention</b> (up to 12 years).</li>
+            <li><span class="ui">Usage and estimated costs</span>: data volume, <b>daily cap</b> and pricing tiers (commitment tiers).</li>
+            <li>Find the workspace's <b>access control mode</b> on its overview or properties (use resource or workspace permissions).</li>
+            <li><span class="ui">Logs</span> (close the query gallery, switch to KQL mode) and run:<pre class="kql"><code>AzureActivity
+| where TimeGenerated &gt; ago(1d)
+| summarize Operations = count() by OperationNameValue, Caller
+| top 10 by Operations</code></pre></li>
+            <li>Then the Key Vault question (use whichever table your setting created):<pre class="kql"><code>AZKVAuditLogs
+| sort by TimeGenerated desc
+| take 20
+
+// or, for the older shared table:
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.KEYVAULT"
+| project TimeGenerated, OperationName, CallerIPAddress, ResultSignature</code></pre></li>
+            <li>Add a chart:<pre class="kql"><code>AzureActivity
+| summarize count() by bin(TimeGenerated, 1h)
+| render timechart</code></pre></li>
+            <li>Resource-context access: open the <b>Key Vault</b> › <span class="ui">Logs</span>. The same query runs, automatically limited to that one resource.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>If a table is empty, it's usually ingestion delay (minutes) or a missing diagnostic setting. Both are worth saying out loud.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Last module this question had no answer. Now it's three lines of KQL.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= APPI ======================= -->
+    <section id="appi">
+      <span class="sec-num">04.6</span>
+      <h2>Application Insights</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Application Insights is the application performance monitoring (APM) feature of Azure Monitor. It collects requests, dependencies, exceptions, traces and custom telemetry from live applications, and stores them in a Log Analytics workspace.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Infrastructure monitoring says "the server is fine". Application Insights says "but checkout calls to the payment API are taking 4 seconds since the 11:20 deployment, and 3% of them fail with a timeout". It looks at your system the way a customer experiences it.</p>
+      </div>
+
+      <div class="terms">
+        <div class="term"><b>Application map</b><span>Auto-drawn picture of your components and their dependencies, with failure rates on each arrow.</span></div>
+        <div class="term"><b>Distributed tracing</b><span>Follows one request across services, so you see exactly where the time went.</span></div>
+        <div class="term"><b>Availability tests</b><span>Synthetic checks that ping your URL from multiple global locations, so you know before users do.</span></div>
+        <div class="term"><b>OpenTelemetry</b><span>The vendor-neutral standard for instrumentation; the Azure Monitor OpenTelemetry distro is the recommended way to instrument new apps.</span></div>
+      </div>
+      <p>All Application Insights resources are now <strong>workspace-based</strong>: the telemetry lands in a Log Analytics workspace, so you can join application data with infrastructure and security logs in one KQL query.</p>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Monitor <strong>response times / failure rates</strong> of a web app", "identify <strong>slow dependencies</strong>", "track <strong>user behaviour</strong> and page views", "test availability <strong>from multiple regions</strong>" → Application Insights.</p>
+      </div>
+      <details class="demo" id="demo-m04-appi">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Switch on Application Insights for the web app</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show monitoring from the customer's side: requests, failures, dependencies and availability.</p>
+          <ol class="demo-steps">
+            <li>Web app › <span class="ui">Monitoring</span> › <span class="ui">Application Insights</span> › <span class="ui">Turn on Application Insights</span> › create a new resource linked to workspace <code>law-az305-m04</code> › <span class="ui">Apply</span>. (Auto-instrumentation supports common runtimes such as .NET, Java, Node.js and Python.)</li>
+            <li>Browse the site a few times. Open the Application Insights resource › <span class="ui">Live metrics</span>: requests appear in real time.</li>
+            <li>Show <span class="ui">Application map</span>, <span class="ui">Failures</span> and <span class="ui">Performance</span>: what each would reveal in a real app.</li>
+            <li><span class="ui">Availability</span> › <span class="ui">+ Add Standard test</span>: the web app URL, five test locations, every 5 minutes › <span class="ui">Create</span>. Results appear after a few minutes.</li>
+            <li><span class="ui">Logs</span>:<pre class="kql"><code>requests
+| summarize count() by resultCode</code></pre></li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Telemetry lands in the same workspace, so application, infrastructure and security data can be joined in one query.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The server can be perfectly healthy while customers suffer. This is the view that sees what they see.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= ALERTS ======================= -->
+    <section id="alerts">
+      <span class="sec-num">04.7</span>
+      <h2>Alerts and action groups</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Monitor alerts proactively notify you when a condition is found in your monitoring data. An <strong>alert rule</strong> defines the scope, signal and condition. An <strong>action group</strong> defines who to notify and which automated actions to run.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 250" role="img" aria-labelledby="alt ald">
+            <title id="alt">The alert pipeline</title>
+            <desc id="ald">A signal (a metric, a log query result, an activity log event or a service health event) is evaluated by an alert rule with a scope and condition. When it fires, alert processing rules can suppress or route it, and an action group notifies people by email, SMS or push, or runs automation such as a webhook, Logic App, Function or Automation runbook, or opens an ITSM ticket.</desc>
+
+            <rect x="10" y="40" width="190" height="140" rx="12" class="s-surface"/>
+            <text x="26" y="66" class="t-m t-accent">SIGNAL</text>
+            <text x="26" y="92" class="t">Metric</text>
+            <text x="26" y="114" class="t">Log search query</text>
+            <text x="26" y="136" class="t">Activity log event</text>
+            <text x="26" y="158" class="t">Service / resource health</text>
+
+            <path d="M200 110 H234" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="240" y="60" width="190" height="100" rx="12" class="s-blue"/>
+            <text x="335" y="90" class="t-b mid">Alert rule</text>
+            <text x="335" y="112" class="t-s mid">scope + condition</text>
+            <text x="335" y="130" class="t-s mid">+ severity (0–4)</text>
+            <text x="335" y="148" class="t-s mid">static / dynamic threshold</text>
+
+            <path d="M430 110 H464" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="470" y="60" width="180" height="100" rx="12" class="s-surface2"/>
+            <text x="560" y="90" class="t-b mid">Processing rules</text>
+            <text x="560" y="112" class="t-s mid">suppress in maintenance</text>
+            <text x="560" y="130" class="t-s mid">windows, add actions</text>
+            <text x="560" y="148" class="t-s mid">at scale</text>
+
+            <path d="M650 110 H684" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="690" y="20" width="300" height="200" rx="12" class="s-amber"/>
+            <text x="840" y="48" class="t-b mid">Action group</text>
+            <text x="706" y="78" class="t-m t-amber">NOTIFY</text>
+            <text x="706" y="100" class="t-s">email · SMS · push · voice</text>
+            <text x="706" y="132" class="t-m t-amber">AUTOMATE</text>
+            <text x="706" y="154" class="t-s">webhook · Logic App · Function</text>
+            <text x="706" y="174" class="t-s">Automation runbook · Event Hub</text>
+            <text x="706" y="198" class="t-s">ITSM ticket</text>
+          </svg>
+        </div>
+        <figcaption><b>Rule decides <em>when</em>, action group decides <em>what next</em>.</b> Action groups are reusable: one "Checkout on-call" group can serve dozens of alert rules.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Alert type</th><th>Best for</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Metric alert</td><td>Fast, numeric conditions; near real-time</td><td>Average CPU &gt; 80% for 10 minutes</td></tr>
+            <tr><td>Log search alert</td><td>Complex conditions across records or resources</td><td>More than 5 failed Key Vault reads by one caller in 5 minutes</td></tr>
+            <tr><td>Activity log alert</td><td>Control-plane events</td><td>Someone deleted a resource group, or a policy assignment changed</td></tr>
+            <tr><td>Service health alert</td><td>Azure-side incidents and planned maintenance in your regions</td><td>Azure SQL degradation in Central India</td></tr>
+            <tr><td>Resource health alert</td><td>Health of your specific resource instance</td><td>This VM became unavailable</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>The beginner's alerting</h5>
+          <p>An email for every warning to a shared mailbox. Within a month there are 400 unread alerts and nobody looks any more.</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>Alert on <strong>symptoms customers feel</strong> (error rate, latency, availability), not every cause. Use <strong>severity</strong> to separate "wake someone up" from "look tomorrow". Use <strong>dynamic thresholds</strong> where "normal" varies. Automate the known fixes. Every alert must have an owner and a runbook.</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Notify the team <strong>and</strong> run a script when…" → one alert rule with an <strong>action group</strong> containing both. "Be notified of <strong>Azure platform</strong> issues affecting your resources" → <strong>Service Health</strong> alerts. "Suppress alerts during <strong>planned maintenance</strong>" → <strong>alert processing rules</strong>. "Know when someone <strong>deletes</strong> a resource" → <strong>activity log</strong> alert.</p>
+      </div>
+      <details class="demo" id="demo-m04-alerts">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">An action group, a metric alert and an activity-log alert</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Build “rule decides when, action group decides what next”, and receive a real email before class ends.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Monitor</span> › <span class="ui">Alerts</span> › <span class="ui">Action groups</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m04-demo</code>, name <code>ag-az305-oncall</code> › <span class="ui">Notifications</span>: Email/SMS/Push/Voice to your email › show the <span class="ui">Actions</span> tab (Automation runbook, Function, Logic App, Webhook, ITSM, Event Hub) without configuring › <span class="ui">Create</span>.</li>
+            <li>Web app › <span class="ui">Monitoring</span> › <span class="ui">Alerts</span> › <span class="ui">+ Create</span> › <span class="ui">Alert rule</span>: signal <b>Http Server Errors</b> (or Response Time), greater than 5 over 5 minutes. Show the <b>Dynamic</b> threshold option › <span class="ui">Actions</span>: <code>ag-az305-oncall</code> › <span class="ui">Details</span>: severity <b>1 – Error</b> › <span class="ui">Create</span>.</li>
+            <li>Subscription › <span class="ui">Activity log</span> › filter operation <b>Delete Resource Group</b> › <span class="ui">+ New alert rule</span> › same action group › <span class="ui">Create</span>.</li>
+            <li><span class="ui">Service Health</span> › <span class="ui">Health alerts</span> › <span class="ui">+ Create service health alert</span>: show service and region filters (create it if time allows).</li>
+            <li><span class="ui">Alerts</span> › <span class="ui">Alert processing rules</span> › <span class="ui">+ Create</span>: show <b>Suppress notifications</b> with a schedule, the maintenance-window case. Cancel.</li>
+            <li>Trigger it: create an empty resource group <code>rg-az305-delete-me</code>, then delete it. The email arrives within a few minutes.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “One rule says when. One reusable action group says who gets woken up and what runs automatically.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= VISUAL ======================= -->
+    <section id="visual">
+      <span class="sec-num">04.8</span>
+      <h2>Insights, Workbooks and dashboards</h2>
+
+      <div class="terms">
+        <div class="term"><b>Insights</b><span>Ready-made, curated monitoring experiences for a service: <strong>VM insights</strong>, <strong>Container insights</strong>, <strong>Network insights</strong>, <strong>Storage insights</strong>, Key Vault insights and more. Start here before building your own.</span></div>
+        <div class="term"><b>Azure Workbooks</b><span>Interactive reports that mix text, KQL queries, metrics and parameters in one canvas. Great for investigations, runbooks and shared operational reports.</span></div>
+        <div class="term"><b>Azure dashboards</b><span>Pin tiles from across the portal into a single-pane view. Quick, simple, less interactive.</span></div>
+        <div class="term"><b>Azure Managed Grafana</b><span>Fully managed Grafana for teams that already use it, or need dashboards spanning Azure and other data sources.</span></div>
+        <div class="term"><b>Power BI</b><span>Business reporting on monitoring data, e.g. monthly availability for leadership, mixed with business KPIs.</span></div>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p><strong>Insights</strong> are the car's built-in dashboard: speed, fuel, engine temperature, designed by the manufacturer. <strong>Workbooks</strong> are the mechanic's diagnostic report: you choose what to inspect and write notes alongside the readings. <strong>Grafana</strong> is the fleet-management screen tracking a hundred vehicles from different makers. <strong>Power BI</strong> is the quarterly report to the fleet owner.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Monitor <strong>AKS / container</strong> performance" → Container insights. "Monitor VM performance and <strong>dependencies between processes</strong>" → VM insights. "Interactive report <strong>combining metrics and logs</strong> with parameters, shareable with the team" → Workbooks. "Existing Grafana skills / <strong>multi-source</strong> dashboards" → Azure Managed Grafana.</p>
+      </div>
+      <details class="demo" id="demo-m04-visual">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Insights first, then a Workbook</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show “use the ready-made view before building your own”.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Monitor</span> › <span class="ui">Insights</span> hub › <span class="ui">Key Vaults</span> (or <span class="ui">Storage accounts</span>) › select your resource: a curated overview with zero setup.</li>
+            <li><span class="ui">Monitor</span> › <span class="ui">Workbooks</span>: open a template from the gallery › <span class="ui">Edit</span> › <span class="ui">+ Add</span> › <span class="ui">Add query</span> › paste the AzureActivity timechart query › <span class="ui">Run Query</span> › <span class="ui">Done Editing</span> › <span class="ui">Save as</span> in <code>rg-az305-m04-demo</code>.</li>
+            <li>Mention <span class="ui">Dashboard</span> (pin the metric chart from earlier) and search <b>Azure Managed Grafana</b> to show where it would be created. Don't create it.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Insights are the car's built-in dashboard. Workbooks are the mechanic's report you write yourself.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= ADX ======================= -->
+    <section id="adx">
+      <span class="sec-num">04.9</span>
+      <h2>Azure Data Explorer</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="5" y="11" width="3" height="7"/><rect x="10.5" y="6" width="3" height="12"/><rect x="16" y="9" width="3" height="9"/></svg></span>
+        <h3>When telemetry becomes big data</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Data Explorer (ADX) is a fully managed, high-performance analytics platform for large volumes of streaming data such as logs, telemetry and time series. It's queried with KQL, the same language as Log Analytics, and delivers interactive results across billions of records.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Log Analytics is actually built on the same engine. ADX hands you the engine itself, so you control the cluster, the schema, the ingestion and the cost model. You pick it when you have <em>your own</em> massive telemetry problem, not just "monitor my Azure resources".</p>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Log Analytics</th><th>Azure Data Explorer</th></tr></thead>
+          <tbody>
+            <tr><td>Purpose</td><td>Operational monitoring of Azure and hybrid resources</td><td>Custom big-data analytics on telemetry, IoT, clickstream, time series</td></tr>
+            <tr><td>Management</td><td>Fully managed SaaS-like; no cluster to size</td><td>You size and manage a cluster (or use a free/serverless option)</td></tr>
+            <tr><td>Integration</td><td>Built into alerts, Insights, Sentinel, Defender</td><td>Ingest from Event Hubs, IoT Hub, storage; visualise in dashboards, Grafana, Power BI</td></tr>
+            <tr><td>Data shape</td><td>Predefined Azure Monitor tables (plus custom)</td><td>Your own schema, your own retention and caching policy</td></tr>
+            <tr><td>Choose when</td><td>"Monitor our Azure environment"</td><td>"Analyse terabytes of device telemetry per day, interactively, for years"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>The same Kusto engine also powers <strong>Eventhouse</strong> in Microsoft Fabric's Real-Time Intelligence. For AZ-305, keep ADX as the Azure answer for "large-scale, near real-time analytics over log and telemetry data with KQL".</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Analyse <strong>IoT/telemetry</strong> data at <strong>very high volume</strong>", "<strong>time-series</strong> analysis", "ad hoc queries over <strong>billions of rows</strong> in seconds", "<strong>KQL</strong> but outside Azure Monitor" → Azure Data Explorer.</p>
+      </div>
+      <details class="demo" id="demo-m04-adx">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Query millions of rows for free on the help cluster</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show Data Explorer's speed and that it uses the same KQL, with no cluster to pay for.</p>
+          <ol class="demo-steps">
+            <li>Browse to <code>dataexplorer.azure.com/clusters/help/databases/Samples</code> and sign in with any work or Microsoft account.</li>
+            <li>Run:<pre class="kql"><code>StormEvents
+| count</code></pre></li>
+            <li>Then:<pre class="kql"><code>StormEvents
+| summarize Events = count() by State
+| top 10 by Events
+| render columnchart</code></pre></li>
+            <li>Mention the free personal cluster (search <b>“Azure Data Explorer free cluster”</b>), and in the Azure portal search <span class="ui">Azure Data Explorer Clusters</span> › <span class="ui">+ Create</span> to show compute SKU and scale settings. Don't create it.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Same language as Log Analytics. The difference is that you own the engine, the schema and the cost model.</li></ul>
+          <p class="demo-say"><b>Say:</b> “If you can write KQL for your logs, you can already analyse billions of rows of telemetry.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= OTHERS ======================= -->
+    <section id="others">
+      <span class="sec-num">04.10</span>
+      <h2>Other signals worth knowing</h2>
+      <p>These appear around the edges of monitoring questions. You don't need deep detail; you need to know <em>which question each one answers</em>.</p>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Service</th><th>The question it answers</th></tr></thead>
+          <tbody>
+            <tr><td>Azure Service Health</td><td>"Is <em>Azure</em> having a problem in my regions, or is planned maintenance coming?"</td></tr>
+            <tr><td>Resource Health</td><td>"Is <em>my specific</em> resource healthy, and was a past outage on Azure's side?"</td></tr>
+            <tr><td>Azure Advisor</td><td>"What should I improve?" Recommendations across the five WAF pillars.</td></tr>
+            <tr><td>Network Watcher</td><td>"Why can't VM A reach VM B?" Connection troubleshoot, flow logs, packet capture.</td></tr>
+            <tr><td>Change Analysis / Resource Graph</td><td>"What changed just before it broke?" and "What do we have, everywhere?"</td></tr>
+            <tr><td>Microsoft Sentinel</td><td>"Are we under attack?" Cloud SIEM and SOAR on top of a Log Analytics workspace.</td></tr>
+            <tr><td>Defender for Cloud</td><td>"How secure is our posture, and are workloads being attacked?"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="demo" id="demo-m04-others">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Health, Advisor and Resource Graph in two minutes</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Connect the “other signals” table to real screens.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Service Health</span> › <span class="ui">Service issues</span>, <span class="ui">Planned maintenance</span> and <span class="ui">Health history</span>: Azure's view of Azure.</li>
+            <li>Web app › <span class="ui">Help</span> (or Support + troubleshooting) › <span class="ui">Resource health</span>: this specific resource's status and history.</li>
+            <li>Search <span class="ui">Resource Graph Explorer</span> and run:<pre class="kql"><code>resources
+| summarize count() by type
+| order by count_ desc</code></pre></li>
+            <li>Then a governance check that connects back to Module 02:<pre class="kql"><code>resources
+| where isnull(tags.CostCenter)
+| project name, type, resourceGroup</code></pre></li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Is it Azure, or is it us? These two screens answer that before anyone opens a ticket.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">04.11</span>
+      <h2>Meridian: the monitoring design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 04</span></div>
+        <div class="case-body">
+          <p>Pain point from Module 01: <em>customers discover outages on social media before IT does.</em> Plus new needs from Modules 02–03: prove PCI controls, audit Key Vault and admin activity, and keep EU data in the EU.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>One operational view</td><td>Central workspace <code>law-central-ind</code> in the Management platform subscription; second workspace <code>law-eu</code> in Germany West Central for EU workloads</td><td>As few workspaces as possible; split only for data residency.</td></tr>
+                <tr><td>Nothing silently unlogged</td><td>Azure Policy (DeployIfNotExists) creates diagnostic settings for all supported resources and the activity log, routing to the right regional workspace</td><td>Logging is enforced by the platform, not remembered by people.</td></tr>
+                <tr><td>Know before customers do</td><td>Application Insights on checkout and catalogue; availability tests from several regions; metric alerts on error rate and latency (Sev 1 to on-call)</td><td>Alert on what customers feel, not on every CPU spike.</td></tr>
+                <tr><td>PCI and security audit</td><td>Entra sign-in/audit logs, Key Vault and activity logs into the workspace; Sentinel on top; 1 year interactive, long-term retention to 7 years</td><td>Investigations need queryable data; auditors need long retention at low cost.</td></tr>
+                <tr><td>Team autonomy</td><td>Resource-context access so each business unit queries only its own resources' logs; table-level RBAC on security tables</td><td>Autonomy without spinning up a workspace per team.</td></tr>
+                <tr><td>VMs and on-prem servers</td><td>Azure Monitor Agent with DCRs (Azure Arc for remaining datacentre servers during migration); VM insights</td><td>One agent, central rules, same view for Azure and on-prem.</td></tr>
+                <tr><td>Control cost</td><td>DCR transformations to drop noisy events; Basic plan for verbose app traces; commitment tier on the central workspace; budget alert</td><td>Log costs creep quietly. Design the cost in from day one.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Part I of Meridian's design is now complete: a governed hierarchy, a secure identity model and an observable platform. Everything we build from here lands on this foundation.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">04.12</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's monitoring checklist</h3>
+      <ul class="checklist">
+        <li>Workspace strategy decided: as few as possible, split only for residency, billing or isolation.</li>
+        <li>Diagnostic settings enforced by Policy for resources, the activity log and Entra ID.</li>
+        <li>VMs and hybrid servers on Azure Monitor Agent with data collection rules.</li>
+        <li>Application Insights with availability tests on every customer-facing app.</li>
+        <li>Alerts on customer-facing symptoms, with severity, owners, action groups and runbooks.</li>
+        <li>Retention and table plans set per data type; long-term retention for compliance.</li>
+        <li>Access to logs follows least privilege (resource-context, table-level RBAC).</li>
+        <li>Monitoring cost has a budget and a monthly review.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. Security asks "who read the payment API secret last Tuesday?" and there's no data. What was missing?</summary>
+          <div><p>A <strong>diagnostic setting</strong> on the Key Vault sending its AuditEvent logs to a Log Analytics workspace. Resource logs aren't collected by default. Enforce them with Azure Policy (DeployIfNotExists).</p></div>
+        </details>
+        <details>
+          <summary>2. Logs must be queryable for 90 days and retained for 7 years for compliance, at minimum cost. Design?</summary>
+          <div><p>Set <strong>interactive retention to 90 days</strong> and <strong>total retention to 7 years</strong> (long-term retention) on the relevant tables. Alternatively, also route to a <strong>storage account</strong> with lifecycle management (and immutability if required) when the archive will almost never be queried.</p></div>
+        </details>
+        <details>
+          <summary>3. You need to forward Azure resource logs to an existing third-party SIEM. Which diagnostic setting destination?</summary>
+          <div><p><strong>Event Hubs</strong>. It's designed for streaming to external systems. (If the SIEM is Microsoft Sentinel, send to a Log Analytics workspace instead.)</p></div>
+        </details>
+        <details>
+          <summary>4. Three business units want "their own" monitoring. Do you create three workspaces?</summary>
+          <div><p>Not by default. Use <strong>one workspace</strong> with <strong>resource-context access</strong> so each unit sees only its own resources' logs. Create separate workspaces only for real requirements like data residency, separate billing or different retention.</p></div>
+        </details>
+        <details>
+          <summary>5. An IoT platform produces 5 TB of telemetry per day that analysts query interactively with complex time-series functions. Log Analytics or ADX?</summary>
+          <div><p><strong>Azure Data Explorer.</strong> It's custom big-data telemetry analytics with your own schema, cluster and cost model, not operational monitoring of Azure resources.</p></div>
+        </details>
+        <details>
+          <summary>6. How do you get notified when Azure itself has an incident affecting your region's SQL databases?</summary>
+          <div><p>Create a <strong>Service Health alert</strong> scoped to your subscriptions, the SQL Database service and your regions, linked to an action group.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">End of Part I</div>
+        <p>You now have the full foundation: a <strong>mindset</strong> that starts from requirements, <strong>governance</strong> that shapes the estate, <strong>identity</strong> that controls every door, and <strong>monitoring</strong> that proves it all works. Part II turns to the thing every business really cares about: its data.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="03-identity.html"><small>Previous module</small><span>← 03 · Identity &amp; Access</span></a>
+        <a class="next" href="../index.html#modules"><small>Up next</small><span>Part II · Data (coming soon) →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

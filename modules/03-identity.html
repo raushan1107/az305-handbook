@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identity and Access</title>
+<meta name="description" content="Module 03 of the AZ-305 Architect Handbook: Microsoft Entra ID, hybrid identity, external identities, Conditional Access, Identity Protection, RBAC, PIM, access reviews, managed identities and Key Vault.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part I · Foundations</div>
+    <span class="eyebrow">Module 03</span>
+    <h1>Identity &amp; Access: Who Are You, and What Can You Do?</h1>
+    <p class="lead">In the cloud there's no office door to lock. Your data centre is reachable from any coffee shop on the planet. So the real perimeter isn't the network any more. It's <em>identity</em>. Get this module right and half of your security story is already written.</p>
+    <div class="hero-meta">
+      <span class="chip">Microsoft Entra ID</span><span class="chip">Hybrid identity</span><span class="chip">B2B &amp; External ID</span><span class="chip">Conditional Access</span><span class="chip">RBAC &amp; PIM</span><span class="chip">Managed identities</span><span class="chip">Key Vault</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#perimeter">Identity is the new perimeter</a></li>
+        <li><a href="#entra">Microsoft Entra ID</a></li>
+        <li><a href="#hybrid">Hybrid identity</a></li>
+        <li><a href="#external">External identities</a></li>
+        <li><a href="#authn">Strong authentication</a></li>
+        <li><a href="#ca">Conditional Access</a></li>
+        <li><a href="#idp">Identity Protection</a></li>
+        <li><a href="#rbac">Authorisation with RBAC</a></li>
+        <li><a href="#pim">Privileged Identity Management</a></li>
+        <li><a href="#reviews">Access reviews</a></li>
+        <li><a href="#workload">Identities for applications</a></li>
+        <li><a href="#kv">Azure Key Vault</a></li>
+        <li><a href="#case">Meridian: the identity design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">03.0</span>
+      <h2>The mental map</h2>
+      <p>Identity has a lot of product names, and they change every couple of years. (Azure AD became Microsoft Entra ID; B2C became External ID.) Don't memorise names in isolation. Memorise the <strong>journey</strong> every access request takes, and then hang each service on the step it belongs to.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 990 360" role="img" aria-labelledby="i0t i0d">
+            <title id="i0t">The identity journey</title>
+            <desc id="i0d">Five stages of an access request: prove who you are, check the context, grant access, keep it tidy over time, and handle identities and secrets for applications. Each stage lists the Azure services that implement it.</desc>
+
+            <rect x="10" y="14" width="970" height="40" rx="10" class="s-blue"/>
+            <text x="495" y="39" class="t-b mid">Zero Trust: verify explicitly · use least privilege · assume breach</text>
+
+            <!-- columns -->
+            <rect x="10" y="74" width="180" height="270" rx="12" class="s-surface"/>
+            <rect x="205" y="74" width="180" height="270" rx="12" class="s-surface"/>
+            <rect x="400" y="74" width="180" height="270" rx="12" class="s-surface"/>
+            <rect x="595" y="74" width="180" height="270" rx="12" class="s-surface"/>
+            <rect x="790" y="74" width="190" height="270" rx="12" class="s-surface"/>
+
+            <rect x="10" y="74" width="180" height="6" rx="3" class="s-teal"/>
+            <rect x="205" y="74" width="180" height="6" rx="3" class="s-violet"/>
+            <rect x="400" y="74" width="180" height="6" rx="3" class="s-amber"/>
+            <rect x="595" y="74" width="180" height="6" rx="3" class="s-green"/>
+            <rect x="790" y="74" width="190" height="6" rx="3" class="s-rose"/>
+
+            <text x="100" y="108" class="t-m mid t-teal">1 · AUTHENTICATE</text>
+            <text x="100" y="134" class="t-b mid">Who are you?</text>
+            <text x="295" y="108" class="t-m mid t-violet">2 · EVALUATE</text>
+            <text x="295" y="134" class="t-b mid">Should you, now?</text>
+            <text x="490" y="108" class="t-m mid t-amber">3 · AUTHORISE</text>
+            <text x="490" y="134" class="t-b mid">What can you do?</text>
+            <text x="685" y="108" class="t-m mid t-green">4 · GOVERN</text>
+            <text x="685" y="134" class="t-b mid">Still needed?</text>
+            <text x="885" y="108" class="t-m mid t-rose">5 · WORKLOADS</text>
+            <text x="885" y="134" class="t-b mid">And the apps?</text>
+
+            <path d="M190 210 H203" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M385 210 H398" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M580 210 H593" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M775 210 H788" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+
+            <g class="t">
+              <text x="26" y="172">Entra ID</text>
+              <text x="26" y="198">MFA &amp; passwordless</text>
+              <text x="26" y="224">Hybrid sync</text>
+              <text x="26" y="250">B2B guests</text>
+              <text x="26" y="276">External ID</text>
+
+              <text x="221" y="172">Conditional Access</text>
+              <text x="221" y="198">Identity Protection</text>
+              <text x="221" y="224">Device compliance</text>
+              <text x="221" y="250">Location &amp; risk</text>
+
+              <text x="416" y="172">Azure RBAC</text>
+              <text x="416" y="198">Entra roles</text>
+              <text x="416" y="224">PIM (just-in-time)</text>
+              <text x="416" y="250">Custom roles</text>
+
+              <text x="611" y="172">Access reviews</text>
+              <text x="611" y="198">Entitlement mgmt</text>
+              <text x="611" y="224">Joiner / mover /</text>
+              <text x="611" y="244">leaver lifecycle</text>
+
+              <text x="806" y="172">Managed identities</text>
+              <text x="806" y="198">Service principals</text>
+              <text x="806" y="224">Workload federation</text>
+              <text x="806" y="250">Azure Key Vault</text>
+            </g>
+            <text x="100" y="326" class="t-s mid">prove it</text>
+            <text x="295" y="326" class="t-s mid">judge the situation</text>
+            <text x="490" y="326" class="t-s mid">smallest key that works</text>
+            <text x="685" y="326" class="t-s mid">remove what's stale</text>
+            <text x="885" y="326" class="t-s mid">no secrets in code</text>
+          </svg>
+        </div>
+        <figcaption><b>Five steps, every request, every time.</b> When an exam question mentions identity, first ask "which step is this about?". The service usually follows on its own.</figcaption>
+      </figure>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 11 quick portal walkthroughs · about 36 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos follow the identity journey from the mental map: create people and groups, let a partner in, check sign-ins with Conditional Access, grant access with RBAC and PIM, review it, and finish with an app that uses a managed identity and Key Vault without a single secret in code.</p>
+          <h4>You'll need</h4>
+          <ul><li><b>A separate demo tenant</b> where you are <b>Global Administrator</b>, such as a free Azure account or developer tenant. <b>Never demo Conditional Access or PIM in your production tenant.</b></li><li>An <b>Entra ID P2 trial</b> activated in that tenant (<span class="ui">Billing</span> › <span class="ui">Licenses</span> › <span class="ui">All products</span> › <b>Try / Buy</b>) for Conditional Access, Identity Protection, PIM and access reviews. Activate it a day early; it can take a while to appear.</li><li>An Azure subscription linked to that tenant where you are Owner.</li><li>A second browser profile or private window to sign in as the test user, and a personal email address you can use as a “partner” guest.</li><li>Admin centre: <code>entra.microsoft.com</code> (or search <b>Microsoft Entra ID</b> in the Azure portal). Names below: user <b>Priya Sharma</b>, group <code>grp-az305-checkout-devs</code>, resource group <code>rg-az305-m03-demo</code>.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li>Create the user and group first (Entra demo); later demos reuse them.</li><li>Start the guest invitation early so the email has arrived by the time you talk about B2B.</li><li>Create the web app before the managed-identity talk; App Service takes a minute or two to deploy.</li><li>Keep the Key Vault, web app and storage account. Module 04 uses them as monitoring sources.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m03-entra">Tour the tenant, create a user and a group</a><span>~4m</span></li><li><a href="#demo-m03-hybrid">Where hybrid identity shows up (no setup needed)</a><span>~1m</span></li><li><a href="#demo-m03-b2b">Invite a partner, then peek at an external tenant</a><span>~3m</span></li><li><a href="#demo-m03-authn">Security defaults and authentication methods</a><span>~2m</span></li><li><a href="#demo-m03-ca">Build a policy in report-only and test it with What If</a><span>~5m</span></li><li><a href="#demo-m03-idp">Open the risk dashboards</a><span>~2m</span></li><li><a href="#demo-m03-rbac">Give a group Reader on a resource group, then check it</a><span>~3m</span></li><li><a href="#demo-m03-pim">Make Priya eligible, then activate just-in-time</a><span>~4m</span></li><li><a href="#demo-m03-reviews">Schedule a quarterly guest access review</a><span>~2m</span></li><li><a href="#demo-m03-mi">Give a web app an identity and a role: no secret anywhere</a><span>~5m</span></li><li><a href="#demo-m03-kv">Create a vault and hit the RBAC wall (on purpose)</a><span>~5m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete the Conditional Access policy, PIM eligible assignment, access review, guest user, Priya and the demo group.</li><li>Delete <code>rg-az305-m03-demo</code> <b>after</b> Module 04 if you're reusing its resources.</li><li>Key Vault is soft-deleted: its name stays reserved until purged (<span class="ui">Key vaults</span> › <span class="ui">Manage deleted vaults</span> › <span class="ui">Purge</span>, only possible if purge protection was off).</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= PERIMETER ======================= -->
+    <section id="perimeter">
+      <span class="sec-num">03.1</span>
+      <h2>Identity is the new perimeter</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>The old model was a <strong>castle with a moat</strong>: once you crossed the drawbridge (VPN), you could wander anywhere inside. The new model is an <strong>airport</strong>. Your passport is checked at check-in, again at security, again at immigration, and your boarding pass is scanned at the gate. Being inside the airport earns you nothing on its own. Every door asks again.</p>
+      </div>
+
+      <p>That airport model has a name: <strong>Zero Trust</strong>. Three principles, and you'll see them behind almost every design choice in this module:</p>
+      <div class="terms">
+        <div class="term"><b>Verify explicitly</b><span>Decide on every request using all available signals: who, from where, on what device, with what risk.</span></div>
+        <div class="term"><b>Use least privilege</b><span>Give the smallest permission, at the smallest scope, for the shortest time.</span></div>
+        <div class="term"><b>Assume breach</b><span>Design as if an attacker is already inside: segment, encrypt, log and limit the blast radius.</span></div>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Authentication is a login page. I'll store users in a table and hash the passwords."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Never build your own identity system. Delegate to a proper identity provider so we get MFA, risk detection, auditing and compliance for free, and we never hold a password we could leak."</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= ENTRA ======================= -->
+    <section id="entra">
+      <span class="sec-num">03.2</span>
+      <h2>Microsoft Entra ID</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
+        <h3>The cloud identity provider behind everything Microsoft</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Microsoft Entra ID (formerly Azure Active Directory) is Microsoft's cloud-based identity and access management service. It authenticates users, devices and applications and issues tokens that Azure, Microsoft 365 and thousands of other applications trust.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Entra ID is the passport office for your organisation. It keeps the list of who exists (users, groups, apps, devices), checks their credentials, and hands out short-lived passes (tokens) that other services accept.</p>
+      </div>
+
+      <p>Every Azure subscription trusts exactly <strong>one Entra tenant</strong>. A tenant is one instance of Entra ID: one organisation's directory, with its own users, its own domain names (<code>meridian.com</code>) and its own security settings. The tenant decision is one of those one-way doors from Module 01. Most organisations should have <strong>one</strong> workforce tenant and resist the urge to create more.</p>
+
+      <h4>Entra ID is <em>not</em> cloud Active Directory</h4>
+      <p>The old name caused years of confusion. Here's the difference, because the exam loves it:</p>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Active Directory Domain Services (on-prem)</th><th>Microsoft Entra ID</th></tr></thead>
+          <tbody>
+            <tr><td>Designed for</td><td>Corporate network, domain-joined PCs and servers</td><td>Internet, SaaS apps, cloud resources, any device</td></tr>
+            <tr><td>Protocols</td><td>Kerberos, NTLM, LDAP</td><td>OpenID Connect, OAuth 2.0, SAML</td></tr>
+            <tr><td>Structure</td><td>Forests, domains, OUs, Group Policy</td><td>Flat directory, groups, administrative units</td></tr>
+            <tr><td>Typical question</td><td>"Can this PC join the domain?"</td><td>"Can this user, on this device, open this app now?"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If a lifted-and-shifted legacy app in Azure still needs Kerberos/LDAP and you don't want to run domain controllers yourself, the answer is <strong>Microsoft Entra Domain Services</strong>, a managed domain that syncs from Entra ID.</p>
+
+      <h4>Editions: what you get at each level</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Edition</th><th>Headline capabilities</th><th>Architect's rule of thumb</th></tr></thead>
+          <tbody>
+            <tr><td>Free</td><td>Users, groups, basic SSO, security defaults, hybrid sync</td><td>Fine for a lab, not for a company.</td></tr>
+            <tr><td>P1</td><td>Conditional Access, dynamic groups, self-service password reset with on-prem writeback, application proxy</td><td>The real baseline for any business.</td></tr>
+            <tr><td>P2</td><td>Everything in P1 plus Identity Protection (risk-based access), Privileged Identity Management, access reviews</td><td>Needed when the question mentions <em>risk</em>, <em>just-in-time</em> or <em>reviews</em>.</td></tr>
+            <tr><td>Entra ID Governance add-on</td><td>Advanced lifecycle workflows, entitlement management and review features</td><td>For mature identity governance programmes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>Licensing hides inside "minimise cost" questions. If the requirement is only "require MFA for remote users", <strong>P1</strong> (Conditional Access) is enough. If it says "based on <strong>sign-in risk</strong>" or "<strong>just-in-time</strong> admin access", you need <strong>P2</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m03-entra">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Tour the tenant, create a user and a group</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the “passport office”: the tenant, its licence level, and the objects it holds.</p>
+          <ol class="demo-steps">
+            <li>Open <code>entra.microsoft.com</code> › <span class="ui">Overview</span>: tenant name, <b>Tenant ID</b>, primary domain and licence (Free, P1 or P2).</li>
+            <li><span class="ui">Users</span> › <span class="ui">All users</span> › <span class="ui">+ New user</span> › <span class="ui">Create new user</span>: UPN <code>priya@</code>your tenant domain, display name <b>Priya Sharma</b>, auto-generate the password (copy it). On <span class="ui">Properties</span> set <b>Department = Online</b> › <span class="ui">Create</span>.</li>
+            <li><span class="ui">Groups</span> › <span class="ui">All groups</span> › <span class="ui">+ New group</span>: type <b>Security</b>, name <code>grp-az305-checkout-devs</code>, membership type <b>Assigned</b>, add Priya as a member › <span class="ui">Create</span>.</li>
+            <li>Open <span class="ui">+ New group</span> again and switch membership type to <b>Dynamic User</b> › <span class="ui">Add dynamic query</span>: <code>department equals Online</code>. Show it, then cancel. (This needs P1.)</li>
+            <li>Quickly show <span class="ui">Custom domain names</span>, <span class="ui">Enterprise applications</span> and <span class="ui">Devices</span>: the other object types in the directory.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Assign access to <b>groups</b>, not individuals. Dynamic groups make joiner/mover/leaver automatic, but only if HR data like Department is accurate.</li><li>The Tenant ID is what every Azure subscription points to: one subscription, one trusted tenant.</li></ul>
+          <p class="demo-say"><b>Say:</b> “This is the passport office. Everything later in this module just reads from it.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= HYBRID ======================= -->
+    <section id="hybrid">
+      <span class="sec-num">03.3</span>
+      <h2>Hybrid identity: one person, one identity</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Hybrid identity is a common user identity for authentication and authorisation across on-premises and cloud resources, typically created by synchronising Active Directory to Entra ID with Microsoft Entra Connect Sync or Microsoft Entra Cloud Sync.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Your staff already have AD accounts. You don't want them to have a second, separate cloud username and password. So you copy (sync) the accounts to Entra ID and choose <em>how</em> the cloud checks their password.</p>
+      </div>
+
+      <h3>Three ways to check a hybrid user's password</h3>
+      <div class="terms">
+        <div class="term"><b>Password hash synchronisation (PHS)</b><span>A hash of the password hash is synced to Entra ID, which then authenticates in the cloud. Simplest, most resilient, enables leaked-credential detection.</span></div>
+        <div class="term"><b>Pass-through authentication (PTA)</b><span>Entra ID forwards the password check to lightweight agents on-premises, which validate against AD in real time. No password hashes in the cloud.</span></div>
+        <div class="term"><b>Federation (AD FS)</b><span>Entra ID redirects users to your own on-prem federation servers. Most control, most infrastructure, most ways to break.</span></div>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 330" role="img" aria-labelledby="hyt hyd">
+            <title id="hyt">Choosing a hybrid authentication method</title>
+            <desc id="hyd">Start with password hash sync. If password validation must happen on-premises in real time, consider pass-through authentication. Only if you need sign-in features Entra ID can't provide, such as on-prem smart card or a third-party MFA server, choose federation.</desc>
+
+            <rect x="20" y="20" width="230" height="60" rx="12" class="s-blue"/>
+            <text x="135" y="46" class="t-b mid">Users exist in on-prem AD</text>
+            <text x="135" y="65" class="t-s mid">and need cloud sign-in</text>
+
+            <path d="M250 50 H300" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="306" y="14" width="300" height="72" rx="12" class="s-surface"/>
+            <text x="456" y="40" class="t-b mid">Must passwords be validated</text>
+            <text x="456" y="60" class="t-b mid">on-premises in real time?</text>
+            <text x="456" y="78" class="t-s mid">e.g. logon hours, no hashes in the cloud</text>
+
+            <path d="M606 50 H680" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="643" y="40" class="t-s mid">No</text>
+            <rect x="686" y="20" width="200" height="60" rx="12" class="s-green"/>
+            <text x="786" y="46" class="t-b mid">Password hash sync</text>
+            <text x="786" y="65" class="t-s mid">recommended default</text>
+
+            <path d="M456 86 V140" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="470" y="118" class="t-s">Yes</text>
+
+            <rect x="306" y="146" width="300" height="72" rx="12" class="s-surface"/>
+            <text x="456" y="172" class="t-b mid">Need sign-in features Entra</text>
+            <text x="456" y="192" class="t-b mid">can't do natively?</text>
+            <text x="456" y="210" class="t-s mid">e.g. on-prem smart card, third-party MFA server</text>
+
+            <path d="M606 182 H680" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="643" y="172" class="t-s mid">No</text>
+            <rect x="686" y="152" width="200" height="60" rx="12" class="s-teal"/>
+            <text x="786" y="178" class="t-b mid">Pass-through auth</text>
+            <text x="786" y="197" class="t-s mid">+ PHS as backup</text>
+
+            <path d="M456 218 V256" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="470" y="244" class="t-s">Yes</text>
+            <rect x="356" y="262" width="200" height="60" rx="12" class="s-amber"/>
+            <text x="456" y="288" class="t-b mid">Federation (AD FS)</text>
+            <text x="456" y="307" class="t-s mid">most control, most effort</text>
+
+            <text x="20" y="300" class="t-s">Tip: enable PHS even with PTA</text>
+            <text x="20" y="318" class="t-s">or federation, as a fallback.</text>
+          </svg>
+        </div>
+        <figcaption><b>Start simple, add complexity only for a stated requirement.</b> Each step down adds infrastructure you must keep highly available, because if it's down, nobody can sign in.</figcaption>
+      </figure>
+
+      <div class="lens">
+        <div>
+          <h5>The instinct</h5>
+          <p>"Storing password hashes in the cloud feels risky. Let's federate so everything stays on-prem."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Federation means our AD FS farm becomes a tier-0 dependency for every cloud login. If it goes down, so does Microsoft 365 and the Azure portal. PHS gives us leaked-credential detection and survives an on-prem outage. Choose federation only for a requirement PHS can't meet."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Minimise on-premises infrastructure</strong>" or "users must sign in <strong>even if the on-prem datacentre is unavailable</strong>" → PHS. "Enforce on-prem account policies (e.g. logon hours) <strong>at sign-in</strong>" → PTA. "Use an existing <strong>third-party MFA</strong> or smart card solution integrated with AD FS" → federation. For syncing from <strong>multiple disconnected AD forests</strong> with a light footprint, Cloud Sync is the modern choice.</p>
+      </div>
+      <details class="demo" id="demo-m03-hybrid">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Where hybrid identity shows up (no setup needed)</span><span class="demo-time">~1 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show where the PHS, PTA or federation decision becomes visible, without building a lab.</p>
+          <ol class="demo-steps">
+            <li>In the Entra admin centre search <b>Microsoft Entra Connect</b> (under hybrid management).</li>
+            <li>Show the status page: <b>Connect Sync</b> vs <b>Cloud Sync</b>, last sync time, and the user sign-in section: password hash sync, pass-through authentication, seamless SSO and federation, each shown as enabled or disabled.</li>
+            <li>If your tenant is synced, open a synced user: <b>On-premises sync enabled = Yes</b>, and most properties are read-only in the cloud.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “The choice you make in the installer ends up on this one status page, so this is the first place to look when sign-ins break.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= EXTERNAL ======================= -->
+    <section id="external">
+      <span class="sec-num">03.4</span>
+      <h2>External identities: partners and customers</h2>
+      <p>Not everyone who needs access is your employee. AZ-305 cares about two very different outsiders: <strong>partners</strong> who help you work, and <strong>customers</strong> who buy from you. Mixing them up is a classic wrong answer.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 320" role="img" aria-labelledby="ext exd">
+            <title id="ext">B2B collaboration versus External ID for customers</title>
+            <desc id="exd">Left: the Meridian workforce tenant contains employees and B2B guest users from a partner tenant who sign in with their own work identity. Right: a separate external tenant holds millions of customers who sign up with email or a social account to use the online store.</desc>
+
+            <rect x="10" y="20" width="430" height="290" rx="14" class="s-teal"/>
+            <text x="30" y="50" class="t-m t-teal">WORKFORCE TENANT · meridian.com</text>
+            <text x="30" y="76" class="t-h">Partners: B2B collaboration</text>
+
+            <rect x="30" y="100" width="170" height="80" rx="10" class="s-surface"/>
+            <text x="115" y="132" class="t-b mid">Employees</text>
+            <text x="115" y="152" class="t-s mid">members</text>
+
+            <rect x="250" y="100" width="170" height="80" rx="10" class="s-surface"/>
+            <text x="335" y="132" class="t-b mid">Guest users</text>
+            <text x="335" y="152" class="t-s mid">from partner orgs</text>
+
+            <rect x="250" y="226" width="170" height="64" rx="10" class="s-surface2"/>
+            <text x="335" y="254" class="t-b mid">Partner tenant</text>
+            <text x="335" y="273" class="t-s mid">logistics-co.com</text>
+            <path d="M335 226 V186" class="s-dash" marker-end="url(#ah)"/>
+            <text x="30" y="226" class="t-s">• Partners sign in with their</text>
+            <text x="30" y="244" class="t-s">  own work account</text>
+            <text x="30" y="262" class="t-s">• You control access; they</text>
+            <text x="30" y="280" class="t-s">  manage the credentials</text>
+
+            <rect x="460" y="20" width="430" height="290" rx="14" class="s-amber"/>
+            <text x="480" y="50" class="t-m t-amber">EXTERNAL TENANT · separate</text>
+            <text x="480" y="76" class="t-h">Customers: External ID</text>
+
+            <rect x="480" y="100" width="390" height="80" rx="10" class="s-surface"/>
+            <text x="675" y="130" class="t-b mid">Millions of shoppers</text>
+            <text x="675" y="150" class="t-s mid">self-service sign-up · email, Google, Apple, Facebook…</text>
+            <text x="675" y="166" class="t-s mid">your branding on the sign-in page</text>
+
+            <rect x="560" y="216" width="230" height="64" rx="10" class="s-surface2"/>
+            <text x="675" y="244" class="t-b mid">Online store app</text>
+            <text x="675" y="263" class="t-s mid">trusts the external tenant</text>
+            <path d="M675 186 V210" class="s-arrow" marker-end="url(#ah)"/>
+          </svg>
+        </div>
+        <figcaption><b>Different people, different tenants.</b> Partners join your workforce tenant as guests. Customers live in a separate external tenant designed for scale and self-service.</figcaption>
+      </figure>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><path d="M2 20c.8-3 3-4.5 6-4.5s5.2 1.5 6 4.5M14.5 15.7c.8-.2 1.6-.2 2.5-.2 3 0 5.2 1.5 6 4.5"/></svg></span>
+          <h3>Microsoft Entra B2B collaboration</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>B2B collaboration lets you invite external users into your workforce tenant as guests so they can access your apps and resources using their own identities, whether a work account, a personal Microsoft account or a one-time passcode.</p>
+        </div>
+        <div class="callout analogy">
+          <div class="c-label">Imagine this</div>
+          <p>A visiting consultant gets a <strong>visitor badge</strong> at reception. They still have their own company's ID card. You decide which floors the visitor badge opens; their company decides whether they're still employed. If they leave their company, their home account dies, and with it their ability to use your visitor badge.</p>
+        </div>
+        <ul>
+          <li><strong>Cross-tenant access settings</strong> let you trust a partner's MFA and device compliance, so guests aren't asked for MFA twice.</li>
+          <li><strong>B2B direct connect</strong> is a lighter variant used mainly for Teams shared channels, with no guest object in your tenant.</li>
+          <li>Guests are a governance risk over time, so pair them with <a href="#reviews">access reviews</a>.</li>
+        </ul>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.5-1.2L21 8H6"/></svg></span>
+          <h3>Microsoft Entra External ID for customers (formerly Azure AD B2C)</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Microsoft Entra External ID in an external tenant is a customer identity and access management (CIAM) solution that lets consumers and business customers sign up and sign in to your apps with email, social or enterprise identities, using fully branded experiences.</p>
+        </div>
+        <div class="callout plain">
+          <div class="c-label">In plain words</div>
+          <p>It's a ready-made "Sign up / Sign in with Google" system for your customer-facing apps, built for millions of users, so your developers never write a password table again.</p>
+        </div>
+        <div class="callout note">
+          <div class="c-label">Name check</div>
+          <p>Many exam questions and older documents still say <strong>Azure AD B2C</strong>. Since May 2025, Azure AD B2C is no longer available to new customers, and Microsoft directs new customer-identity projects to <strong>External ID</strong>. Existing B2C tenants remain supported. In an exam answer, "B2C" and "External ID for customers" solve the same problem: customer sign-up and sign-in.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Scenario</th><th>Choose</th></tr></thead>
+          <tbody>
+            <tr><td>Supplier staff need access to your SharePoint and an internal app</td><td>B2B collaboration (guests in your workforce tenant)</td></tr>
+            <tr><td>Shoppers create accounts on your e-commerce site with Google or email</td><td>External ID for customers (Azure AD B2C in older questions)</td></tr>
+            <tr><td>Two companies' employees chat in a shared Teams channel</td><td>B2B direct connect</td></tr>
+            <tr><td>A legacy app in Azure VMs needs LDAP/Kerberos for staff</td><td>Entra Domain Services (not an external identity at all)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="demo" id="demo-m03-b2b">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Invite a partner, then peek at an external tenant</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Make the difference between a visitor badge (B2B) and a customer loyalty card (External ID) concrete.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Users</span> › <span class="ui">All users</span> › <span class="ui">+ New user</span> › <span class="ui">Invite external user</span>: use a personal email you own › <span class="ui">Invite</span>. In the user list, <b>User type = Guest</b>.</li>
+            <li>Open the invitation email on your phone and accept. The consent screen names the organisation you're joining and what it can see.</li>
+            <li><span class="ui">External Identities</span> › <span class="ui">External collaboration settings</span>: who may invite guests, and how restricted guest access is.</li>
+            <li><span class="ui">External Identities</span> › <span class="ui">Cross-tenant access settings</span> › <span class="ui">Default settings</span> › inbound <span class="ui">Trust settings</span>: the option to trust MFA from other Entra tenants.</li>
+            <li><span class="ui">Overview</span> › <span class="ui">Manage tenants</span> › <span class="ui">+ Create</span>: show the choice between <b>Workforce</b> and <b>External</b> (for customers). <b>Cancel.</b></li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Partners come into <b>your</b> workforce tenant as guests. Customers live in a <b>separate</b> external tenant.</li></ul>
+          <p class="demo-say"><b>Say:</b> “A visitor badge for partners, a loyalty card for customers. Never mix the two in one tenant.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Delete the guest user at the end of the module.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= AUTHN ======================= -->
+    <section id="authn">
+      <span class="sec-num">03.5</span>
+      <h2>Strong authentication: MFA and passwordless</h2>
+      <p>Passwords alone are no longer enough. Microsoft's own data has long shown that MFA blocks the overwhelming majority of account-compromise attacks. Microsoft now <strong>requires MFA</strong> for signing in to the Azure portal, admin centres and Azure management tools, so treat MFA as the floor, not a feature.</p>
+      <div class="terms">
+        <div class="term"><b>MFA</b><span>Something you know plus something you have (phone, key) or are (biometric).</span></div>
+        <div class="term"><b>Passwordless &amp; phishing-resistant</b><span>Passkeys (FIDO2 security keys or the Authenticator app), Windows Hello for Business, certificate-based auth. No password to steal.</span></div>
+        <div class="term"><b>Self-service password reset (SSPR)</b><span>Users reset their own passwords after verifying themselves. With P1 it can write back to on-prem AD.</span></div>
+        <div class="term"><b>Security defaults</b><span>A free, one-switch baseline: MFA registration for all, MFA for admins, legacy auth blocked. Good for small tenants. Replace with Conditional Access when you need nuance.</span></div>
+      </div>
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Small organisation, <strong>no premium licences</strong>, enable MFA quickly" → security defaults. "MFA only <strong>outside the office</strong>" or "only for <strong>this app</strong>" → Conditional Access (P1). "Phishing-resistant" → passkeys/FIDO2 or Windows Hello for Business, enforced with an authentication strength in Conditional Access.</p>
+      </div>
+      <details class="demo" id="demo-m03-authn">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Security defaults and authentication methods</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the one-switch baseline and where passwordless methods are switched on.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Overview</span> › <span class="ui">Properties</span> › <span class="ui">Manage security defaults</span>: show the panel. Don't toggle it if Conditional Access policies exist; the two are mutually exclusive.</li>
+            <li><span class="ui">Authentication methods</span> › <span class="ui">Policies</span>: <span class="ui">Passkey (FIDO2)</span>, <span class="ui">Microsoft Authenticator</span>, <span class="ui">Temporary Access Pass</span>, SMS… Open Passkey and show how to target it at a group.</li>
+            <li><span class="ui">Authentication methods</span> › <span class="ui">Authentication strengths</span>: open the built-in <b>Phishing-resistant MFA</b> strength. Conditional Access can require exactly this.</li>
+            <li><span class="ui">Users</span> › Priya › <span class="ui">Authentication methods</span>: what she has registered, plus <b>Require re-register MFA</b>.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Security defaults are a light switch. Conditional Access is a dimmer with a timer. Small tenants start with the switch.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CA ======================= -->
+    <section id="ca">
+      <span class="sec-num">03.6</span>
+      <h2>Conditional Access</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h6M14 12h6M10 7l4 5-4 5"/><circle cx="12" cy="12" r="10"/></svg></span>
+        <h3>The Zero Trust policy engine</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Conditional Access is the Entra ID policy engine that brings signals together (user, location, device, application and risk) to decide whether to allow access, block it, or allow it only after extra requirements such as MFA or a compliant device.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>It's a set of <strong>if-then</strong> rules evaluated <em>after</em> the password is checked. <em>If</em> a finance user opens the payroll app from an unknown country on a personal laptop, <em>then</em> block. <em>If</em> the same user is on a company laptop in the office, <em>then</em> let them straight in.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 330" role="img" aria-labelledby="cat cad">
+            <title id="cat">How Conditional Access decides</title>
+            <desc id="cad">Signals such as user or group, location, device state, application and risk feed into the Conditional Access policy engine. The engine either blocks access, grants access with requirements such as MFA, a compliant device or terms of use, or applies session controls.</desc>
+
+            <text x="20" y="28" class="t-m t-accent">SIGNALS · IF</text>
+            <rect x="20" y="40" width="220" height="44" rx="10" class="s-surface"/><text x="36" y="67" class="t">User or group / role</text>
+            <rect x="20" y="92" width="220" height="44" rx="10" class="s-surface"/><text x="36" y="119" class="t">Location / IP range</text>
+            <rect x="20" y="144" width="220" height="44" rx="10" class="s-surface"/><text x="36" y="171" class="t">Device platform &amp; state</text>
+            <rect x="20" y="196" width="220" height="44" rx="10" class="s-surface"/><text x="36" y="223" class="t">Target app or action</text>
+            <rect x="20" y="248" width="220" height="44" rx="10" class="s-surface"/><text x="36" y="275" class="t">Sign-in / user risk</text>
+
+            <path d="M240 62 Q300 62 360 150" class="s-arrow"/>
+            <path d="M240 114 Q300 114 360 158" class="s-arrow"/>
+            <path d="M240 166 H356" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M240 218 Q300 218 360 174" class="s-arrow"/>
+            <path d="M240 270 Q300 270 360 182" class="s-arrow"/>
+
+            <rect x="362" y="96" width="250" height="140" rx="14" class="s-violet"/>
+            <text x="487" y="146" class="t-h mid">Conditional Access</text>
+            <text x="487" y="170" class="t-s mid">all matching policies apply;</text>
+            <text x="487" y="188" class="t-s mid">every requirement must be met</text>
+
+            <text x="680" y="28" class="t-m t-accent">DECISION · THEN</text>
+            <path d="M612 140 Q650 70 676 66" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M612 166 H676" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M612 192 Q650 262 676 266" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="682" y="40" width="300" height="52" rx="10" class="s-rose"/>
+            <text x="700" y="63" class="t-b">Block access</text>
+            <text x="700" y="81" class="t-s">risky country, legacy authentication</text>
+
+            <rect x="682" y="112" width="300" height="108" rx="10" class="s-green"/>
+            <text x="700" y="136" class="t-b">Grant, but require…</text>
+            <text x="700" y="158" class="t-s">• MFA / authentication strength</text>
+            <text x="700" y="177" class="t-s">• compliant or hybrid-joined device</text>
+            <text x="700" y="196" class="t-s">• password change (if user risk)</text>
+            <text x="700" y="212" class="t-s">• terms of use accepted</text>
+
+            <rect x="682" y="240" width="300" height="52" rx="10" class="s-amber"/>
+            <text x="700" y="263" class="t-b">Session controls</text>
+            <text x="700" y="281" class="t-s">sign-in frequency, app-enforced limits</text>
+          </svg>
+        </div>
+        <figcaption><b>Signals in, decision out.</b> Conditional Access never replaces authentication. It runs right after it and decides whether that authenticated session is good enough for this request.</figcaption>
+      </figure>
+
+      <h4>Policies almost every organisation should have</h4>
+      <ul>
+        <li>Require MFA for <strong>all users</strong>, with phishing-resistant methods for <strong>admins</strong>.</li>
+        <li><strong>Block legacy authentication</strong> protocols that can't do MFA.</li>
+        <li>Require a <strong>compliant device</strong> for access to sensitive apps.</li>
+        <li>Block or step up access from <strong>countries you don't operate in</strong>.</li>
+        <li>Require MFA for <strong>Azure management</strong> (portal, CLI, PowerShell).</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>A badly scoped "block everything" policy can lock out every administrator, including you. Always keep two <strong>emergency access ("break-glass") accounts</strong> excluded from policies (and monitored with alerts), and test new policies in <strong>report-only mode</strong> before switching them on.</p>
+      </div>
+      <details class="demo" id="demo-m03-ca">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Build a policy in report-only and test it with What If</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Build an if-then policy live and show the safe rollout pattern: report-only first, What If to test.</p>
+          <p class="demo-note"><b>Before you start:</b> Scope the policy to the demo group only and exclude your own admin account. A typo with “All users” can lock you out.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Protection</span> › <span class="ui">Conditional Access</span> › <span class="ui">Policies</span>. Show <span class="ui">Create new policy from templates</span> (e.g. “Require MFA for admins”), then go back and choose <span class="ui">+ New policy</span>.</li>
+            <li>Name: <b>DEMO – Require MFA for Azure management</b>. <span class="ui">Users</span>: include <code>grp-az305-checkout-devs</code>; exclude your admin account.</li>
+            <li><span class="ui">Target resources</span> › <span class="ui">Select resources</span> › search for <b>Azure management</b> (it may be listed as <i>Windows Azure Service Management API</i>).</li>
+            <li><span class="ui">Conditions</span>: briefly open <span class="ui">Locations</span>, <span class="ui">Device platforms</span> and <span class="ui">Sign-in risk</span> so learners see the signals from the diagram.</li>
+            <li><span class="ui">Grant</span> › <span class="ui">Grant access</span> › tick <span class="ui">Require multifactor authentication</span> (or <span class="ui">Require authentication strength</span>).</li>
+            <li><span class="ui">Enable policy</span> › <b>Report-only</b> › <span class="ui">Create</span>.</li>
+            <li><span class="ui">Policies</span> › <span class="ui">What If</span>: user Priya, target Azure management › <span class="ui">What If</span>. The policy is listed as one that would apply.</li>
+            <li>Later: <span class="ui">Sign-in logs</span> › open one of Priya's sign-ins › <span class="ui">Report-only</span> tab shows what the policy <i>would</i> have done.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Report-only → check logs → On. Always.</li><li>Keep two break-glass accounts excluded and monitored.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Signals in, decision out. And we test in report-only, because a wrong policy locks out a whole company, admins included.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Delete the demo policy.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= IDP ======================= -->
+    <section id="idp">
+      <span class="sec-num">03.7</span>
+      <h2>Identity Protection</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Microsoft Entra ID Protection uses machine learning and threat intelligence to detect identity-based risks, such as leaked credentials, sign-ins from anonymous IP addresses or unfamiliar locations, and calculates a sign-in risk and a user risk that can drive Conditional Access decisions.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Your bank texts you: <em>"A card payment of ₹80,000 was attempted in another country one hour after you used it in Pune. Was this you?"</em> The bank didn't block your card forever. It noticed something odd and asked for proof. That's exactly what Identity Protection does for sign-ins.</p>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <h4>Sign-in risk</h4>
+          <p>"Is <em>this sign-in</em> probably not the real owner?" Anonymous IP, atypical travel, unfamiliar sign-in properties. <strong>Typical response:</strong> require MFA.</p>
+        </div>
+        <div>
+          <h4>User risk</h4>
+          <p>"Is <em>this account</em> probably compromised?" Leaked credentials found online, unusual behaviour. <strong>Typical response:</strong> require a secure password change.</p>
+        </div>
+      </div>
+      <p>Identity Protection needs <strong>Entra ID P2</strong>. Its risk levels feed into Conditional Access as conditions, which is the modern way to configure risk-based policies.</p>
+      <div class="callout note">
+        <div class="c-label">Hybrid connection</div>
+        <p>The <strong>leaked credentials</strong> detection for synced users works only if you use <strong>password hash sync</strong>, because Microsoft needs a hash to compare against leaked lists. One more reason PHS is the recommended default.</p>
+      </div>
+      <details class="demo" id="demo-m03-idp">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Open the risk dashboards</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show where risk is detected and how it feeds Conditional Access.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Protection</span> › <span class="ui">Identity Protection</span> › <span class="ui">Dashboard</span>: risky users, risky sign-ins, risk detections.</li>
+            <li><span class="ui">Risky sign-ins</span> › open one if any exist. To create a detection on purpose, sign in as Priya from the Tor Browser (anonymous IP); it appears after a few minutes.</li>
+            <li>On a risky user, show the admin actions: <span class="ui">Confirm user compromised</span>, <span class="ui">Dismiss user risk</span>, <span class="ui">Reset password</span>.</li>
+            <li>Go back to a Conditional Access policy › <span class="ui">Conditions</span> › <span class="ui">User risk</span> / <span class="ui">Sign-in risk</span>: this is where risk-based policies are built now.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “It's your bank's ‘was this you?’ text message, for every sign-in, and it needs P2.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= RBAC ======================= -->
+    <section id="rbac">
+      <span class="sec-num">03.8</span>
+      <h2>Authorisation with Azure RBAC</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure role-based access control (RBAC) is the authorisation system for Azure resources. Access is granted by creating a <strong>role assignment</strong>, which binds a <strong>security principal</strong> to a <strong>role definition</strong> at a <strong>scope</strong>.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 860 330" role="img" aria-labelledby="rbt rbd">
+            <title id="rbt">The three parts of a role assignment</title>
+            <desc id="rbd">A role assignment combines who (a security principal such as a user, group, service principal or managed identity), what (a role definition such as Reader or Contributor) and where (a scope: management group, subscription, resource group or resource).</desc>
+
+            <polygon points="430,40 140,290 720,290" class="s-surface2"/>
+            <circle cx="430" cy="200" r="68" class="s-blue"/>
+            <text x="430" y="196" class="t-b mid">Role</text>
+            <text x="430" y="216" class="t-b mid">assignment</text>
+
+            <rect x="305" y="10" width="250" height="70" rx="12" class="s-teal"/>
+            <text x="430" y="36" class="t-m mid t-teal">WHO</text>
+            <text x="430" y="56" class="t-b mid">Security principal</text>
+            <text x="430" y="72" class="t-s mid">user · group · SP · managed identity</text>
+
+            <rect x="20" y="250" width="240" height="70" rx="12" class="s-amber"/>
+            <text x="140" y="276" class="t-m mid t-amber">WHAT</text>
+            <text x="140" y="296" class="t-b mid">Role definition</text>
+            <text x="140" y="312" class="t-s mid">set of allowed actions</text>
+
+            <rect x="600" y="250" width="240" height="70" rx="12" class="s-violet"/>
+            <text x="720" y="276" class="t-m mid t-violet">WHERE</text>
+            <text x="720" y="296" class="t-b mid">Scope</text>
+            <text x="720" y="312" class="t-s mid">MG · subscription · RG · resource</text>
+          </svg>
+        </div>
+        <figcaption><b>Who + what + where.</b> "The checkout-devs <em>group</em> is <em>Contributor</em> on <em>rg-checkout-dev</em>." Every access sentence you write should have all three.</figcaption>
+      </figure>
+
+      <h4>The four fundamental built-in roles</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Role</th><th>Can manage resources?</th><th>Can grant access to others?</th><th>Typical holder</th></tr></thead>
+          <tbody>
+            <tr><td>Owner</td><td>Yes, everything</td><td>Yes</td><td>Platform team, at limited scopes, ideally via PIM</td></tr>
+            <tr><td>Contributor</td><td>Yes, everything</td><td>No</td><td>Workload team on their own resource groups</td></tr>
+            <tr><td>Reader</td><td>No, view only</td><td>No</td><td>Auditors, support, finance</td></tr>
+            <tr><td>User Access Administrator</td><td>No</td><td>Yes</td><td>Identity/security team</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Beyond these, there are hundreds of service-specific roles (Virtual Machine Contributor, Key Vault Secrets User, Storage Blob Data Reader…). The newer <strong>Role Based Access Control Administrator</strong> role can grant access too, but can be <em>constrained</em> with conditions to only assign specific roles, a safer alternative to handing out Owner.</p>
+
+      <h4>Two distinctions the exam loves</h4>
+      <div class="two-col">
+        <div>
+          <h4>Control plane vs data plane</h4>
+          <p><strong>Contributor</strong> on a storage account lets you manage the <em>account</em> (settings, firewall). Reading the <em>blobs</em> with Entra ID needs a data role like <strong>Storage Blob Data Reader</strong>. Managing the box is not the same as opening it.</p>
+        </div>
+        <div>
+          <h4>Entra roles vs Azure roles</h4>
+          <p><strong>Entra roles</strong> (Global Administrator, User Administrator) manage the <em>directory</em>: users, groups, licences. <strong>Azure roles</strong> (Owner, Contributor) manage <em>Azure resources</em>. A Global Admin has no Azure resource rights by default, though they can elevate themselves.</p>
+        </div>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Just give me Owner on the subscription so I'm not blocked."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Assign roles to <strong>groups</strong>, not individuals. Use the <strong>narrowest built-in role</strong> at the <strong>narrowest scope</strong>. Create a <strong>custom role</strong> only when no built-in role fits. Make standing privileged access <strong>rare</strong>, and use PIM for the rest."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Least privilege</strong>" plus a very specific task (e.g. "restart VMs but not delete them") → a <strong>custom role</strong> if no built-in role matches exactly. Check built-ins first, though: Virtual Machine Contributor, for instance, also allows deleting VMs. The exam often tests whether you notice that.</p>
+      </div>
+      <details class="demo" id="demo-m03-rbac">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Give a group Reader on a resource group, then check it</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Build “who + what + where” live and show control-plane vs data-plane roles.</p>
+          <ol class="demo-steps">
+            <li>Azure portal › <span class="ui">Resource groups</span> › create <code>rg-az305-m03-demo</code> (Central India) › open it › <span class="ui">Access control (IAM)</span>.</li>
+            <li><span class="ui">+ Add</span> › <span class="ui">Add role assignment</span>: show the <span class="ui">Job function roles</span> and <span class="ui">Privileged administrator roles</span> tabs. The portal deliberately separates the dangerous ones. Pick <b>Reader</b>.</li>
+            <li><span class="ui">Members</span> › <span class="ui">+ Select members</span> › <code>grp-az305-checkout-devs</code> › <span class="ui">Review + assign</span>. Who = group, what = Reader, where = this resource group.</li>
+            <li><span class="ui">Check access</span> › search Priya: Reader at this scope, granted <i>via the group</i>.</li>
+            <li><span class="ui">Role assignments</span> tab: the <b>Scope</b> column shows which assignments are inherited from the subscription or a management group.</li>
+            <li><span class="ui">Roles</span> › open <b>Storage Blob Data Reader</b> › permissions: <code>DataActions</code>, not <code>Actions</code>. That's the data plane.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Every access sentence needs three parts: who, what and where. If one is missing, it isn't an access design.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= PIM ======================= -->
+    <section id="pim">
+      <span class="sec-num">03.9</span>
+      <h2>Privileged Identity Management (PIM)</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Microsoft Entra Privileged Identity Management provides just-in-time, time-bound and approval-based activation of privileged Entra roles, Azure roles and group memberships, with full auditing.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A bank manager doesn't carry the vault key in their pocket all day. When they need the vault, they sign the register, a second officer approves, they get the key for 30 minutes, and it goes back in the safe. PIM is that register, that approval and that timer, for admin rights.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 900 230" role="img" aria-labelledby="pmt pmd">
+            <title id="pmt">Just-in-time activation with PIM</title>
+            <desc id="pmd">An admin is eligible for a role but has no access by default. When needed, they request activation with a justification and MFA, optionally get approval, receive the role for a limited window such as four hours, and the role then expires automatically. Every step is audited.</desc>
+            <path d="M30 120 H870" class="s-line" marker-end="url(#ah)"/>
+
+            <rect x="30" y="140" width="150" height="56" rx="10" class="s-surface2"/>
+            <text x="105" y="164" class="t-b mid">Eligible</text>
+            <text x="105" y="183" class="t-s mid">no access day to day</text>
+
+            <rect x="200" y="140" width="190" height="56" rx="10" class="s-surface"/>
+            <text x="295" y="164" class="t-b mid">Request activation</text>
+            <text x="295" y="183" class="t-s mid">justification + MFA</text>
+
+            <rect x="410" y="140" width="120" height="56" rx="10" class="s-surface"/>
+            <text x="470" y="164" class="t-b mid">Approval</text>
+            <text x="470" y="183" class="t-s mid">optional</text>
+
+            <rect x="550" y="40" width="200" height="60" rx="10" class="s-amber"/>
+            <text x="650" y="66" class="t-b mid">Active: e.g. 4 hours</text>
+            <text x="650" y="86" class="t-s mid">Owner on sub-online-prod</text>
+            <path d="M550 104 V120 M750 104 V120" class="s-line"/>
+            <rect x="550" y="114" width="200" height="12" rx="4" class="s-amber"/>
+
+            <rect x="770" y="140" width="110" height="56" rx="10" class="s-surface2"/>
+            <text x="825" y="164" class="t-b mid">Expires</text>
+            <text x="825" y="183" class="t-s mid">automatically</text>
+
+            <text x="30" y="30" class="t-m t-accent">EVERY STEP IS AUDITED AND CAN ALERT</text>
+          </svg>
+        </div>
+        <figcaption><b>Standing access becomes temporary access.</b> An attacker who steals an eligible admin's password gets nothing: no role is active, and activation needs MFA and possibly approval.</figcaption>
+      </figure>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Just-in-time</strong>", "<strong>time-bound</strong>", "require <strong>approval</strong> to activate", "minimise the number of <strong>permanent</strong> administrators" → PIM (Entra ID P2 or ID Governance).</p>
+      </div>
+      <details class="demo" id="demo-m03-pim">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Make Priya eligible, then activate just-in-time</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show standing access turning into temporary, approved, audited access.</p>
+          <p class="demo-note"><b>Before you start:</b> Needs Entra ID P2 (or ID Governance) and the RBAC demo's resource group.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Privileged Identity Management</span> › <span class="ui">Azure resources</span> › select <code>rg-az305-m03-demo</code> (choose <span class="ui">Manage resource</span> if asked).</li>
+            <li><span class="ui">Settings</span> › <b>Contributor</b> › <span class="ui">Edit</span>: activation maximum <b>2 hours</b>, require <b>justification</b>, require <b>MFA</b> on activation, require <b>approval</b> (approver: you) › <span class="ui">Update</span>.</li>
+            <li><span class="ui">Assignments</span> › <span class="ui">+ Add assignments</span>: role Contributor, member Priya › <span class="ui">Next</span> › assignment type <b>Eligible</b> › <span class="ui">Assign</span>.</li>
+            <li>In a private window, sign in as Priya › search <span class="ui">Privileged Identity Management</span> › <span class="ui">My roles</span> › <span class="ui">Azure resources</span> › <span class="ui">Activate</span>, with a justification › submit.</li>
+            <li>As yourself: PIM › <span class="ui">Approve requests</span> › approve. Priya now shows an <b>active</b> assignment with an end time.</li>
+            <li>Show the <span class="ui">Resource audit</span> log: who requested, who approved, when it expires.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “The vault key comes out with a signature, an approval and a timer, and it goes back by itself.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Remove Priya's eligible assignment.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= REVIEWS ======================= -->
+    <section id="reviews">
+      <span class="sec-num">03.10</span>
+      <h2>Access reviews: fighting permission creep</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Access reviews let organisations efficiently manage group memberships, access to applications and role assignments by having reviewers regularly confirm that each user still needs their access, with optional automatic removal when access is not confirmed.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>People change teams, projects end, contractors leave, and nobody remembers to remove their access. Access reviews are a recurring "is this still needed? yes/no" email to the person who should know, plus automatic clean-up for every "no" or non-response.</p>
+      </div>
+
+      <ul>
+        <li>Review <strong>guest users</strong> every quarter: the classic use case.</li>
+        <li>Review <strong>privileged role</strong> assignments (works together with PIM).</li>
+        <li>Reviewers can be managers, group owners, the users themselves, or specific people.</li>
+        <li>Pair with <strong>entitlement management</strong> access packages so access is requested, approved and time-limited from the start.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Auditors require <strong>quarterly attestation</strong> of who has access", "remove <strong>guest users who no longer need access</strong>", "<strong>minimise administrative effort</strong> to review group membership" → access reviews.</p>
+      </div>
+      <details class="demo" id="demo-m03-reviews">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Schedule a quarterly guest access review</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show how “auditors want quarterly attestation” becomes a scheduled, self-cleaning process.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Identity Governance</span> › <span class="ui">Access reviews</span> › <span class="ui">+ New access review</span>.</li>
+            <li>Review type: <span class="ui">Teams + Groups</span>, scope <b>Guest users only</b>, group <code>grp-az305-checkout-devs</code> (add your guest to it first if you like).</li>
+            <li>Reviewers: <b>Group owner(s)</b>, with yourself as fallback reviewer.</li>
+            <li>Settings: recurrence <b>Quarterly</b>, <b>Auto apply results</b> on, and if reviewers don't respond: <b>Remove access</b> › <span class="ui">Create</span>.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>“No response = remove” is the audit-friendly default. Silence should never keep access alive.</li></ul>
+          <p class="demo-clean"><b>Clean up:</b> Delete the access review.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= WORKLOAD ======================= -->
+    <section id="workload">
+      <span class="sec-num">03.11</span>
+      <h2>Identities for applications</h2>
+      <p>Humans are only half the story. Your web app needs to read from a database, your function needs to drop a message in a queue, your pipeline needs to deploy. Each of those is a <em>non-human</em> identity, and they're where most leaked credentials come from.</p>
+
+      <div class="terms">
+        <div class="term"><b>App registration</b><span>The global <em>definition</em> of an application in Entra ID: its ID, redirect URIs and permissions. Think of it as the blueprint.</span></div>
+        <div class="term"><b>Service principal</b><span>The local <em>instance</em> of that app in a tenant: the identity that actually signs in and gets roles. Think of it as the employee badge.</span></div>
+        <div class="term"><b>Managed identity</b><span>A service principal that Azure creates and manages for you, with credentials you never see, rotate or store.</span></div>
+        <div class="term"><b>Workload identity federation</b><span>Lets external systems (GitHub Actions, Kubernetes, other clouds) exchange <em>their</em> tokens for Entra tokens, with no secret stored anywhere.</span></div>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 12l2 2 4-4"/></svg></span>
+          <h3>Managed identities</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Managed identities provide Azure resources with an automatically managed identity in Microsoft Entra ID, which they can use to obtain tokens for any service that supports Entra authentication, without any credentials in code or configuration.</p>
+        </div>
+        <div class="callout analogy">
+          <div class="c-label">Imagine this</div>
+          <p>Instead of giving the delivery driver a copy of your house key (a secret they could lose or copy), you register their face with the society security guard. The guard (Entra ID) recognises them each time and lets them in for that delivery. There's no key to leak.</p>
+        </div>
+
+        <figure class="diagram">
+          <div class="frame">
+            <svg viewBox="0 0 960 280" role="img" aria-labelledby="mit mid">
+              <title id="mit">How an app uses a managed identity to read a secret</title>
+              <desc id="mid">The web app asks the local identity endpoint for a token. Entra ID issues a token for the app's managed identity. The app calls Key Vault with that token. Key Vault checks the app's RBAC role, Key Vault Secrets User, and returns the secret. No credential is stored in the app.</desc>
+
+              <rect x="20" y="90" width="210" height="110" rx="14" class="s-blue"/>
+              <text x="125" y="125" class="t-b mid">Web app</text>
+              <text x="125" y="146" class="t-s mid">App Service</text>
+              <rect x="50" y="160" width="150" height="28" rx="8" class="s-surface"/>
+              <text x="125" y="179" class="t-s mid">managed identity</text>
+
+              <rect x="370" y="10" width="220" height="80" rx="14" class="s-teal"/>
+              <text x="480" y="44" class="t-b mid">Microsoft Entra ID</text>
+              <text x="480" y="66" class="t-s mid">issues a short-lived token</text>
+
+              <rect x="730" y="90" width="210" height="110" rx="14" class="s-violet"/>
+              <text x="835" y="125" class="t-b mid">Key Vault</text>
+              <text x="835" y="146" class="t-s mid">role: Key Vault</text>
+              <text x="835" y="164" class="t-s mid">Secrets User</text>
+
+              <path d="M200 92 Q280 40 364 46" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+              <text x="250" y="48" class="t-b t-accent">1</text>
+              <text x="266" y="48" class="t-s">get token</text>
+              <path d="M370 74 Q290 100 236 112" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+              <text x="300" y="118" class="t-b t-accent">2</text>
+              <text x="316" y="118" class="t-s">token</text>
+
+              <path d="M230 160 H724" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+              <text x="440" y="152" class="t-b t-accent">3</text>
+              <text x="456" y="152" class="t-s">call with token</text>
+              <path d="M724 186 H236" class="s-arrow" marker-end="url(#ah)"/>
+              <text x="440" y="206" class="t-b">4</text>
+              <text x="456" y="206" class="t-s">secret value</text>
+
+              <rect x="300" y="232" width="360" height="36" rx="10" class="s-green"/>
+              <text x="480" y="256" class="t-b mid">Nothing secret stored in code or config</text>
+            </svg>
+          </div>
+          <figcaption><b>No secret to steal.</b> The same pattern works for Azure SQL, Storage, Service Bus and any service that accepts Entra tokens, often removing the need for a Key Vault secret altogether.</figcaption>
+        </figure>
+
+        <div class="table-wrap min">
+          <table>
+            <thead><tr><th></th><th>System-assigned</th><th>User-assigned</th></tr></thead>
+            <tbody>
+              <tr><td>Created</td><td>As part of a resource (switch it on)</td><td>As its own standalone Azure resource</td></tr>
+              <tr><td>Lifecycle</td><td>Deleted with the resource</td><td>Independent; survives resource deletion</td></tr>
+              <tr><td>Sharing</td><td>One resource only</td><td>Can be attached to many resources</td></tr>
+              <tr><td>Best for</td><td>One app, one identity, simple</td><td>Many instances needing the same access (scale sets, blue/green), or pre-granting access before the resource exists</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout exam">
+          <div class="c-label">Exam cue</div>
+          <p>"<strong>Without storing credentials</strong>", "<strong>minimise secret management</strong>", "app must access Storage/SQL/Key Vault <strong>securely</strong>" → managed identity. "<strong>Multiple</strong> VMs/apps share the same permissions" or "identity must <strong>persist</strong> when the resource is recreated" → <strong>user-assigned</strong>. "Pipeline outside Azure (e.g. GitHub Actions) without secrets" → workload identity federation.</p>
+        </div>
+      </div>
+      <details class="demo" id="demo-m03-mi">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Give a web app an identity and a role: no secret anywhere</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the managed identity flow from the diagram: the app gets an identity, the identity gets a role, and nobody copies a key.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">App Services</span> › <span class="ui">+ Create</span> › <span class="ui">Web App</span>: name <code>app-az305-m03</code> plus your initials, any runtime, region Central India, pricing plan <b>Free F1</b> (or Basic) › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the web app › <span class="ui">Settings</span> › <span class="ui">Identity</span> › <span class="ui">System assigned</span> › Status <b>On</b> › <span class="ui">Save</span>. Copy the <b>Object (principal) ID</b>.</li>
+            <li>In Entra › <span class="ui">Enterprise applications</span>, filter <b>Application type = Managed Identities</b>: the app now exists in the directory.</li>
+            <li>Open a storage account (create one in the resource group if needed) › <span class="ui">Access control (IAM)</span> › <span class="ui">Add role assignment</span> › <b>Storage Blob Data Reader</b> › assign access to <span class="ui">Managed identity</span> › <span class="ui">+ Select members</span> › App Service › your app › <span class="ui">Review + assign</span>.</li>
+            <li>Contrast: storage account › <span class="ui">Security + networking</span> › <span class="ui">Access keys</span>. This is what developers used to paste into config files. We didn't need it.</li>
+            <li>Optional: search <span class="ui">Managed Identities</span> › <span class="ui">+ Create</span> a <b>user-assigned</b> identity, then attach it under the web app's <span class="ui">Identity</span> › <span class="ui">User assigned</span> tab.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>System-assigned dies with the app. User-assigned lives on its own and can be shared.</li><li>Next level: in the storage account's <span class="ui">Configuration</span>, set <b>Allow storage account key access</b> to Disabled, so <i>only</i> Entra identities work.</li></ul>
+          <p class="demo-say"><b>Say:</b> “We didn't give the driver a key. We registered him with the security guard.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= KEY VAULT ======================= -->
+    <section id="kv">
+      <span class="sec-num">03.12</span>
+      <h2>Azure Key Vault</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2"/></svg></span>
+        <h3>A safe for secrets, keys and certificates</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Key Vault is a cloud service for securely storing and controlling access to secrets (passwords, connection strings), cryptographic keys and TLS/SSL certificates, with access controlled by Entra ID and every operation logged.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Key Vault is the <strong>bank locker</strong>. You don't keep jewellery under your mattress (in code or config files). You keep it in a locker where every visit is recorded, only named people can open it, and the bank keeps it safe if your house burns down.</p>
+      </div>
+
+      <div class="terms">
+        <div class="term"><b>Secrets</b><span>Any small sensitive string: connection strings, API keys, passwords.</span></div>
+        <div class="term"><b>Keys</b><span>Cryptographic keys used for encryption and signing, including customer-managed keys for storage and databases.</span></div>
+        <div class="term"><b>Certificates</b><span>TLS certificates with lifecycle management and auto-renewal from supported CAs.</span></div>
+      </div>
+
+      <h4>Choosing the tier</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Option</th><th>Key protection</th><th>Choose when</th></tr></thead>
+          <tbody>
+            <tr><td>Key Vault Standard</td><td>Software-protected keys</td><td>Secrets and certificates for most apps.</td></tr>
+            <tr><td>Key Vault Premium</td><td>Adds HSM-protected keys (multi-tenant, FIPS 140 Level 3 validated HSMs)</td><td>Compliance demands keys that never leave an HSM.</td></tr>
+            <tr><td>Managed HSM</td><td>Single-tenant, fully managed HSM pool you alone control</td><td>Regulated industries needing dedicated HSMs and full control of the security domain.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Design decisions an architect makes</h4>
+      <ul>
+        <li><strong>Permission model:</strong> use <strong>Azure RBAC</strong> (e.g. Key Vault Secrets User, Key Vault Crypto Officer). The older <em>access policies</em> model is still supported but is less granular and doesn't fit PIM.</li>
+        <li><strong>One vault per application, per environment, per region.</strong> This limits the blast radius and avoids throttling, and dev can never read prod secrets.</li>
+        <li><strong>Soft delete</strong> is always on (7–90 days retention). Turn on <strong>purge protection</strong> for production, so even an admin can't permanently delete keys during the retention period. This is required when keys encrypt other services (customer-managed keys).</li>
+        <li><strong>Network:</strong> disable public access and use a <strong>private endpoint</strong> for sensitive workloads.</li>
+        <li><strong>Rotation:</strong> configure automatic key rotation and certificate auto-renewal; send expiry events to Event Grid.</li>
+        <li><strong>Logging:</strong> send diagnostic logs to Log Analytics so every secret read is auditable (see Module 04).</li>
+      </ul>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll put the connection string in <code>appsettings.json</code> and mark the repo private."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Best: no secret at all, because the app uses its managed identity to reach SQL directly. Next best: the secret lives in Key Vault, the app reads it with its managed identity, App Service uses a Key Vault reference, and rotation never needs a redeploy."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Protect against <strong>accidental or malicious deletion</strong> of keys" → soft delete <strong>+ purge protection</strong>. "Keys must be stored in a <strong>FIPS 140 Level 3</strong> HSM" → Premium or Managed HSM ("<strong>single-tenant</strong>" or "<strong>full control</strong>" → Managed HSM). "Centrally store app secrets and <strong>audit access</strong>" → Key Vault with diagnostic logging.</p>
+      </div>
+      <details class="demo" id="demo-m03-kv">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a vault and hit the RBAC wall (on purpose)</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Create Key Vault with the right settings, then show that even an Owner can't read secrets without a data-plane role.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Key vaults</span> › <span class="ui">+ Create</span>: name <code>kv-az305-m03</code> plus your initials (globally unique), region Central India, pricing tier <b>Standard</b>. Point at <b>Days to retain deleted vaults</b> and <b>Purge protection</b>, and leave purge protection <b>off</b> for the demo (once on, it can't be turned off).</li>
+            <li><span class="ui">Access configuration</span>: permission model <b>Azure role-based access control (recommended)</b> vs <b>Vault access policy</b>. Keep RBAC.</li>
+            <li><span class="ui">Networking</span>: public access vs private endpoint. Keep public for the demo › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the vault › <span class="ui">Objects</span> › <span class="ui">Secrets</span>. You get an error saying the operation is <b>not allowed by RBAC</b>, even though you are <b>Owner</b>. Pause here. Owner is control plane; secrets are data plane.</li>
+            <li><span class="ui">Access control (IAM)</span> › assign yourself <b>Key Vault Secrets Officer</b>. Wait a minute, refresh › <span class="ui">Secrets</span> › <span class="ui">+ Generate/Import</span>: name <code>SqlPassword</code>, any value › <span class="ui">Create</span>. Add a second value to show <b>versions</b>.</li>
+            <li>Grant the web app's managed identity <b>Key Vault Secrets User</b> on the vault. That links this demo to the previous one.</li>
+            <li>Show <span class="ui">Monitoring</span> › <span class="ui">Diagnostic settings</span> and say we'll wire it up in Module 04.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The “not allowed by RBAC” moment is the best way to teach control plane vs data plane. Learners never forget it.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The bank locker: named people only, every visit recorded, and the jewellery survives even if your house burns down.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">03.13</span>
+      <h2>Meridian: the identity design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 03</span></div>
+        <div class="case-body">
+          <p>Pain points from Module 01: <em>admins share accounts</em>, <em>PCI audit</em>, <em>German subsidiary and logistics partners need access</em>, and the new online store needs customer accounts.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Staff use one identity everywhere</td><td>One workforce tenant; Entra Connect Sync with <strong>password hash sync</strong> (Cloud Sync for the German AD forest)</td><td>Simplest, resilient to on-prem outages, enables leaked-credential detection.</td></tr>
+                <tr><td>Stop shared admin accounts</td><td>Named admin accounts; Azure roles assigned to <strong>groups</strong>; Owner and Global Admin <strong>eligible via PIM</strong> with approval</td><td>Every action is traceable to a person; no standing high privilege.</td></tr>
+                <tr><td>PCI audit evidence</td><td>Quarterly <strong>access reviews</strong> on the PCI subscription's role assignments and on all guests</td><td>Attestation on a schedule, with automatic removal when access is no longer needed.</td></tr>
+                <tr><td>Secure sign-in</td><td>Conditional Access: MFA for all, phishing-resistant for admins, block legacy auth, compliant device for back-office apps, risk-based policies (P2)</td><td>Zero Trust without punishing store staff on managed devices.</td></tr>
+                <tr><td>Logistics partners</td><td><strong>B2B collaboration</strong> with cross-tenant trust for partner MFA</td><td>Partners use their own accounts; no passwords for us to manage.</td></tr>
+                <tr><td>Online shoppers</td><td><strong>External ID</strong> in a separate external tenant, with email and social sign-in</td><td>Built for millions of consumers; branded; isolated from the workforce.</td></tr>
+                <tr><td>No secrets in checkout code</td><td><strong>Managed identities</strong> for App Service → Azure SQL and Storage; remaining secrets in a per-environment <strong>Key Vault</strong> (RBAC, purge protection, private endpoint)</td><td>Removes the most common source of leaked credentials.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">03.14</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's identity checklist</h3>
+      <ul class="checklist">
+        <li>One workforce tenant; customers in a separate external tenant.</li>
+        <li>Hybrid users synced, with PHS on (even as a backup).</li>
+        <li>MFA everywhere, phishing-resistant for admins, legacy auth blocked.</li>
+        <li>Two monitored break-glass accounts excluded from Conditional Access.</li>
+        <li>Roles assigned to groups, at the narrowest scope, with privileged roles in PIM.</li>
+        <li>Recurring access reviews for guests and privileged roles.</li>
+        <li>Apps use managed identities; Key Vault holds whatever secrets remain.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. Users must keep signing in to Microsoft 365 even if the on-premises datacentre is offline. Which hybrid authentication method?</summary>
+          <div><p><strong>Password hash synchronisation.</strong> Authentication happens entirely in Entra ID, so on-prem availability doesn't matter. PTA and federation both depend on on-prem components.</p></div>
+        </details>
+        <details>
+          <summary>2. Customers of a mobile app must sign up with their Google or Apple accounts. What do you recommend?</summary>
+          <div><p><strong>Microsoft Entra External ID</strong> for customers in an external tenant (Azure AD B2C in older questions). B2B is for partners, not consumers.</p></div>
+        </details>
+        <details>
+          <summary>3. Require MFA only when a user's sign-in is considered medium or high risk. What do you need?</summary>
+          <div><p><strong>Identity Protection</strong> sign-in risk used as a condition in a <strong>Conditional Access</strong> policy, which requires <strong>Entra ID P2</strong>.</p></div>
+        </details>
+        <details>
+          <summary>4. Five VMs in a scale set and two Function apps need identical access to a storage account. Which identity type, and why?</summary>
+          <div><p>A single <strong>user-assigned managed identity</strong> attached to all of them, with one role assignment (e.g. Storage Blob Data Contributor). This means one place to manage the permission, and it survives instances being recreated.</p></div>
+        </details>
+        <details>
+          <summary>5. A Global Administrator can't see any subscriptions in the Azure portal. Why?</summary>
+          <div><p>Global Administrator is an <strong>Entra role</strong> (directory), not an <strong>Azure role</strong>. They have no Azure RBAC assignments by default. They can elevate to User Access Administrator at the root scope, but that should be temporary and audited.</p></div>
+        </details>
+        <details>
+          <summary>6. Keys in Key Vault must not be permanently deletable, even by an administrator, for 90 days. Configuration?</summary>
+          <div><p><strong>Soft delete with 90-day retention plus purge protection.</strong> With purge protection on, deleted items can't be purged until retention expires.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 04</div>
+        <p>We've decided who gets in and what they can do. But how do we <em>know</em> what actually happened: who signed in, which secret was read, which VM is struggling? Without monitoring, every control in this module is a promise you can't verify.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="02-governance.html"><small>Previous module</small><span>← 02 · Governance</span></a>
+        <a class="next" href="04-monitoring.html"><small>Next module</small><span>04 · Monitoring &amp; Logging →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>
