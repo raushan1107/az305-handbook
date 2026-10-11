@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Integration and Analytics</title>
+<meta name="description" content="Module 07 of the AZ-305 Architect Handbook: analytics concepts, Data Lake Storage Gen2 and the medallion pattern, Azure Data Factory, Azure Databricks, Azure Synapse Analytics, Azure Stream Analytics, and where Microsoft Fabric and Purview fit.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part II · Data</div>
+    <span class="eyebrow">Module 07</span>
+    <h1>Data Integration &amp; Analytics: From Raw Data to Decisions</h1>
+    <p class="lead">Every company says it's "data-driven". Then you ask a simple question, like "which 20 stores sold the most kurtas last Diwali, and did online sales eat into them?", and it takes three people two weeks of spreadsheets. This module is about building the pipeline that answers that in seconds, every morning, without anyone copying files by hand.</p>
+    <div class="hero-meta">
+      <span class="chip">ETL / ELT</span><span class="chip">Batch vs streaming</span><span class="chip">Data Lake Gen2</span><span class="chip">Medallion</span><span class="chip">Data Factory</span><span class="chip">Databricks</span><span class="chip">Synapse Analytics</span><span class="chip">Stream Analytics</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why analytics is a separate design</a></li>
+        <li><a href="#concepts">The vocabulary, in plain words</a></li>
+        <li><a href="#adls">Data Lake Storage Gen2</a></li>
+        <li><a href="#adf">Azure Data Factory</a></li>
+        <li><a href="#databricks">Azure Databricks</a></li>
+        <li><a href="#synapse">Azure Synapse Analytics</a></li>
+        <li><a href="#stream">Azure Stream Analytics</a></li>
+        <li><a href="#fabric">Where Fabric and Purview fit</a></li>
+        <li><a href="#choose">Choosing the right service</a></li>
+        <li><a href="#case">Meridian: the analytics design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">07.0</span>
+      <h2>The mental map</h2>
+      <p>Every analytics platform, from a startup's first dashboard to a bank's data estate, is the same five stages: <strong>sources → ingest → store → process → serve</strong>. The services in this module each own one or two of those stages. Place each service on this picture and the comparisons stop being confusing.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 420" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">The Azure analytics pipeline</title>
+            <desc id="m0d">Sources (databases, files and SaaS apps, events and IoT, on-premises systems) are ingested in batches by Azure Data Factory or as streams by Event Hubs. Data lands in Data Lake Storage Gen2 in bronze, silver and gold layers. It is processed by Azure Databricks, Azure Synapse Analytics or, for live streams, Azure Stream Analytics. Results are served to Power BI, to analysts through SQL, and to apps. Microsoft Purview governs the whole pipeline, and Microsoft Fabric offers the same stages as one SaaS platform.</desc>
+
+            <text x="20" y="26" class="t-m t-accent">1 · SOURCES</text>
+            <text x="220" y="26" class="t-m t-accent">2 · INGEST</text>
+            <text x="420" y="26" class="t-m t-accent">3 · STORE</text>
+            <text x="620" y="26" class="t-m t-accent">4 · PROCESS</text>
+            <text x="820" y="26" class="t-m t-accent">5 · SERVE</text>
+
+            <rect x="20" y="40" width="160" height="46" rx="10" class="s-surface"/><text x="100" y="68" class="t-b mid">Databases</text>
+            <rect x="20" y="94" width="160" height="46" rx="10" class="s-surface"/><text x="100" y="122" class="t-b mid">Files, SaaS apps</text>
+            <rect x="20" y="148" width="160" height="46" rx="10" class="s-surface"/><text x="100" y="176" class="t-b mid">Events, IoT</text>
+            <rect x="20" y="202" width="160" height="46" rx="10" class="s-surface"/><text x="100" y="230" class="t-b mid">On-premises</text>
+
+            <rect x="220" y="40" width="160" height="100" rx="12" class="s-teal"/>
+            <text x="300" y="74" class="t-b mid">Data Factory</text>
+            <text x="300" y="96" class="t-s mid">batch copy and</text>
+            <text x="300" y="114" class="t-s mid">orchestration</text>
+            <rect x="220" y="156" width="160" height="92" rx="12" class="s-teal"/>
+            <text x="300" y="192" class="t-b mid">Event Hubs</text>
+            <text x="300" y="214" class="t-s mid">stream ingestion</text>
+
+            <path d="M180 63 H216" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M180 117 H216" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M180 171 H216" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M180 225 Q200 160 216 128" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="420" y="40" width="160" height="208" rx="14" class="s-blue"/>
+            <text x="500" y="84" class="t-b mid">Data Lake</text>
+            <text x="500" y="104" class="t-b mid">Storage Gen2</text>
+            <text x="500" y="140" class="t-s mid">bronze</text>
+            <text x="500" y="162" class="t-s mid">silver</text>
+            <text x="500" y="184" class="t-s mid">gold</text>
+            <text x="500" y="220" class="t-s mid">Parquet / Delta</text>
+
+            <path d="M380 90 H416" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M380 190 H416" class="s-dash" marker-end="url(#ah)"/>
+
+            <rect x="620" y="40" width="160" height="64" rx="10" class="s-violet"/>
+            <text x="700" y="66" class="t-b mid">Databricks</text>
+            <text x="700" y="86" class="t-s mid">Spark, ML</text>
+            <rect x="620" y="112" width="160" height="64" rx="10" class="s-violet"/>
+            <text x="700" y="138" class="t-b mid">Synapse</text>
+            <text x="700" y="158" class="t-s mid">SQL + Spark</text>
+            <rect x="620" y="184" width="160" height="64" rx="10" class="s-amber"/>
+            <text x="700" y="210" class="t-b mid">Stream Analytics</text>
+            <text x="700" y="230" class="t-s mid">real-time SQL</text>
+
+            <path d="M580 72 H616" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <path d="M580 144 H616" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <path d="M380 236 Q500 290 616 232" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+
+            <rect x="820" y="40" width="160" height="64" rx="10" class="s-surface"/>
+            <text x="900" y="66" class="t-b mid">Power BI</text>
+            <text x="900" y="86" class="t-s mid">dashboards</text>
+            <rect x="820" y="112" width="160" height="64" rx="10" class="s-surface"/>
+            <text x="900" y="138" class="t-b mid">SQL for analysts</text>
+            <text x="900" y="158" class="t-s mid">warehouse, views</text>
+            <rect x="820" y="184" width="160" height="64" rx="10" class="s-surface"/>
+            <text x="900" y="210" class="t-b mid">Apps and alerts</text>
+            <text x="900" y="230" class="t-s mid">APIs, functions</text>
+
+            <path d="M780 72 H816" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M780 144 H816" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M780 216 H816" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="20" y="300" width="960" height="40" rx="10" class="s-surface2"/>
+            <text x="500" y="325" class="t-s mid">Governance across every stage: Microsoft Purview (catalogue, lineage, classification) · Entra ID and ACLs · private endpoints</text>
+            <rect x="20" y="350" width="960" height="56" rx="10" class="s-surface2"/>
+            <text x="500" y="374" class="t-b mid">Microsoft Fabric packages these same five stages as one SaaS platform on OneLake.</text>
+            <text x="500" y="394" class="t-s mid">Learn the patterns on the Azure services first: the exam still asks for them, and the patterns don't change.</text>
+          </svg>
+        </div>
+        <figcaption><b>Sources → ingest → store → process → serve.</b> Batch data flows along the top, through the lake. Live streams can skip the lake (the accent arrow) when an answer is needed in seconds, and land in the lake later for history.</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>Want every Part II service in one view? The <a href="data-map.html#t-move">Data Services Map</a> puts storage, databases and analytics on one expandable tree, with when to use each, when not to, and the exam words. This module's analytics services sit on their own branch.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 8 quick portal walkthroughs · about 32 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos build a small but real analytics path: a data lake with bronze, silver and gold, a Data Factory pipeline that copies a sales file from bronze to silver as Parquet, a T-SQL query over the lake with Synapse serverless, and a Stream Analytics query tested on sample orders. Databricks and the dedicated SQL pool are shown on their create screens.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are <b>Owner</b> (you'll assign data roles to managed identities).</li><li>Two small files on your laptop. <code>sales.csv</code>:<pre class="kql"><code>StoreId,City,Sku,Qty,Amount,SaleDate
+S001,Bengaluru,KURTA-M,3,2997,2026-10-01
+S002,Chennai,SAREE-SILK,1,8499,2026-10-01
+S001,Bengaluru,KURTA-L,2,1998,2026-10-02
+S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pre class="kql"><code>[
+  {"StoreId":"S001","Sku":"KURTA-M","EventTime":"2026-10-10T10:01:00Z"},
+  {"StoreId":"S001","Sku":"KURTA-M","EventTime":"2026-10-10T10:03:00Z"},
+  {"StoreId":"S002","Sku":"SAREE-SILK","EventTime":"2026-10-10T10:04:00Z"},
+  {"StoreId":"S001","Sku":"KURTA-L","EventTime":"2026-10-10T10:07:00Z"}
+]</code></pre></li><li>Names below: resource group <code>rg-az305-m07-demo</code>, lake <code>dlsaz305m07</code> plus your initials, factory <code>adf-az305-m07</code> plus initials, Synapse workspace <code>syn-az305-m07</code> plus initials, region Central India.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li><b>At the start of the module</b>, create the lake (demo 1), then start creating the Synapse workspace (demo 5, steps 1–2), which takes several minutes.</li><li>Build the Data Factory pipeline while Synapse deploys; come back to Synapse in its section.</li><li>Databricks and the dedicated SQL pool are create forms only: no clusters started, no pool created.</li><li>Create the Stream Analytics job near the end but <b>never start it</b>: testing the query with a sample file is free; a running job bills by the hour.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m07-adls">Turn on the hierarchical namespace and build bronze, silver, gold</a><span>~4m</span></li><li><a href="#demo-m07-adf">Copy a CSV from bronze to silver as Parquet with Data Factory</a><span>~6m</span></li><li><a href="#demo-m07-adf-tour">Tour the studio: triggers, data flows and integration runtimes</a><span>~3m</span></li><li><a href="#demo-m07-dbx">Walk the Databricks workspace form, and look inside one</a><span>~4m</span></li><li><a href="#demo-m07-synapse">Query the lake with T-SQL, with nothing to provision</a><span>~6m</span></li><li><a href="#demo-m07-synapse-dedicated">See the dedicated SQL pool's price tag, then cancel</a><span>~2m</span></li><li><a href="#demo-m07-asa">Test a tumbling-window query on sample orders, without starting the job</a><span>~5m</span></li><li><a href="#demo-m07-fabric">Find Purview and Fabric, and see the same patterns in SaaS form</a><span>~2m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m07-demo</code>. Synapse also creates a <b>managed resource group</b> (<code>synapseworkspace-managedrg-…</code>); it's removed with the workspace, but check it's gone.</li><li>If you created a Databricks workspace, its managed resource group (<code>databricks-rg-…</code>) is removed when the workspace is deleted.</li><li>Role assignments you made for the factory and workspace identities go with the resources.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">07.1</span>
+      <h2>Why analytics is a separate design</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A busy restaurant. The <strong>billing counter</strong> is built for speed: one order at a time, correct to the rupee, never down at lunchtime. That's your operational database (Module 06). The <strong>owner's monthly review</strong> is a different job: every bill from every branch for three years, joined with supplier invoices and the weather, to decide next year's menu. If the owner ran that review <em>on the billing counter</em> during the lunch rush, the queue would reach the street. So you copy the bills to a back office (the lake), clean them up, and analyse them there.</p>
+      </div>
+
+      <div class="two-col">
+        <div><h4>OLTP: running the business</h4><p>Many small reads and writes, a few rows each, millisecond response, strict transactions. <em>"Place this order."</em> Azure SQL, Cosmos DB.</p></div>
+        <div><h4>OLAP: understanding the business</h4><p>Few, huge queries across millions of rows and many sources, seconds to minutes are fine. <em>"Sales by store by week for three years."</em> Data lake, Synapse, Databricks, Fabric.</p></div>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"The CEO wants a sales report? I'll write a SQL query against the orders database and put it behind a button."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Reports belong on a <strong>copy</strong> built for reading: a lake fed by pipelines, cleaned in layers, and served to Power BI. Then the checkout never slows down because someone opened a dashboard, and we can join in data from systems the orders database has never heard of."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Separate <strong>the system that records</strong> from <strong>the system that explains</strong>. Each can then be designed, scaled, secured and paid for according to its own job.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CONCEPTS ======================= -->
+    <section id="concepts">
+      <span class="sec-num">07.2</span>
+      <h2>The vocabulary, in plain words</h2>
+      <p>Analytics questions are full of jargon. Here are the eight terms you need, each in one line.</p>
+
+      <div class="terms">
+        <div class="term"><b>Batch</b><span>Process data in chunks on a schedule: "every night at 2 a.m., load yesterday's sales".</span></div>
+        <div class="term"><b>Streaming</b><span>Process each event within seconds of it happening: "alert when a store's card terminal fails five times in a minute".</span></div>
+        <div class="term"><b>ETL</b><span>Extract, <strong>Transform</strong>, then Load. Clean the data on the way in, in a separate engine. The classic warehouse approach.</span></div>
+        <div class="term"><b>ELT</b><span>Extract, <strong>Load</strong> raw data first, then Transform inside the lake or warehouse with its own compute. The modern cloud default.</span></div>
+        <div class="term"><b>Data warehouse</b><span>Clean, structured, modelled data (often a star schema) for SQL reporting. Fast and trusted, but rigid.</span></div>
+        <div class="term"><b>Data lake</b><span>Cheap storage for any data in its raw form: CSV, JSON, Parquet, images, logs. Flexible, but it can become a swamp without governance.</span></div>
+        <div class="term"><b>Lakehouse</b><span>A lake with warehouse behaviour: table formats like <strong>Delta Lake</strong> add transactions, schema and versioning to files in the lake.</span></div>
+        <div class="term"><b>Parquet / Delta</b><span>Column-based file formats. Analytics reads a few columns from millions of rows, so they are much faster and cheaper than CSV.</span></div>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 230" role="img" aria-labelledby="elt eld">
+            <title id="elt">ETL compared with ELT</title>
+            <desc id="eld">ETL extracts from sources, transforms in a separate engine, then loads clean data into a warehouse. ELT extracts from sources, loads raw data into the lake first, transforms it there with scalable lake compute, and then serves it.</desc>
+
+            <rect x="20" y="20" width="130" height="80" rx="12" class="s-surface2"/>
+            <text x="85" y="54" class="t-h mid">ETL</text>
+            <text x="85" y="76" class="t-s mid">transform first</text>
+            <rect x="180" y="20" width="200" height="80" rx="10" class="s-surface"/>
+            <text x="280" y="54" class="t-b mid">Extract</text>
+            <text x="280" y="76" class="t-s mid">from sources</text>
+            <rect x="420" y="20" width="200" height="80" rx="10" class="s-amber"/>
+            <text x="520" y="54" class="t-b mid">Transform</text>
+            <text x="520" y="76" class="t-s mid">in a separate engine</text>
+            <rect x="660" y="20" width="200" height="80" rx="10" class="s-blue"/>
+            <text x="760" y="54" class="t-b mid">Load</text>
+            <text x="760" y="76" class="t-s mid">clean data into a warehouse</text>
+            <path d="M380 60 H416" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M620 60 H656" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="20" y="130" width="130" height="80" rx="12" class="s-surface2"/>
+            <text x="85" y="164" class="t-h mid">ELT</text>
+            <text x="85" y="186" class="t-s mid">load first</text>
+            <rect x="180" y="130" width="180" height="80" rx="10" class="s-surface"/>
+            <text x="270" y="164" class="t-b mid">Extract</text>
+            <text x="270" y="186" class="t-s mid">from sources</text>
+            <rect x="390" y="130" width="180" height="80" rx="10" class="s-blue"/>
+            <text x="480" y="164" class="t-b mid">Load raw</text>
+            <text x="480" y="186" class="t-s mid">into the lake</text>
+            <rect x="600" y="130" width="180" height="80" rx="10" class="s-violet"/>
+            <text x="690" y="164" class="t-b mid">Transform</text>
+            <text x="690" y="186" class="t-s mid">in the lake (Spark, SQL)</text>
+            <rect x="810" y="130" width="170" height="80" rx="10" class="s-green"/>
+            <text x="895" y="164" class="t-b mid">Serve</text>
+            <text x="895" y="186" class="t-s mid">BI, ML, apps</text>
+            <path d="M360 170 H386" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M570 170 H596" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M780 170 H806" class="s-arrow" marker-end="url(#ah)"/>
+          </svg>
+        </div>
+        <figcaption><b>ELT keeps the raw data.</b> When the business changes a rule ("returns now count against the store"), you re-run the transformation over the raw history instead of asking every source system for the data again.</figcaption>
+      </figure>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Results needed within <strong>seconds</strong>", "<strong>real-time</strong> dashboard", "<strong>continuous</strong> events" → streaming. "<strong>Nightly</strong> load", "<strong>scheduled</strong>", "historical" → batch. "Store data in <strong>native/raw format</strong> for future use" → data lake. "<strong>Structured</strong> data for <strong>SQL reporting</strong>, star schema" → data warehouse.</p>
+      </div>
+    </section>
+
+    <!-- ======================= ADLS ======================= -->
+    <section id="adls">
+      <span class="sec-num">07.3</span>
+      <h2>Azure Data Lake Storage Gen2</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16c2 0 2-1.5 4-1.5S8 16 10 16s2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5"/><path d="M2 20c2 0 2-1.5 4-1.5S8 20 10 20s2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5"/><path d="M5 11V5h4l2 2h8v4"/></svg></span>
+        <h3>The foundation every analytics design sits on</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Data Lake Storage Gen2 is a set of big-data analytics capabilities built on Azure Blob Storage. Enabling the <strong>hierarchical namespace</strong> on a storage account organises objects into real directories, enables atomic directory operations and POSIX-style access control lists (ACLs), and exposes a Hadoop-compatible endpoint (ABFS) used by Spark, Databricks, Synapse and Fabric.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>ADLS Gen2 is <strong>Blob storage with real folders</strong>. In plain Blob, a "folder" is just part of a file name, so renaming a folder of a million files means copying a million files. With the hierarchical namespace switched on, renaming the folder is one instant operation, and you can set permissions per folder. Big-data engines love both.</p>
+      </div>
+
+      <h3>The medallion pattern: bronze, silver, gold</h3>
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 270" role="img" aria-labelledby="mdt mdd">
+            <title id="mdt">The medallion architecture in a data lake</title>
+            <desc id="mdd">Sources such as POS databases, online orders, clickstream and supplier CSV files land in the bronze layer as raw data. The silver layer holds cleaned, de-duplicated and conformed data joined across sources. The gold layer holds business-ready aggregates and star schemas. Power BI, machine learning and SQL analysts consume gold. All three layers live in Data Lake Storage Gen2 as Parquet or Delta files with folder-level access control.</desc>
+
+            <rect x="10" y="20" width="140" height="170" rx="12" class="s-surface"/>
+            <text x="80" y="50" class="t-b mid">Sources</text>
+            <text x="80" y="82" class="t-s mid">store POS (SQL)</text>
+            <text x="80" y="104" class="t-s mid">online orders</text>
+            <text x="80" y="126" class="t-s mid">clickstream</text>
+            <text x="80" y="148" class="t-s mid">supplier CSVs</text>
+
+            <rect x="180" y="20" width="190" height="170" rx="12" class="s-amber"/>
+            <text x="275" y="54" class="t-h mid">Bronze</text>
+            <text x="275" y="84" class="t-s mid">raw, exactly as it arrived</text>
+            <text x="275" y="106" class="t-s mid">append-only</text>
+            <text x="275" y="128" class="t-s mid">replay if rules change</text>
+
+            <rect x="395" y="20" width="190" height="170" rx="12" class="s-blue"/>
+            <text x="490" y="54" class="t-h mid">Silver</text>
+            <text x="490" y="84" class="t-s mid">cleaned, de-duplicated</text>
+            <text x="490" y="106" class="t-s mid">conformed types and keys</text>
+            <text x="490" y="128" class="t-s mid">joined across sources</text>
+
+            <rect x="610" y="20" width="190" height="170" rx="12" class="s-green"/>
+            <text x="705" y="54" class="t-h mid">Gold</text>
+            <text x="705" y="84" class="t-s mid">business-ready</text>
+            <text x="705" y="106" class="t-s mid">sales per store per day</text>
+            <text x="705" y="128" class="t-s mid">star schema for BI</text>
+
+            <rect x="830" y="20" width="160" height="170" rx="12" class="s-surface"/>
+            <text x="910" y="50" class="t-b mid">Consumers</text>
+            <text x="910" y="82" class="t-s mid">Power BI</text>
+            <text x="910" y="104" class="t-s mid">ML models</text>
+            <text x="910" y="126" class="t-s mid">SQL analysts</text>
+            <text x="910" y="148" class="t-s mid">apps and APIs</text>
+
+            <path d="M150 105 H176" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M370 105 H391" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M585 105 H606" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M800 105 H826" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="180" y="208" width="620" height="48" rx="10" class="s-surface2"/>
+            <text x="490" y="230" class="t-b mid">ADLS Gen2 · one account, three containers</text>
+            <text x="490" y="248" class="t-s mid">folders with ACLs · Parquet / Delta files · lifecycle rules on bronze</text>
+          </svg>
+        </div>
+        <figcaption><b>Quality improves left to right; so does trust.</b> Analysts and dashboards read only gold. Data engineers work in bronze and silver. Different teams get different folder permissions on the same lake.</figcaption>
+      </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>The hierarchical namespace is a <strong>checkbox on the storage account</strong> (Standard GPv2 or Premium block blob). An existing account can be upgraded to it, but it can't be switched off again.</li>
+        <li>Access is controlled by <strong>Azure RBAC</strong> (coarse, for the whole account or container) <strong>plus ACLs</strong> (fine-grained, per directory and file). RBAC is evaluated first.</li>
+        <li>Everything from Module 05 still applies: redundancy, tiers, lifecycle management, private endpoints, encryption with your own keys.</li>
+        <li>Engines use the <code>abfss://container@<wbr>account.dfs.core.windows.net/<wbr>path</code> address. Note <code>dfs</code>, not <code>blob</code>.</li>
+      </ul>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p><strong>Data Lake Storage Gen1</strong> (a separate service) was retired in February 2024. Any "Data Lake Store" in a new design means <strong>Gen2</strong>: a storage account with the hierarchical namespace enabled.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Store <strong>large volumes</strong> of structured and unstructured data for <strong>big-data analytics</strong>", "<strong>hierarchical</strong> file system", "<strong>POSIX ACLs</strong>", "<strong>Hadoop-compatible</strong>" → <strong>ADLS Gen2</strong>. "Grant a team access to <strong>one folder only</strong>" → <strong>ACLs</strong> on that directory.</p>
+      </div>
+      <details class="demo" id="demo-m07-adls">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Turn on the hierarchical namespace and build bronze, silver, gold</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that a data lake is a storage account with one extra checkbox, and that folders get their own permissions.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Storage accounts</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m07-demo</code>, name <code>dlsaz305m07</code> + initials, Central India, Standard, <b>LRS</b> for the demo.</li>
+            <li><span class="ui">Advanced</span> tab › tick <b>Enable hierarchical namespace</b>. Point out the note about features that work differently with it › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the account: the <span class="ui">Endpoints</span> page now shows a <b>Data Lake Storage</b> (<code>dfs</code>) endpoint. <span class="ui">Containers</span> › create <code>bronze</code>, <code>silver</code> and <code>gold</code>.</li>
+            <li>Open <code>bronze</code> › <span class="ui">+ Add Directory</span> <code>sales</code> › open it › <span class="ui">Upload</span> <code>sales.csv</code>.</li>
+            <li>On the <code>sales</code> directory › <span class="ui">…</span> › <span class="ui">Manage ACL</span>: show the <b>access permissions</b> (read, write, execute per user or group) and <b>default permissions</b> (inherited by new files). Cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Rename the <code>sales</code> directory: it's instant. In a flat Blob account that would mean copying every file.</li></ul>
+          <p class="demo-say"><b>Say:</b> “A data lake is Blob storage that finally learned what a folder is.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= ADF ======================= -->
+    <section id="adf">
+      <span class="sec-num">07.4</span>
+      <h2>Azure Data Factory</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l5 3V10l5 3V10l5 3V4h3v17z"/><path d="M7 17h2M12 17h2M17 17h2"/></svg></span>
+        <h3>The conductor of your data pipelines</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Data Factory (ADF) is a fully managed, serverless cloud service for data integration. It creates data-driven workflows (pipelines) that orchestrate data movement and transformation at scale, with more than 90 built-in connectors, code-free mapping data flows, scheduling and event triggers, and monitoring.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>ADF is the <strong>dabbawala system</strong> of your data. It picks up from hundreds of places, knows exactly where each box must go and by when, hands boxes to the right people for processing, and tells you immediately if one went missing. It doesn't cook the food itself. Heavy transformation is often done by Databricks or Synapse, with ADF calling them in the right order.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="aft afd">
+            <title id="aft">The building blocks of Azure Data Factory</title>
+            <desc id="afd">A trigger (schedule, event or tumbling window) starts a pipeline. The pipeline holds activities in order: a copy activity moves data from source to sink, a data flow transforms it on managed Spark, and other activities call a Databricks notebook or a stored procedure. Activities use datasets, which describe the shape of data, and linked services, which hold the connections. Everything runs on an integration runtime: the Azure integration runtime, a self-hosted one for on-premises and private networks, or the Azure-SSIS runtime for existing SSIS packages. Monitor shows every run.</desc>
+
+            <rect x="20" y="40" width="160" height="80" rx="12" class="s-amber"/>
+            <text x="100" y="70" class="t-b mid">Trigger</text>
+            <text x="100" y="92" class="t-s mid">schedule, event,</text>
+            <text x="100" y="110" class="t-s mid">tumbling window</text>
+            <path d="M180 80 H216" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="220" y="16" width="560" height="148" rx="14" class="s-surface2"/>
+            <text x="240" y="42" class="t-b">Pipeline</text>
+            <text x="320" y="42" class="t-s">a workflow of activities</text>
+            <rect x="240" y="60" width="160" height="80" rx="10" class="s-teal"/>
+            <text x="320" y="92" class="t-b mid">Copy data</text>
+            <text x="320" y="114" class="t-s mid">source → sink</text>
+            <rect x="420" y="60" width="160" height="80" rx="10" class="s-teal"/>
+            <text x="500" y="92" class="t-b mid">Data flow</text>
+            <text x="500" y="114" class="t-s mid">no-code, on Spark</text>
+            <rect x="600" y="60" width="160" height="80" rx="10" class="s-teal"/>
+            <text x="680" y="92" class="t-b mid">Notebook / SP</text>
+            <text x="680" y="114" class="t-s mid">Databricks, SQL, …</text>
+            <path d="M400 100 H416" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M580 100 H596" class="s-arrow" marker-end="url(#ah)"/>
+
+            <path d="M780 80 H816" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="820" y="40" width="160" height="80" rx="12" class="s-surface"/>
+            <text x="900" y="70" class="t-b mid">Monitor</text>
+            <text x="900" y="92" class="t-s mid">runs, failures,</text>
+            <text x="900" y="110" class="t-s mid">reruns, alerts</text>
+
+            <rect x="240" y="186" width="250" height="48" rx="10" class="s-surface"/>
+            <text x="365" y="207" class="t-b mid">Datasets</text>
+            <text x="365" y="225" class="t-s mid">the shape of the data</text>
+            <rect x="510" y="186" width="250" height="48" rx="10" class="s-surface"/>
+            <text x="635" y="207" class="t-b mid">Linked services</text>
+            <text x="635" y="225" class="t-s mid">connection details (use Key Vault)</text>
+            <path d="M320 140 V182 M680 140 V182" class="s-dash"/>
+
+            <rect x="20" y="250" width="960" height="40" rx="10" class="s-blue"/>
+            <text x="500" y="275" class="t-b mid">Integration runtime: Azure (cloud) · self-hosted (on-premises, private networks) · Azure-SSIS (existing SSIS packages)</text>
+          </svg>
+        </div>
+        <figcaption><b>Trigger → pipeline → activities, all running on an integration runtime.</b> If you remember one box, remember the bottom one: it decides where the work physically happens, and that's what network and security questions are really about.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Integration runtime</th><th>Runs where</th><th>Use it when</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Azure IR</strong></td><td>Microsoft-managed compute in Azure (optionally in a managed VNet with private endpoints)</td><td>Cloud-to-cloud copies and data flows</td></tr>
+            <tr><td><strong>Self-hosted IR</strong></td><td>Software you install on a Windows machine on-premises or in your VNet</td><td>The source is <strong>on-premises</strong> or behind a firewall or private network</td></tr>
+            <tr><td><strong>Azure-SSIS IR</strong></td><td>A managed cluster that runs SQL Server Integration Services</td><td><strong>Lift and shift existing SSIS packages</strong> without rewriting them</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll write a Python script that copies the files every night and run it from cron on a VM."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"A script has no retries, no lineage, no monitoring and one person who understands it. ADF gives us <strong>managed retries</strong>, <strong>alerts on failure</strong>, Git-based CI/CD, Key Vault for secrets, and a <strong>managed identity</strong> to reach the lake without passwords."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Orchestrate</strong> data movement", "<strong>copy</strong> data from 90+ sources", "<strong>schedule</strong> or <strong>event-based</strong> pipelines", "code-free ETL" → <strong>Data Factory</strong>. "Source is an <strong>on-premises</strong> SQL Server" → <strong>self-hosted integration runtime</strong>. "Run <strong>existing SSIS packages</strong> in Azure" → <strong>Azure-SSIS IR</strong>. "Start the pipeline when a <strong>file arrives</strong> in storage" → <strong>storage event trigger</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m07-adf">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Copy a CSV from bronze to silver as Parquet with Data Factory</span><span class="demo-time">~6 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Build and run a real pipeline in minutes, using a managed identity instead of a key.</p>
+          <p class="demo-note"><b>Before you start:</b> The factory's managed identity needs <b>Storage Blob Data Contributor</b> on the lake. Assign it in step 2 and give it a minute to take effect.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Data factories</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m07-demo</code>, name <code>adf-az305-m07</code> + initials, Central India, version V2. Skip Git configuration › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Lake account › <span class="ui">Access Control (IAM)</span> › <span class="ui">+ Add</span> › <span class="ui">Add role assignment</span> › <b>Storage Blob Data Contributor</b> › <b>Managed identity</b> › Data factory › <code>adf-az305-m07…</code> › <span class="ui">Review + assign</span>.</li>
+            <li>Open the factory › <span class="ui">Launch studio</span> › <span class="ui">Ingest</span> (the Copy Data tool) › <b>Built-in copy task</b>, run once now.</li>
+            <li>Source: <span class="ui">+ New connection</span> › <b>Azure Data Lake Storage Gen2</b>, authentication <b>System-assigned managed identity</b>, pick the lake › <span class="ui">Test connection</span> › browse to <code>bronze/sales/sales.csv</code>, first row as header.</li>
+            <li>Destination: the same connection › folder <code>silver/sales</code>, file format <b>Parquet</b> › name the task <code>copy-sales-bronze-to-silver</code> › <span class="ui">Next</span> › <span class="ui">Finish</span>.</li>
+            <li><span class="ui">Monitor</span> › <span class="ui">Pipeline runs</span>: open the run and the copy activity details (rows read, rows written, duration). Then browse <code>silver/sales</code> in the portal: a <code>.parquet</code> file.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The linked service has no password or key. The factory proves who it is with its managed identity, as in Module 03.</li></ul>
+          <p class="demo-say"><b>Say:</b> “No scripts on a VM, no cron, no passwords. A pipeline with retries, monitoring and an identity.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m07-adf-tour">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Tour the studio: triggers, data flows and integration runtimes</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Connect every box in the ADF diagram to a screen.</p>
+          <ol class="demo-steps">
+            <li><span class="ui">Author</span>: open the pipeline the tool created. Show the activities pane (Copy, Data flow, Databricks Notebook, Stored procedure, ForEach, If Condition).</li>
+            <li><span class="ui">Add trigger</span> › <span class="ui">New/Edit</span> › <span class="ui">+ New</span>: types <b>Schedule</b>, <b>Tumbling window</b>, <b>Storage events</b>, <b>Custom events</b>. Pick Storage events to show "run when a file lands in bronze". Cancel.</li>
+            <li><span class="ui">Author</span> › <span class="ui">+</span> › <span class="ui">Data flow</span>: drag a source and a transformation to show the no-code canvas that runs on Spark. Discard.</li>
+            <li><span class="ui">Manage</span> › <span class="ui">Integration runtimes</span> › <span class="ui">+ New</span>: show <b>Azure</b>, <b>Self-Hosted</b> (it gives you an installer and an auth key for an on-prem machine) and <b>Azure-SSIS</b>. Cancel.</li>
+            <li><span class="ui">Manage</span> › <span class="ui">Linked services</span>: point out the Key Vault linked service option for secrets, and <span class="ui">Git configuration</span> for CI/CD.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Trigger, pipeline, activities, and the integration runtime decides where the work physically runs.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= DATABRICKS ======================= -->
+    <section id="databricks">
+      <span class="sec-num">07.5</span>
+      <h2>Azure Databricks</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></svg></span>
+        <h3>The data engineer's and data scientist's workshop</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Databricks is a unified, open analytics platform for building, deploying and maintaining data, analytics and AI solutions at scale, built on Apache Spark. It provides collaborative notebooks, managed Spark clusters and serverless compute, SQL warehouses, Delta Lake for reliable tables on the data lake, Unity Catalog for governance, and MLflow for the machine learning lifecycle.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Databricks is where people who write <strong>Python, SQL or Scala</strong> clean huge data sets and train machine learning models, together, in shared notebooks. Under the hood, Spark splits the job across many machines, so a transformation over a billion rows finishes in minutes instead of days.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A <strong>wedding caterer's kitchen</strong> for 5,000 guests. One cook couldn't do it in a week. So the head chef (the Spark driver) splits the work: twenty cooks (worker nodes) each chop, fry and pack their share at the same time. The recipe book everyone shares is the notebook. When the wedding's over, the extra cooks go home, and you stop paying them (auto-termination).</p>
+      </div>
+
+      <div class="terms">
+        <div class="term"><b>Workspace</b><span>The Azure resource and the web UI where notebooks, jobs and data live. Choose the <strong>Premium</strong> tier for Unity Catalog, role-based controls and most security features.</span></div>
+        <div class="term"><b>Compute</b><span><strong>All-purpose clusters</strong> for interactive work, <strong>job clusters</strong> (cheaper) for scheduled pipelines, <strong>serverless</strong> for instant start, and <strong>SQL warehouses</strong> for BI queries.</span></div>
+        <div class="term"><b>Delta Lake</b><span>Turns Parquet files in ADLS into tables with ACID transactions, schema enforcement and time travel. The heart of the lakehouse.</span></div>
+        <div class="term"><b>Unity Catalog</b><span>One place to govern tables, files, permissions and lineage across workspaces.</span></div>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>A forgotten all-purpose cluster runs all weekend and the bill arrives on Monday. Always set <strong>auto-termination</strong>, use <strong>job clusters</strong> for scheduled work, and put cluster policies in place so nobody can start a 50-node cluster by accident.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Data scientists</strong> and engineers <strong>collaborate</strong> in notebooks", "<strong>Apache Spark</strong>", "<strong>machine learning</strong> on big data", "Python / Scala / R", "<strong>lakehouse</strong> with Delta Lake" → <strong>Azure Databricks</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m07-dbx">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the Databricks workspace form, and look inside one</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show where Databricks lives in Azure and the settings that matter: pricing tier and networking.</p>
+          <p class="demo-note"><b>Before you start:</b> Creating a workspace costs nothing until compute runs. Only create one if you have time; don't start a cluster in class.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Databricks</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m07-demo</code>, Central India, pricing tier <b>Premium</b> (or Trial, if offered). Point at the <b>managed resource group</b> name.</li>
+            <li><span class="ui">Networking</span> tab: <b>Secure Cluster Connectivity</b> (no public IP on cluster nodes) and <b>Deploy in your own Virtual Network</b> (VNet injection). These are the architect's choices.</li>
+            <li>Create it if time allows (a few minutes), then <span class="ui">Launch Workspace</span>.</li>
+            <li>Inside, walk the left menu: <b>Workspace</b> (notebooks), <b>Catalog</b> (Unity Catalog), <b>Compute</b> (open <span class="ui">Create compute</span> and point at <b>auto-termination</b>; cancel), <b>SQL Warehouses</b>, <b>Jobs &amp; Pipelines</b>.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Clusters are where the money goes. Auto-termination and job clusters are the first two cost controls.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The caterer's kitchen: hire twenty cooks for the wedding, and send them home the moment it's done.”</p>
+          <p class="demo-clean"><b>Clean up:</b> If you created a workspace, it's deleted with the resource group.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SYNAPSE ======================= -->
+    <section id="synapse">
+      <span class="sec-num">07.6</span>
+      <h2>Azure Synapse Analytics</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+        <h3>Warehouse, lake queries and Spark under one roof</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Synapse Analytics is an enterprise analytics service that brings together data warehousing and big-data analytics. A Synapse workspace offers <strong>dedicated SQL pools</strong> (provisioned massively parallel data warehousing), a <strong>serverless SQL pool</strong> for querying files in the data lake, <strong>Apache Spark pools</strong>, Synapse pipelines (the Data Factory engine) and Synapse Link, all managed in Synapse Studio.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Synapse is a <strong>food court</strong> under one roof. One counter is the big, always-ready restaurant (the dedicated SQL pool: your data warehouse). Another is "pay per plate" (serverless SQL: just query files in the lake, pay for what you read). A third is the Spark kitchen. They share one entrance (Synapse Studio), one lake and one security model.</p>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Dedicated SQL pool</th><th>Serverless SQL pool</th><th>Apache Spark pool</th></tr></thead>
+          <tbody>
+            <tr><td>What it is</td><td>A provisioned MPP data warehouse (formerly SQL DW)</td><td>On-demand SQL over files in the lake</td><td>Managed Spark clusters</td></tr>
+            <tr><td>You pay for</td><td>Data Warehouse Units (DWUs) per hour, <strong>can be paused</strong></td><td>Data <strong>processed per TB</strong>; nothing when idle</td><td>Node-hours while the pool runs</td></tr>
+            <tr><td>Data lives</td><td>In the pool's own managed storage, spread over 60 distributions</td><td>Stays in ADLS (CSV, Parquet, Delta)</td><td>In ADLS</td></tr>
+            <tr><td>Best for</td><td>Large, predictable, high-concurrency BI on modelled data</td><td>Exploration, ad hoc queries, logical data warehouse views</td><td>Data engineering and ML in Spark</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Dedicated pool tables pick a <strong>distribution</strong>: <strong>hash</strong> for big fact tables, <strong>replicated</strong> for small dimension tables, <strong>round-robin</strong> for staging.</li>
+        <li><strong>Pause</strong> a dedicated pool at night or at weekends: compute billing stops, and storage is still charged.</li>
+        <li><strong>Synapse Link</strong> gives near-real-time analytics over operational data (Cosmos DB, Azure SQL, Dataverse) without building ETL and without loading the source.</li>
+      </ul>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p>Dedicated SQL pools were previously <strong>Azure SQL Data Warehouse</strong>. Microsoft's newest analytics investment goes into <strong>Microsoft Fabric</strong> (see <a href="#fabric">07.8</a>), and Synapse remains a supported service that the exam still covers. For a new greenfield platform, expect a real conversation about Fabric.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Enterprise data warehouse</strong>", "<strong>MPP</strong>", "petabyte-scale SQL", "<strong>pause</strong> compute to save cost" → <strong>dedicated SQL pool</strong>. "Query <strong>Parquet/CSV files in the lake</strong> with T-SQL", "<strong>no infrastructure</strong>", "<strong>pay per query</strong>" → <strong>serverless SQL pool</strong>. "Analyse <strong>Cosmos DB</strong> data without affecting the app" → <strong>Synapse Link</strong> (or Fabric mirroring).</p>
+      </div>
+      <details class="demo" id="demo-m07-synapse">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Query the lake with T-SQL, with nothing to provision</span><span class="demo-time">~6 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the serverless SQL pool querying files where they sit, billed per data processed.</p>
+          <p class="demo-note"><b>Before you start:</b> Workspace creation takes several minutes. Start steps 1–2 early (see the run order).</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Synapse Analytics</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m07-demo</code>, name <code>syn-az305-m07</code> + initials, Central India.</li>
+            <li><b>Account name</b>: the lake you created; <b>File system name</b>: create <code>synapse</code>. Tick <b>Assign myself the Storage Blob Data Contributor role</b>. <span class="ui">Security</span> tab: SQL admin (or Entra-only). › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the workspace › <span class="ui">Open Synapse Studio</span> › <span class="ui">Data</span> › <span class="ui">Linked</span>: browse the lake to <code>bronze/sales/sales.csv</code> › right-click › <span class="ui">New SQL script</span> › <span class="ui">Select TOP 100 rows</span>.</li>
+            <li>Edit and run it on the <b>Built-in</b> (serverless) pool:<pre class="kql"><code>SELECT City, SUM(CAST(Amount AS int)) AS Revenue
+FROM OPENROWSET(
+  BULK 'https://&lt;lake&gt;.dfs.core.windows.net/bronze/sales/sales.csv',
+  FORMAT = 'CSV', PARSER_VERSION = '2.0', HEADER_ROW = TRUE
+) AS rows
+GROUP BY City;</code></pre></li>
+            <li>Point at the query's <b>data processed</b> figure in the messages: that's what you pay for.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Nothing was loaded and no warehouse is running. The file never left the lake.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Pay per plate: if you don't query, you don't pay.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m07-synapse-dedicated">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">See the dedicated SQL pool's price tag, then cancel</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Contrast serverless with the provisioned warehouse, and show pause as a cost control.</p>
+          <ol class="demo-steps">
+            <li>Workspace (portal) › <span class="ui">+ New dedicated SQL pool</span>: move the <b>performance level</b> slider from DW100c upwards and watch the estimated cost per hour.</li>
+            <li>Explain the 60 distributions and the three table distribution choices (hash, replicated, round-robin).</li>
+            <li><b>Cancel.</b> Mention that an existing pool has a <span class="ui">Pause</span> button: compute billing stops, storage continues.</li>
+            <li>Synapse Studio › <span class="ui">Develop</span> › <span class="ui">+</span> › <span class="ui">Notebook</span>: show the Apache Spark pool option sitting beside SQL in the same studio. Close without running.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Serverless for exploring, dedicated for heavy, predictable warehousing. Pause it when nobody's looking.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= STREAM ======================= -->
+    <section id="stream">
+      <span class="sec-num">07.7</span>
+      <h2>Azure Stream Analytics</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c3 0 3-3 6-3s3 3 6 3 3-3 6-3"/><path d="M3 14c3 0 3-3 6-3s3 3 6 3 3-3 6-3"/><path d="M3 20c3 0 3-3 6-3s3 3 6 3 3-3 6-3"/></svg></span>
+        <h3>SQL for data that never stops arriving</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Stream Analytics is a fully managed, real-time analytics and complex event-processing service. A job reads from streaming inputs (such as Event Hubs, IoT Hub or Blob storage), runs a SQL-like query with temporal functions such as windows, and writes results continuously to outputs such as Power BI, Azure SQL, Cosmos DB, Data Lake Storage, Event Hubs or Azure Functions.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A normal query asks a question of data that's already sitting still. A Stream Analytics query <strong>sits still while the data flows past it</strong>, and answers continuously: "every 5 minutes, how many orders per store?", "alert if any freezer reports above −10°C for 2 minutes". If you can write a <code>GROUP BY</code>, you can write one.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="wnt wnd">
+            <title id="wnt">Stream Analytics windowing functions</title>
+            <desc id="wnd">Four timelines of events. Tumbling windows are fixed-size and do not overlap, such as every five minutes. Hopping windows are fixed-size but overlap, such as a ten-minute window every five minutes. A sliding window covers the last N minutes and produces output only when events enter or leave it. Session windows group bursts of events separated by idle gaps.</desc>
+
+            <text x="20" y="62" class="t-b">Tumbling</text>
+            <text x="20" y="80" class="t-s">fixed, no overlap</text>
+            <path d="M200 75 H980" class="s-line"/>
+            <rect x="200" y="48" width="190" height="22" rx="5" class="s-teal"/>
+            <rect x="395" y="48" width="190" height="22" rx="5" class="s-blue"/>
+            <rect x="590" y="48" width="190" height="22" rx="5" class="s-teal"/>
+            <rect x="785" y="48" width="190" height="22" rx="5" class="s-blue"/>
+            <circle cx="230" cy="75" r="4" class="s-accent-fill"/><circle cx="300" cy="75" r="4" class="s-accent-fill"/><circle cx="350" cy="75" r="4" class="s-accent-fill"/><circle cx="420" cy="75" r="4" class="s-accent-fill"/><circle cx="470" cy="75" r="4" class="s-accent-fill"/><circle cx="560" cy="75" r="4" class="s-accent-fill"/><circle cx="640" cy="75" r="4" class="s-accent-fill"/><circle cx="700" cy="75" r="4" class="s-accent-fill"/><circle cx="760" cy="75" r="4" class="s-accent-fill"/><circle cx="820" cy="75" r="4" class="s-accent-fill"/><circle cx="900" cy="75" r="4" class="s-accent-fill"/><circle cx="950" cy="75" r="4" class="s-accent-fill"/>
+
+            <text x="20" y="132" class="t-b">Hopping</text>
+            <text x="20" y="150" class="t-s">fixed, overlapping</text>
+            <path d="M200 145 H980" class="s-line"/>
+            <rect x="200" y="100" width="280" height="18" rx="5" class="s-teal"/>
+            <rect x="340" y="122" width="280" height="18" rx="5" class="s-blue"/>
+            <rect x="480" y="100" width="280" height="18" rx="5" class="s-teal"/>
+            <rect x="620" y="122" width="280" height="18" rx="5" class="s-blue"/>
+            <circle cx="250" cy="145" r="4" class="s-accent-fill"/><circle cx="380" cy="145" r="4" class="s-accent-fill"/><circle cx="450" cy="145" r="4" class="s-accent-fill"/><circle cx="560" cy="145" r="4" class="s-accent-fill"/><circle cx="690" cy="145" r="4" class="s-accent-fill"/><circle cx="800" cy="145" r="4" class="s-accent-fill"/><circle cx="880" cy="145" r="4" class="s-accent-fill"/>
+
+            <text x="20" y="202" class="t-b">Sliding</text>
+            <text x="20" y="220" class="t-s">"in the last N minutes"</text>
+            <path d="M200 215 H980" class="s-line"/>
+            <rect x="520" y="186" width="280" height="22" rx="5" class="s-amber"/>
+            <text x="660" y="202" class="t-s mid">last 10 minutes</text>
+            <circle cx="300" cy="215" r="4" class="s-accent-fill"/><circle cx="450" cy="215" r="4" class="s-accent-fill"/><circle cx="620" cy="215" r="4" class="s-accent-fill"/><circle cx="800" cy="215" r="4" class="s-accent-fill"/>
+
+            <text x="20" y="262" class="t-b">Session</text>
+            <text x="20" y="280" class="t-s">bursts split by idle gaps</text>
+            <path d="M200 275 H980" class="s-line"/>
+            <rect x="220" y="246" width="135" height="22" rx="5" class="s-violet"/>
+            <rect x="530" y="246" width="60" height="22" rx="5" class="s-violet"/>
+            <rect x="770" y="246" width="150" height="22" rx="5" class="s-violet"/>
+            <circle cx="230" cy="275" r="4" class="s-accent-fill"/><circle cx="260" cy="275" r="4" class="s-accent-fill"/><circle cx="300" cy="275" r="4" class="s-accent-fill"/><circle cx="340" cy="275" r="4" class="s-accent-fill"/><circle cx="545" cy="275" r="4" class="s-accent-fill"/><circle cx="580" cy="275" r="4" class="s-accent-fill"/><circle cx="780" cy="275" r="4" class="s-accent-fill"/><circle cx="820" cy="275" r="4" class="s-accent-fill"/><circle cx="860" cy="275" r="4" class="s-accent-fill"/><circle cx="910" cy="275" r="4" class="s-accent-fill"/>
+          </svg>
+        </div>
+        <figcaption><b>Windows turn an endless stream into answerable chunks.</b> Tumbling for regular reports, hopping for rolling averages, sliding for "too many in the last N minutes" alerts, session for user visits. (A fifth, the snapshot window, groups events with the same timestamp.)</figcaption>
+      </figure>
+
+      <h4>A query you can read without knowing Stream Analytics</h4>
+<pre class="kql"><code>-- Orders per store, every 5 minutes
+SELECT StoreId, COUNT(*) AS Orders, System.Timestamp() AS WindowEnd
+INTO   [powerbi-live]
+FROM   [orders-eventhub] TIMESTAMP BY EventTime
+GROUP BY StoreId, TumblingWindow(minute, 5)</code></pre>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Capacity is set in <strong>streaming units</strong>; scale them up for more events or more complex queries.</li>
+        <li><strong>Reference data</strong> (such as a store list from Blob or Azure SQL) can be joined to the stream for lookups.</li>
+        <li>Built-in <strong>anomaly detection</strong> functions spot spikes and dips without writing an ML model.</li>
+        <li>Jobs can also run <strong>on IoT Edge devices</strong>, close to the sensors, when the network is unreliable.</li>
+        <li><strong>Event Hubs</strong> is usually the front door: it ingests millions of events per second and holds them for Stream Analytics. More on it in Module 10.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Analyse <strong>streaming</strong> data in <strong>real time</strong> with a <strong>SQL-like</strong> language", "<strong>IoT telemetry</strong>", "aggregate <strong>every N minutes</strong>", "<strong>real-time dashboard</strong> in Power BI" → <strong>Stream Analytics</strong>. "Count events in <strong>fixed, non-overlapping</strong> intervals" → <strong>tumbling</strong> window. "Rolling <strong>overlapping</strong> windows" → <strong>hopping</strong>. "Group a user's <strong>activity until they go idle</strong>" → <strong>session</strong>. "Ingest <strong>millions of events per second</strong>" → <strong>Event Hubs</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m07-asa">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Test a tumbling-window query on sample orders, without starting the job</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that streaming analytics is just SQL with time windows, and test it for free.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Stream Analytics jobs</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m07-demo</code>, name <code>asa-az305-m07</code>, Central India, hosting <b>Cloud</b>, smallest streaming units › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Job › <span class="ui">Job topology</span> › <span class="ui">Inputs</span> › <span class="ui">+ Add input</span>: show the choices (Event Hub, IoT Hub, Blob storage/ADLS Gen2) and the separate <b>reference input</b> option. Cancel, or add an Event Hubs input if you have one.</li>
+            <li><span class="ui">Outputs</span> › <span class="ui">+ Add output</span>: show Power BI, SQL Database, Cosmos DB, Data Lake, Event Hubs, Service Bus, Azure Function. Cancel.</li>
+            <li><span class="ui">Query</span>: write:<pre class="kql"><code>SELECT StoreId, COUNT(*) AS Orders,
+       System.Timestamp() AS WindowEnd
+FROM   orders TIMESTAMP BY EventTime
+GROUP BY StoreId, TumblingWindow(minute, 5)</code></pre></li>
+            <li>In the input preview, choose <span class="ui">Upload sample input</span> for <code>orders</code> › <code>orders.json</code> › <span class="ui">Test query</span>. Results: S001 has 2 orders in the 10:00–10:05 window and 1 in the next.</li>
+            <li>Change <code>TumblingWindow(minute, 5)</code> to <code>HoppingWindow(minute, 10, 5)</code> and test again to see overlapping windows. <b>Don't start the job.</b></li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The <span class="ui">Start</span> button is where billing begins: streaming units are charged per hour while the job runs.</li></ul>
+          <p class="demo-say"><b>Say:</b> “If you can write GROUP BY, you can write real-time analytics. The window is the only new idea.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= FABRIC / PURVIEW ======================= -->
+    <section id="fabric">
+      <span class="sec-num">07.8</span>
+      <h2>Where Microsoft Fabric and Purview fit</h2>
+
+      <div class="topic" style="border-top:0;padding-top:0;margin-top:0">
+        <div class="topic-head">
+          <span class="t-icon tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h16M12 4v16"/></svg></span>
+          <h3>Microsoft Fabric</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Microsoft Fabric is an end-to-end, software-as-a-service analytics platform. It brings data integration (Data Factory), data engineering (Spark), data warehousing, real-time intelligence, data science and Power BI together on one shared data lake, <strong>OneLake</strong>, with a single capacity-based billing model.</p>
+        </div>
+        <div class="callout plain">
+          <div class="c-label">In plain words</div>
+          <p>Everything in this module, but <strong>as one SaaS product</strong> instead of separate Azure resources you wire together. The concepts (pipelines, lakehouse, warehouse, medallion, streaming) are identical. That's why learning them on ADF, ADLS, Databricks and Synapse is never wasted.</p>
+        </div>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/><path d="M8 11h6M11 8v6"/></svg></span>
+          <h3>Microsoft Purview</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Microsoft Purview is a family of data governance, risk and compliance solutions. For analytics, its <strong>Data Map</strong> and <strong>Unified Catalog</strong> scan data sources across Azure, on-premises and other clouds to discover, classify and catalogue data, and show <strong>lineage</strong> from source to report.</p>
+        </div>
+        <div class="callout analogy">
+          <div class="c-label">Imagine this</div>
+          <p>Purview is the <strong>library catalogue</strong> for your company's data: which shelf a data set sits on, who owns it, whether it contains personal data, and which reports were built from it. Without it, a data lake slowly becomes a godown nobody dares to clean out.</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Discover and catalogue</strong> data across the organisation", "<strong>data lineage</strong>", "<strong>classify sensitive data</strong> across sources" → <strong>Microsoft Purview</strong>. "<strong>Unified SaaS</strong> analytics platform", "<strong>OneLake</strong>" → <strong>Microsoft Fabric</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m07-fabric">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Find Purview and Fabric, and see the same patterns in SaaS form</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show where the governance and SaaS pieces live, so learners recognise them later.</p>
+          <ol class="demo-steps">
+            <li>Browse to <code>purview.microsoft.com</code>: point at <b>Data Map</b> (scan sources such as your lake) and <b>Unified Catalog</b> (search, classifications, lineage). Don't register sources in class unless an account already exists.</li>
+            <li>Browse to <code>app.fabric.microsoft.com</code> (a free trial may be offered): point at <b>Data Factory</b>, <b>Data Engineering</b> (lakehouse), <b>Data Warehouse</b>, <b>Real-Time Intelligence</b> and <b>Power BI</b>, all on <b>OneLake</b>.</li>
+            <li>Back in the Azure portal, search <span class="ui">Microsoft Fabric</span> to show where <b>Fabric capacities</b> (F SKUs) are created and billed. Don't create one.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Same five stages, same medallion, same pipelines. Fabric just puts them under one roof as SaaS.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CHOOSE ======================= -->
+    <section id="choose">
+      <span class="sec-num">07.9</span>
+      <h2>Choosing the right service</h2>
+      <p>These services overlap on purpose, which is exactly why the exam likes them. Use the <strong>primary job</strong> as the tie-breaker.</p>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Service</th><th>Primary job</th><th>Language / style</th><th>Pick it when the question says…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Data Factory</strong></td><td>Move and orchestrate</td><td>Visual pipelines, low-code data flows</td><td>"copy", "orchestrate", "schedule", "on-premises source", "SSIS"</td></tr>
+            <tr><td><strong>ADLS Gen2</strong></td><td>Store (the lake)</td><td>Files and folders</td><td>"raw data", "any format", "big-data storage", "ACLs"</td></tr>
+            <tr><td><strong>Databricks</strong></td><td>Engineer and do data science</td><td>Spark notebooks: Python, SQL, Scala, R</td><td>"data scientists", "ML", "Spark", "collaborative notebooks", "lakehouse"</td></tr>
+            <tr><td><strong>Synapse dedicated SQL</strong></td><td>Warehouse</td><td>T-SQL on an MPP engine</td><td>"enterprise data warehouse", "petabytes", "pause compute"</td></tr>
+            <tr><td><strong>Synapse serverless SQL</strong></td><td>Query the lake</td><td>T-SQL over files</td><td>"query files in place", "pay per query", "explore"</td></tr>
+            <tr><td><strong>Stream Analytics</strong></td><td>Process streams</td><td>SQL with time windows</td><td>"real time", "IoT", "every N minutes", "live dashboard"</td></tr>
+            <tr><td><strong>Data Explorer</strong> (Module 04)</td><td>Interactive telemetry analytics</td><td>KQL</td><td>"logs and time series", "billions of rows in seconds"</td></tr>
+            <tr><td><strong>Fabric</strong></td><td>All of the above as SaaS</td><td>Mixed</td><td>"single unified platform", "OneLake", "capacity-based"</td></tr>
+            <tr><td><strong>Purview</strong></td><td>Govern</td><td>Catalogue and lineage</td><td>"catalogue", "lineage", "classify across sources"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Don't ask "Databricks or Synapse?" first. Ask <strong>who</strong> will use it (SQL analysts, data engineers, data scientists), <strong>how fresh</strong> the answer must be (seconds or tomorrow morning), and <strong>what skills</strong> the team already has. The service follows from the people and the deadline.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">07.10</span>
+      <h2>Meridian: the analytics design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 07</span></div>
+        <div class="case-body">
+          <p>Leadership's request: <em>"One trusted view of sales across stores and online, every morning by 7 a.m. Better stock forecasts before Diwali. And tell us within minutes when a store runs out of a best-seller."</em> Each business unit wants its own dashboards, and German data must stay in the EU.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Bring together store, online and logistics data nightly</td><td><strong>Azure Data Factory</strong> pipelines on a schedule; a <strong>self-hosted IR</strong> in the Bengaluru datacentre for systems not yet migrated; Azure IR for Azure SQL and Cosmos DB; <strong>storage event triggers</strong> for supplier files</td><td>One orchestrator with retries, alerts and lineage, which works during the hybrid migration period.</td></tr>
+                <tr><td>One place for all analytical data</td><td><strong>ADLS Gen2</strong> in Central India (ZRS) with <strong>bronze / silver / gold</strong> containers in Parquet and Delta; lifecycle rules on bronze (Module 05)</td><td>Cheap, keeps the raw history, and every engine can read it.</td></tr>
+                <tr><td>Clean data and forecast demand</td><td><strong>Azure Databricks</strong> (Premium, VNet-injected, Unity Catalog) on <strong>job clusters</strong> with auto-termination; forecasting models tracked in MLflow</td><td>The data team works in Python; Spark handles years of sales history.</td></tr>
+                <tr><td>Trusted dashboards by 7 a.m., per business unit</td><td>Gold tables exposed through <strong>Synapse serverless SQL</strong> views to <strong>Power BI</strong>, with row-level security per business unit</td><td>No warehouse to run around the clock; analysts keep using SQL. A dedicated pool is added only if concurrency demands it.</td></tr>
+                <tr><td>Know about stock-outs within minutes</td><td>Online orders and store POS events into <strong>Event Hubs</strong> → <strong>Stream Analytics</strong>: a 5-minute <strong>tumbling</strong> window per store and SKU, joined with reference stock levels → Power BI live tiles and an alert (Module 10 picks up the messaging)</td><td>Real-time answers without waiting for the nightly batch.</td></tr>
+                <tr><td>Know what data exists, and where personal data is</td><td><strong>Microsoft Purview</strong> scans the lake, Azure SQL and Cosmos DB; classifies PII; shows lineage from POS to report</td><td>GDPR and PCI questions are answered from the catalogue, not from memory.</td></tr>
+                <tr><td>Security</td><td>Managed identities for ADF, Databricks and Synapse to the lake; Entra groups mapped to <strong>ACLs</strong> (engineers: bronze/silver; analysts: gold read only); private endpoints; Key Vault-backed linked services</td><td>Least privilege on the lake, and no passwords in pipelines.</td></tr>
+                <tr><td>EU data stays in the EU</td><td>A separate lake and pipelines in Germany West Central; only <strong>aggregated, anonymised</strong> gold data is shared with the India platform</td><td>Group-level reporting without moving personal data out of the EU.</td></tr>
+                <tr><td>Future direction</td><td>A <strong>Microsoft Fabric</strong> pilot reading the same lake through OneLake shortcuts, without copying data</td><td>Lets Meridian evaluate the SaaS route without rebuilding the platform.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Part II of Meridian's design is now complete: data is stored with the right durability, kept in the right databases, and turned into decisions. Part III makes all of it survive the bad day.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">07.11</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's analytics checklist</h3>
+      <ul class="checklist">
+        <li>Operational (OLTP) and analytical (OLAP) workloads separated.</li>
+        <li>Batch vs streaming decided per question, based on how fresh the answer must be.</li>
+        <li>A data lake on ADLS Gen2 with bronze, silver and gold layers, and ACLs per layer.</li>
+        <li>Pipelines orchestrated by Data Factory, with the right integration runtime for each source.</li>
+        <li>The processing engine matched to the people: Spark notebooks, SQL, or both.</li>
+        <li>Serving layer chosen for cost: serverless where usage is light, dedicated or capacity where it's heavy.</li>
+        <li>Streaming path designed with Event Hubs and Stream Analytics windows where minutes matter.</li>
+        <li>Governance in place: Purview catalogue, lineage, classification and data residency.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. A nightly pipeline must copy data from an on-premises SQL Server to a data lake in Azure. Which service and which component makes the on-premises connection possible?</summary>
+          <div><p><strong>Azure Data Factory</strong> with a <strong>self-hosted integration runtime</strong> installed on a machine that can reach the on-premises SQL Server.</p></div>
+        </details>
+        <details>
+          <summary>2. Analysts want to run T-SQL directly over Parquet files in the lake, occasionally, without provisioning anything. What do you recommend?</summary>
+          <div><p>The <strong>Synapse serverless SQL pool</strong>. It queries files in place and charges per TB of data processed.</p></div>
+        </details>
+        <details>
+          <summary>3. A data science team wants to train ML models on 5 TB of history using Python notebooks, collaboratively. Which service?</summary>
+          <div><p><strong>Azure Databricks</strong>: Spark-based, collaborative notebooks, MLflow, and Delta Lake on ADLS Gen2.</p></div>
+        </details>
+        <details>
+          <summary>4. Sensors send readings every second. You need the average temperature per device for each fixed, non-overlapping 1-minute interval, shown on a live dashboard. Design?</summary>
+          <div><p><strong>Event Hubs</strong> (or IoT Hub) → <strong>Stream Analytics</strong> with a <strong>tumbling window</strong> of 1 minute → <strong>Power BI</strong> output.</p></div>
+        </details>
+        <details>
+          <summary>5. A data lake must let the finance team read only the /gold/finance folder. How?</summary>
+          <div><p>Use <strong>ADLS Gen2</strong> (hierarchical namespace) and grant the finance Entra group read and execute <strong>ACLs</strong> on that directory (plus execute on the parent folders), instead of an RBAC role on the whole account.</p></div>
+        </details>
+        <details>
+          <summary>6. The company has 300 existing SSIS packages and wants to run them in Azure without rewriting them. What do you use?</summary>
+          <div><p>An <strong>Azure-SSIS integration runtime</strong> in Azure Data Factory.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">End of Part II</div>
+        <p>You can now place any data on the right storage, in the right database, and through the right pipeline to a decision. Part III asks the uncomfortable question every architect must answer: <strong>what happens on the bad day</strong>, and where should the code that uses all this data actually run?</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="06-databases.html"><small>Previous module</small><span>← 06 · Databases</span></a>
+        <a class="next" href="../index.html#modules"><small>Up next</small><span>Part III · Resilience (coming soon) →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

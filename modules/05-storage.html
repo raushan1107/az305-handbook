@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Storage in Azure</title>
+<meta name="description" content="Module 05 of the AZ-305 Architect Handbook: storage accounts, redundancy (LRS, ZRS, GRS, GZRS), Blob storage tiers and lifecycle, data protection, Azure Files and File Sync, managed disks and storage security.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part II · Data</div>
+    <span class="eyebrow">Module 05</span>
+    <h1>Data Storage: Files, Shares and Disks Without the Guesswork</h1>
+    <p class="lead">Every application eventually asks the same three questions: where do I keep this, how many copies do I need, and who's allowed to touch it? Get them wrong and you either pay for performance nobody uses, or lose data you were legally required to keep. This module makes those three questions easy to answer.</p>
+    <div class="hero-meta">
+      <span class="chip">Storage accounts</span><span class="chip">LRS / ZRS / GRS / GZRS</span><span class="chip">Blob storage</span><span class="chip">Access tiers</span><span class="chip">Azure Files</span><span class="chip">File Sync</span><span class="chip">Managed disks</span><span class="chip">Storage security</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why storage is a design decision</a></li>
+        <li><a href="#account">Storage accounts</a></li>
+        <li><a href="#redundancy">Redundancy: how many copies, how far apart</a></li>
+        <li><a href="#blob">Blob storage, tiers and lifecycle</a></li>
+        <li><a href="#protect">Protecting blobs from mistakes</a></li>
+        <li><a href="#files">Azure Files and File Sync</a></li>
+        <li><a href="#disks">Managed disks</a></li>
+        <li><a href="#security">Storage security</a></li>
+        <li><a href="#choose">Choosing the right storage</a></li>
+        <li><a href="#case">Meridian: the storage design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">05.0</span>
+      <h2>The mental map</h2>
+      <p>Storage questions look endless, but they always come down to the same path: <strong>what kind of data is it → which service holds that kind → what you decide about it</strong>. Keep this picture in your head and most exam questions answer themselves.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 420" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">The Azure storage mental map</title>
+            <desc id="m0d">Three kinds of data map to three services. Objects such as images, video, backups and logs go to Blob storage. Shared folders go to Azure Files. A virtual machine's drives go to managed disks. Blob and Files live inside a storage account; managed disks are their own resource. For every choice the architect then decides redundancy, access tier, protection and security.</desc>
+
+            <text x="20" y="26" class="t-m t-accent">1 · WHAT IS THE DATA?</text>
+            <text x="360" y="26" class="t-m t-accent">2 · WHICH SERVICE?</text>
+            <text x="700" y="26" class="t-m t-accent">3 · WHAT YOU DECIDE</text>
+
+            <rect x="20" y="44" width="280" height="64" rx="10" class="s-surface"/>
+            <text x="36" y="70" class="t-b">Objects</text>
+            <text x="36" y="90" class="t-s">images, video, backups, logs, exports</text>
+            <rect x="20" y="124" width="280" height="64" rx="10" class="s-surface"/>
+            <text x="36" y="150" class="t-b">Shared folders</text>
+            <text x="36" y="170" class="t-s">"the S: drive", lift-and-shift file servers</text>
+            <rect x="20" y="226" width="280" height="64" rx="10" class="s-surface"/>
+            <text x="36" y="252" class="t-b">Block devices</text>
+            <text x="36" y="272" class="t-s">a VM's C: drive and data drives</text>
+
+            <rect x="346" y="34" width="288" height="182" rx="14" class="s-surface2"/>
+            <rect x="360" y="44" width="260" height="64" rx="10" class="s-teal"/>
+            <text x="490" y="70" class="t-b mid">Blob storage</text>
+            <text x="490" y="90" class="t-s mid">hot · cool · cold · archive</text>
+            <rect x="360" y="124" width="260" height="64" rx="10" class="s-teal"/>
+            <text x="490" y="150" class="t-b mid">Azure Files</text>
+            <text x="490" y="170" class="t-s mid">SMB / NFS shares + File Sync</text>
+            <text x="490" y="207" class="t-s mid">both live inside a storage account</text>
+            <rect x="360" y="226" width="260" height="64" rx="10" class="s-blue"/>
+            <text x="490" y="252" class="t-b mid">Managed disks</text>
+            <text x="490" y="272" class="t-s mid">Ultra · Premium · Standard</text>
+
+            <path d="M300 76 H356" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M300 156 H356" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M300 258 H356" class="s-arrow" marker-end="url(#ah)"/>
+
+            <path d="M634 160 H666 M666 72 V264" class="s-line"/>
+            <path d="M666 72 H694" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M666 136 H694" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M666 200 H694" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M666 264 H694" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M620 258 H666" class="s-line"/>
+
+            <rect x="700" y="44" width="280" height="56" rx="10" class="s-amber"/>
+            <text x="716" y="67" class="t-b">Redundancy</text>
+            <text x="716" y="86" class="t-s">how many copies, how far apart</text>
+            <rect x="700" y="108" width="280" height="56" rx="10" class="s-surface"/>
+            <text x="716" y="131" class="t-b">Access tier / performance</text>
+            <text x="716" y="150" class="t-s">pay for storing, or for reading?</text>
+            <rect x="700" y="172" width="280" height="56" rx="10" class="s-green"/>
+            <text x="716" y="195" class="t-b">Protection</text>
+            <text x="716" y="214" class="t-s">soft delete, versions, WORM, backup</text>
+            <rect x="700" y="236" width="280" height="56" rx="10" class="s-violet"/>
+            <text x="716" y="259" class="t-b">Security</text>
+            <text x="716" y="278" class="t-s">identity, SAS, network, keys</text>
+
+            <rect x="20" y="320" width="960" height="80" rx="12" class="s-surface2"/>
+            <text x="500" y="352" class="t-b mid">The architect's question is never "where do I put the files?"</text>
+            <text x="500" y="376" class="t-s mid">It's: what is the data, who reads it, how often, how long must we keep it, and what happens if a whole region goes dark?</text>
+          </svg>
+        </div>
+        <figcaption><b>Data type → service → four decisions.</b> Blob and Files share a storage account (and its redundancy, network and key settings). Disks are separate resources attached to VMs.</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>Want every Part II service in one view? The <a href="data-map.html#t-storage">Data Services Map</a> puts storage, databases and analytics on one expandable tree, with when to use each, when not to, and the exam words. This module's storage services sit on their own branch.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 8 quick portal walkthroughs · about 27 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos build one storage account and use it to show every decision in the mental map: redundancy, tiers, lifecycle, protection, file shares and the three security gates. Disks are shown as a create form only.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are Owner or Contributor (Owner, or User Access Administrator, for the RBAC step in the security demo).</li><li>Two small files on your laptop: an image (e.g. <code>logo.png</code>) and a text file (<code>invoice-001.txt</code>).</li><li>Names below: resource group <code>rg-az305-m05-demo</code>, storage account <code>staz305m05</code> plus your initials (it must be globally unique), region Central India.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li>Create the storage account first (demo 1) with soft delete and versioning left on. Every later demo reuses it.</li><li>Do redundancy, then blob tiers and lifecycle, then protection: they follow the order of the page.</li><li>Run the Files demo next; the File Sync part is a walk-through of the form only.</li><li>Disks is a create form you cancel. Finish with the security demo, because disabling key access and public access changes how the portal behaves for the earlier demos.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m05-account">Create a storage account and spot the four architect choices</a><span>~4m</span></li><li><a href="#demo-m05-redundancy">Change redundancy and see where the copies live</a><span>~2m</span></li><li><a href="#demo-m05-blob">Upload a blob, change its tier, and meet Archive's waiting room</a><span>~4m</span></li><li><a href="#demo-m05-lifecycle">Write a lifecycle rule that moves and deletes data for you</a><span>~2m</span></li><li><a href="#demo-m05-protect">Delete a blob, bring it back, and see a WORM policy</a><span>~3m</span></li><li><a href="#demo-m05-files">Create a file share, get the mount script, and walk the File Sync setup</a><span>~4m</span></li><li><a href="#demo-m05-disks">Compare disk types on the create form</a><span>~3m</span></li><li><a href="#demo-m05-security">Get blocked as Owner, fix it with RBAC, then issue a user delegation SAS</a><span>~5m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m05-demo</code>. If you added an immutability policy, make sure it was left <b>unlocked</b> and delete it first, or the container can't be deleted.</li><li>Remove the <b>Storage Blob Data Contributor</b> role assignment you gave yourself if it was made at a scope above the resource group.</li><li>If you created a Storage Sync Service, it's in the same resource group and goes with it.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">05.1</span>
+      <h2>Why storage is a design decision, not a default</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Think about how a family in an Indian city stores things. Daily-use utensils sit on the <strong>kitchen counter</strong> (fast to reach, but counter space is expensive). Winter blankets go into the <strong>loft</strong> (cheaper space, a bit of effort to reach). Property papers go into a <strong>bank locker</strong> (very safe, very cheap per item, but you need an appointment to get them out). And the really important ones get a <strong>photocopy at your parents' house</strong> in another city, in case something happens to yours. That's the whole of Azure storage: hot tier, cool tier, archive tier and geo-redundancy.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I need somewhere to save uploaded images. I'll create a storage account with the defaults and paste the connection string into the config file."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"How much data, growing how fast? How often is each object read after the first week? Must it survive a <strong>region</strong> outage, or is a <strong>zone</strong> enough? Is any of it under legal retention? Who should reach it, and over which network? No connection strings: <strong>managed identity</strong> and RBAC."</p>
+        </div>
+      </div>
+
+      <p>In every batch I teach, I ask one question: <em>"What's the most expensive storage mistake?"</em> People guess "using premium disks". The real answer is <strong>storing everything in the hot tier forever</strong>. Storage cost grows quietly, every month, for data nobody has opened since the day it was written.</p>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Every byte has a <strong>temperature</strong> (how often it's read), a <strong>lifespan</strong> (how long it must exist) and a <strong>blast radius</strong> (what failure it must survive). Design for all three and storage becomes cheap and boring, which is exactly what you want.</p>
+      </div>
+    </section>
+
+    <!-- ======================= ACCOUNT ======================= -->
+    <section id="account">
+      <span class="sec-num">05.2</span>
+      <h2>Storage accounts</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13h3M8 16h6"/></svg></span>
+        <h3>The container for your storage services</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>An Azure storage account contains your Azure Storage data objects: blobs, files, queues and tables. It provides a unique namespace for that data, reachable from anywhere over HTTP or HTTPS, and it's where you set redundancy, networking, encryption and access options that apply to everything inside.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A storage account is a <strong>building with one address</strong>. Inside it there are four kinds of rooms: Blob, Files, Queues and Tables. The building's rules (which city it's in, how many copies, who gets through the gate) apply to every room. So when two sets of data need <em>different</em> rules, they need <em>different</em> storage accounts.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 260" role="img" aria-labelledby="sat sad">
+            <title id="sat">Inside a storage account</title>
+            <desc id="sad">One storage account holds four services, each with its own endpoint: Blob (containers holding blobs), Files (shares holding folders and files), Queues (queues holding messages) and Tables (tables holding entities). The account sets one name, one region, one redundancy option and one bill.</desc>
+
+            <rect x="20" y="16" width="960" height="228" rx="14" class="s-surface2"/>
+            <text x="40" y="48" class="t-h">Storage account · staz305m05demo</text>
+            <text x="40" y="72" class="t-s">one globally unique name · one region · one redundancy setting · one network and encryption policy</text>
+
+            <rect x="40" y="96" width="220" height="128" rx="12" class="s-teal"/>
+            <text x="56" y="124" class="t-b">Blob</text>
+            <text x="56" y="146" class="t-s">containers → blobs</text>
+            <text x="56" y="186" class="t-m">&lt;name&gt;.blob.</text>
+            <text x="56" y="204" class="t-m">core.windows.net</text>
+
+            <rect x="280" y="96" width="220" height="128" rx="12" class="s-blue"/>
+            <text x="296" y="124" class="t-b">Files</text>
+            <text x="296" y="146" class="t-s">shares → folders → files</text>
+            <text x="296" y="186" class="t-m">&lt;name&gt;.file.</text>
+            <text x="296" y="204" class="t-m">core.windows.net</text>
+
+            <rect x="520" y="96" width="220" height="128" rx="12" class="s-amber"/>
+            <text x="536" y="124" class="t-b">Queues</text>
+            <text x="536" y="146" class="t-s">queues → messages</text>
+            <text x="536" y="166" class="t-s">(more in Module 10)</text>
+            <text x="536" y="186" class="t-m">&lt;name&gt;.queue.</text>
+            <text x="536" y="204" class="t-m">core.windows.net</text>
+
+            <rect x="760" y="96" width="200" height="128" rx="12" class="s-violet"/>
+            <text x="776" y="124" class="t-b">Tables</text>
+            <text x="776" y="146" class="t-s">tables → entities</text>
+            <text x="776" y="166" class="t-s">(more in Module 06)</text>
+            <text x="776" y="186" class="t-m">&lt;name&gt;.table.</text>
+            <text x="776" y="204" class="t-m">core.windows.net</text>
+          </svg>
+        </div>
+        <figcaption><b>One address, four rooms.</b> Settings at the account level apply to every service inside. That's why you split accounts by requirement (region, redundancy, network, compliance), not by habit.</figcaption>
+      </figure>
+
+      <h4>Account types: pick the right building</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Type</th><th>Disk underneath</th><th>Services</th><th>Redundancy</th><th>Use it for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Standard general-purpose v2</strong></td><td>HDD-based</td><td>Blob, Files, Queues, Tables, Data Lake Gen2</td><td>All options</td><td>The default for almost everything</td></tr>
+            <tr><td>Premium block blobs</td><td>SSD</td><td>Block and append blobs</td><td>LRS, ZRS</td><td>Low latency, high transaction rates (IoT, AI, analytics hot paths)</td></tr>
+            <tr><td>Premium file shares</td><td>SSD</td><td>Azure Files (SMB and NFS)</td><td>LRS, ZRS</td><td>Databases on shares, heavy enterprise file workloads</td></tr>
+            <tr><td>Premium page blobs</td><td>SSD</td><td>Page blobs only</td><td>LRS, ZRS</td><td>Special cases; managed disks cover most needs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>The name is <strong>3–24 characters</strong>, lowercase letters and numbers only, and <strong>globally unique</strong> (it becomes part of a public DNS name).</li>
+        <li>About <strong>250 storage accounts per region per subscription</strong> by default (a quota increase is possible). A single account holds petabytes, so you rarely run out.</li>
+        <li><strong>Premium accounts support only LRS and ZRS</strong>: no geo-replication. That single fact answers a surprising number of exam questions.</li>
+        <li>Legacy account types (general-purpose v1, legacy Blob storage accounts) are being retired. Upgrade them to general-purpose v2; it's a one-click, in-place change.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Lowest latency</strong> for blobs" or "<strong>high transaction rate</strong>, small objects" → Premium block blob account. "Need <strong>geo-redundancy</strong>" + "premium" in the same question → you can't have both on one account; the answer usually changes to Standard GPv2 with GRS/GZRS. "Data with <strong>different compliance rules</strong>" → separate storage accounts.</p>
+      </div>
+      <details class="demo" id="demo-m05-account">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a storage account and spot the four architect choices</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that a storage account is mostly a set of decisions: performance, redundancy, network and data protection.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Storage accounts</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m05-demo</code>, name <code>staz305m05</code> + initials, region Central India.</li>
+            <li>Point at <span class="ui">Primary service</span> (just a hint for the portal), <span class="ui">Performance</span> (Standard vs Premium; switch to Premium and show the <b>Premium account type</b> list) and <span class="ui">Redundancy</span>: with Premium selected, the geo options disappear. Switch back to <b>Standard</b>, choose <b>GRS</b>.</li>
+            <li><span class="ui">Advanced</span> tab: <b>Require secure transfer</b>, <b>Allow enabling anonymous access</b> (off), <b>Enable storage account key access</b>, <b>Minimum TLS version 1.2</b>, and <b>Enable hierarchical namespace</b> (that's Data Lake Gen2, Module 07). Leave defaults.</li>
+            <li><span class="ui">Networking</span> tab: public access from all networks, selected networks, or disabled with a private endpoint. Leave the default for now.</li>
+            <li><span class="ui">Data protection</span> tab: soft delete for blobs, containers and file shares, and versioning. Tick <b>Enable versioning for blobs</b>.</li>
+            <li><span class="ui">Encryption</span> tab: Microsoft-managed vs customer-managed keys, and <b>infrastructure encryption</b> (only available now, at creation) › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The name becomes <code>https://&lt;name&gt;.blob.core.windows.net</code>, which is why it must be globally unique.</li><li>Open the new account › <span class="ui">Endpoints</span>: one address per service (blob, file, queue, table, dfs).</li></ul>
+          <p class="demo-say"><b>Say:</b> “Creating a storage account takes a minute. Choosing its settings is the part that takes an architect.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= REDUNDANCY ======================= -->
+    <section id="redundancy">
+      <span class="sec-num">05.3</span>
+      <h2>Redundancy: how many copies, how far apart</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Storage always keeps multiple copies of your data. The redundancy option decides <em>where</em> those copies live: in one datacentre (LRS), across availability zones in the primary region (ZRS), or additionally in a secondary region hundreds of kilometres away (GRS and GZRS). Read-access variants (RA-GRS, RA-GZRS) let you read from the secondary region at any time.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Every option keeps <strong>at least three copies</strong>. The only question is <strong>what disaster those copies can survive</strong>: a broken disk, a burnt-down building, or a whole city going offline.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 335" role="img" aria-labelledby="rdt rdd">
+            <title id="rdt">LRS, ZRS, GRS and GZRS compared</title>
+            <desc id="rdd">LRS keeps three copies in one datacentre. ZRS keeps one copy in each of three availability zones in the primary region. GRS keeps three copies in one datacentre in the primary region and copies them asynchronously to three copies in a secondary paired region. GZRS spreads the primary copies across three zones and also copies them asynchronously to the secondary region.</desc>
+
+            <!-- LRS -->
+            <rect x="10" y="10" width="230" height="315" rx="14" class="s-surface2"/>
+            <text x="125" y="40" class="t-h mid">LRS</text>
+            <text x="125" y="60" class="t-s mid">locally redundant</text>
+            <rect x="20" y="75" width="210" height="100" rx="10" class="s-surface"/>
+            <text x="32" y="93" class="t-s">Primary region</text>
+            <rect x="30" y="102" width="190" height="60" rx="8" class="s-blue"/>
+            <circle cx="80" cy="132" r="10" class="s-teal"/><circle cx="125" cy="132" r="10" class="s-teal"/><circle cx="170" cy="132" r="10" class="s-teal"/>
+            <text x="125" y="210" class="t-s mid">3 copies in 1 datacentre</text>
+            <text x="125" y="232" class="t-s mid t-green">survives: disk or rack failure</text>
+            <text x="125" y="254" class="t-s mid t-rose">lost if: the datacentre fails</text>
+            <text x="125" y="312" class="t-s mid">11 nines · cheapest</text>
+
+            <!-- ZRS -->
+            <rect x="260" y="10" width="230" height="315" rx="14" class="s-surface2"/>
+            <text x="375" y="40" class="t-h mid">ZRS</text>
+            <text x="375" y="60" class="t-s mid">zone-redundant</text>
+            <rect x="270" y="75" width="210" height="100" rx="10" class="s-surface"/>
+            <text x="282" y="93" class="t-s">Primary region</text>
+            <rect x="280" y="102" width="58" height="60" rx="8" class="s-blue"/><circle cx="309" cy="122" r="9" class="s-teal"/><text x="309" y="152" class="t-s mid">zone 1</text>
+            <rect x="346" y="102" width="58" height="60" rx="8" class="s-blue"/><circle cx="375" cy="122" r="9" class="s-teal"/><text x="375" y="152" class="t-s mid">zone 2</text>
+            <rect x="412" y="102" width="58" height="60" rx="8" class="s-blue"/><circle cx="441" cy="122" r="9" class="s-teal"/><text x="441" y="152" class="t-s mid">zone 3</text>
+            <text x="375" y="210" class="t-s mid">3 copies in 3 zones</text>
+            <text x="375" y="232" class="t-s mid t-green">survives: a whole zone failing</text>
+            <text x="375" y="254" class="t-s mid t-rose">lost if: the region fails</text>
+            <text x="375" y="312" class="t-s mid">12 nines · high availability</text>
+
+            <!-- GRS -->
+            <rect x="510" y="10" width="230" height="315" rx="14" class="s-surface2"/>
+            <text x="625" y="40" class="t-h mid">GRS</text>
+            <text x="625" y="60" class="t-s mid">geo-redundant</text>
+            <rect x="520" y="75" width="210" height="100" rx="10" class="s-surface"/>
+            <text x="532" y="93" class="t-s">Primary region</text>
+            <rect x="530" y="102" width="190" height="60" rx="8" class="s-blue"/>
+            <circle cx="580" cy="132" r="10" class="s-teal"/><circle cx="625" cy="132" r="10" class="s-teal"/><circle cx="670" cy="132" r="10" class="s-teal"/>
+            <path d="M625 175 V200" class="s-dash" marker-end="url(#ah)"/>
+            <text x="636" y="194" class="t-s">async</text>
+            <rect x="520" y="204" width="210" height="88" rx="10" class="s-surface"/>
+            <text x="532" y="222" class="t-s">Secondary (paired) region</text>
+            <rect x="530" y="230" width="190" height="50" rx="8" class="s-amber"/>
+            <circle cx="580" cy="255" r="9" class="s-teal"/><circle cx="625" cy="255" r="9" class="s-teal"/><circle cx="670" cy="255" r="9" class="s-teal"/>
+            <text x="625" y="312" class="t-s mid">16 nines · survives a region loss</text>
+
+            <!-- GZRS -->
+            <rect x="760" y="10" width="230" height="315" rx="14" class="s-surface2"/>
+            <text x="875" y="40" class="t-h mid">GZRS</text>
+            <text x="875" y="60" class="t-s mid">geo-zone-redundant</text>
+            <rect x="770" y="75" width="210" height="100" rx="10" class="s-surface"/>
+            <text x="782" y="93" class="t-s">Primary region</text>
+            <rect x="780" y="102" width="58" height="60" rx="8" class="s-blue"/><circle cx="809" cy="122" r="9" class="s-teal"/><text x="809" y="152" class="t-s mid">zone 1</text>
+            <rect x="846" y="102" width="58" height="60" rx="8" class="s-blue"/><circle cx="875" cy="122" r="9" class="s-teal"/><text x="875" y="152" class="t-s mid">zone 2</text>
+            <rect x="912" y="102" width="58" height="60" rx="8" class="s-blue"/><circle cx="941" cy="122" r="9" class="s-teal"/><text x="941" y="152" class="t-s mid">zone 3</text>
+            <path d="M875 175 V200" class="s-dash" marker-end="url(#ah)"/>
+            <text x="886" y="194" class="t-s">async</text>
+            <rect x="770" y="204" width="210" height="88" rx="10" class="s-surface"/>
+            <text x="782" y="222" class="t-s">Secondary (paired) region</text>
+            <rect x="780" y="230" width="190" height="50" rx="8" class="s-amber"/>
+            <circle cx="830" cy="255" r="9" class="s-teal"/><circle cx="875" cy="255" r="9" class="s-teal"/><circle cx="920" cy="255" r="9" class="s-teal"/>
+            <text x="875" y="312" class="t-s mid">16 nines · zone + region</text>
+          </svg>
+        </div>
+        <figcaption><b>Each step to the right survives a bigger disaster.</b> The copy to the secondary region is <em>asynchronous</em>, so a few minutes of the latest writes can be lost in a regional failover (Microsoft's typical target is under 15 minutes, without an SLA).</figcaption>
+      </figure>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p><strong>LRS</strong> is three photocopies of your property papers in the same cupboard. <strong>ZRS</strong> is one copy at home, one at your office and one at your brother's flat, all in Bengaluru. <strong>GRS</strong> adds a set at your parents' house in Chennai, posted to them a little after each change. <strong>RA-GRS</strong> means your parents can read that copy any time, not only after a disaster.</p>
+      </div>
+
+      <h4>The decision in one table</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Requirement in the question</th><th>Choose</th></tr></thead>
+          <tbody>
+            <tr><td>Cheapest; data can be recreated; or the law says data must stay in one place</td><td><strong>LRS</strong></td></tr>
+            <tr><td>Stay available during a zone (datacentre) outage, with synchronous copies</td><td><strong>ZRS</strong></td></tr>
+            <tr><td>Survive a regional disaster; secondary is for recovery only</td><td><strong>GRS</strong> (or GZRS for zone protection too)</td></tr>
+            <tr><td>Applications must be able to <strong>read</strong> during a regional outage</td><td><strong>RA-GRS</strong> or <strong>RA-GZRS</strong></td></tr>
+            <tr><td>Maximum durability <em>and</em> availability for critical data</td><td><strong>RA-GZRS</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>The secondary region is the region's <strong>pair</strong>: Central India ↔ South India, Germany West Central ↔ Germany North. You don't pick it.</li>
+        <li>With GRS (no "RA"), the secondary is <strong>not readable</strong> until a failover happens.</li>
+        <li><strong>Customer-managed failover</strong> lets you promote the secondary yourself. After an unplanned failover, the account becomes LRS in the new region until you re-enable geo-replication.</li>
+        <li>The <strong>Last Sync Time</strong> property tells you how far behind the secondary is. Use it to estimate data loss before you fail over.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Redundancy is <strong>not backup</strong>. If someone deletes a blob or ransomware encrypts it, that change is faithfully replicated to all six copies within minutes. Protection against mistakes comes from soft delete, versioning, immutability and backup, which we cover in <a href="#protect">05.5</a>.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Read</strong> data even if the primary region is unavailable" → <strong>RA-GRS / RA-GZRS</strong>. "Survive a <strong>datacentre / zone</strong> failure, <strong>no data loss</strong>" → <strong>ZRS</strong> (synchronous). "Survive a <strong>regional</strong> outage" → GRS/GZRS. "<strong>Minimise cost</strong>, data can be regenerated" → LRS.</p>
+      </div>
+      <details class="demo" id="demo-m05-redundancy">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Change redundancy and see where the copies live</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Make LRS, GRS and RA-GRS visible on a map and show that failover is a button you own.</p>
+          <ol class="demo-steps">
+            <li>Open the storage account › <span class="ui">Data management</span> › <span class="ui">Redundancy</span>: the map shows the primary (Central India) and the secondary (South India).</li>
+            <li>Open the redundancy drop-down: change <b>GRS</b> to <b>RA-GRS</b> › <span class="ui">Save</span>. A <b>secondary endpoint</b> appears (<code>&lt;name&gt;-secondary.blob…</code>).</li>
+            <li>Point at <b>Last sync time</b>: how far behind the secondary is.</li>
+            <li>Point at <span class="ui">Prepare for failover</span>. Open it to show the warning text, then <b>cancel</b>.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Converting to ZRS is a separate conversion process; LRS ↔ GRS is an instant setting change.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Every option keeps three copies. Redundancy is only about which disaster those copies can survive.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= BLOB ======================= -->
+    <section id="blob">
+      <span class="sec-num">05.4</span>
+      <h2>Blob storage, tiers and lifecycle</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><circle cx="10" cy="13" r="2"/><path d="M19 19l-5-5-6 6"/></svg></span>
+        <h3>Object storage for anything you can name with a URL</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Blob Storage is Microsoft's object storage for massive amounts of unstructured data, such as text, images, video, backups and logs. Objects (blobs) are stored in containers and accessed over HTTP/HTTPS through REST APIs, SDKs, the Azure CLI or tools such as AzCopy and Storage Explorer.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Blob is a <strong>giant warehouse of labelled boxes</strong>. You don't open a box and edit one line inside it; you put a whole box in, or take a whole box out, using its label (the URL). That's why it's perfect for photos, videos, PDFs and backups, and wrong for a database file someone edits all day.</p>
+      </div>
+
+      <div class="terms">
+        <div class="term"><b>Block blob</b><span>The normal one: files, images, video, backups. Up to about 190 TiB per blob. 99% of what you store.</span></div>
+        <div class="term"><b>Append blob</b><span>You can only add to the end. Built for logs and audit trails.</span></div>
+        <div class="term"><b>Page blob</b><span>Random read/write in 512-byte pages. What disks were built on; today you use managed disks instead.</span></div>
+      </div>
+
+      <h3>Access tiers: pay for storing, or pay for reading</h3>
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 260" role="img" aria-labelledby="tit tid">
+            <title id="tit">Blob access tiers</title>
+            <desc id="tid">Four tiers from frequently read to rarely read. Hot has the highest storage price, the lowest access price and no minimum stay. Cool has a 30-day minimum. Cold has a 90-day minimum. Archive is the cheapest to store, is offline, has a 180-day minimum and takes hours to rehydrate. A lifecycle management policy moves blobs automatically from tier to tier as they age.</desc>
+
+            <text x="20" y="26" class="t-m t-accent">READ OFTEN</text>
+            <text x="980" y="26" class="t-m t-accent end">READ RARELY</text>
+
+            <rect x="20" y="40" width="225" height="135" rx="12" class="s-amber"/>
+            <text x="132" y="72" class="t-h mid">Hot</text>
+            <text x="132" y="96" class="t-s mid">storage ₹₹₹₹ · reads ₹</text>
+            <text x="132" y="116" class="t-s mid">minimum stay: none</text>
+            <text x="132" y="136" class="t-s mid">access: milliseconds</text>
+            <text x="132" y="160" class="t-s mid">live product images</text>
+
+            <rect x="265" y="40" width="225" height="135" rx="12" class="s-teal"/>
+            <text x="377" y="72" class="t-h mid">Cool</text>
+            <text x="377" y="96" class="t-s mid">storage ₹₹ · reads ₹₹</text>
+            <text x="377" y="116" class="t-s mid">minimum stay: 30 days</text>
+            <text x="377" y="136" class="t-s mid">access: milliseconds</text>
+            <text x="377" y="160" class="t-s mid">last month's invoices</text>
+
+            <rect x="510" y="40" width="225" height="135" rx="12" class="s-blue"/>
+            <text x="622" y="72" class="t-h mid">Cold</text>
+            <text x="622" y="96" class="t-s mid">storage ₹ · reads ₹₹₹</text>
+            <text x="622" y="116" class="t-s mid">minimum stay: 90 days</text>
+            <text x="622" y="136" class="t-s mid">access: milliseconds</text>
+            <text x="622" y="160" class="t-s mid">last year's backups</text>
+
+            <rect x="755" y="40" width="225" height="135" rx="12" class="s-violet"/>
+            <text x="867" y="72" class="t-h mid">Archive</text>
+            <text x="867" y="96" class="t-s mid">storage paise · reads ₹₹₹₹</text>
+            <text x="867" y="116" class="t-s mid">minimum stay: 180 days</text>
+            <text x="867" y="136" class="t-s mid t-rose">offline: hours to rehydrate</text>
+            <text x="867" y="160" class="t-s mid">7-year audit records</text>
+
+            <path d="M245 107 H261 M490 107 H506 M735 107 H751" class="s-arrow"/>
+            <path d="M40 205 H950" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <text x="500" y="236" class="t-m mid t-accent">LIFECYCLE POLICY: "after 30 days → cool, 90 → cold, 180 → archive, 7 years → delete"</text>
+          </svg>
+        </div>
+        <figcaption><b>Storage gets cheaper as you move right; reading gets more expensive and, for Archive, slower.</b> Moving data out of a tier before its minimum stay costs an early-deletion charge for the remaining days.</figcaption>
+      </figure>
+
+      <p>To give you a feel for the numbers (illustrative, LRS, Central India): 1 TB in <strong>Hot</strong> costs roughly ₹1,500–1,700 a month, in <strong>Cool</strong> about half that, in <strong>Cold</strong> roughly a fifth, and in <strong>Archive</strong> under ₹200. For 200 TB of old file-share archives, that difference pays a salary.</p>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>The account has a <strong>default tier</strong> (Hot or Cool, plus Cold on newer accounts); each blob can override it.</li>
+        <li><strong>Archive is offline.</strong> To read a blob you <strong>rehydrate</strong> it to an online tier: standard priority can take <strong>up to 15 hours</strong>; high priority is often under an hour for smaller blobs, at a higher price.</li>
+        <li>Archive isn't available on ZRS, GZRS or RA-GZRS accounts. Use LRS, GRS or RA-GRS for archive data.</li>
+        <li><strong>Lifecycle management</strong> policies move or delete blobs based on age (since creation, last modification or last access) and on prefixes or blob index tags. They run about once a day.</li>
+      </ul>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Everything goes in Hot because Hot is fast, and I don't want to think about it."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Hot for the first 30 days while customers actually view it, then a lifecycle rule. I'll enable <strong>last-access tracking</strong> so popular old images stay hot, and I'll put a <strong>delete</strong> rule on the end so we don't pay for data the law no longer requires."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Rarely accessed, <strong>retrieval within hours</strong> is acceptable, <strong>minimise storage cost</strong>" → <strong>Archive</strong>. "Accessed rarely but must be <strong>available immediately</strong>" → <strong>Cool</strong> or <strong>Cold</strong>. "<strong>Automatically</strong> move data to cheaper tiers as it ages" → <strong>lifecycle management policy</strong>. "Serve images to users <strong>worldwide with low latency</strong>" → Blob + <strong>Azure Front Door</strong> (CDN caching).</p>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p>The classic "Azure CDN" profiles are being retired. For new designs, content delivery for blobs is done with <strong>Azure Front Door</strong> (Standard or Premium), which includes CDN caching. Module 11 covers it.</p>
+      </div>
+      <details class="demo" id="demo-m05-blob">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Upload a blob, change its tier, and meet Archive's waiting room</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show tiers as a per-blob setting and make Archive's offline behaviour real.</p>
+          <ol class="demo-steps">
+            <li>Storage account › <span class="ui">Data storage</span> › <span class="ui">Containers</span> › <span class="ui">+ Container</span>: name <code>images</code>, anonymous access level <b>Private</b>.</li>
+            <li>Open <code>images</code> › <span class="ui">Upload</span> › pick <code>logo.png</code> › expand <span class="ui">Advanced</span> and show the <b>Access tier</b> choice (Hot, Cool, Cold, Archive) › keep <b>Hot</b> › <span class="ui">Upload</span>.</li>
+            <li>Click the blob: properties show the URL, size and tier. Use <span class="ui">Change tier</span> › <b>Cool</b> › <span class="ui">Save</span>. Instant.</li>
+            <li>Upload <code>invoice-001.txt</code>, then <span class="ui">Change tier</span> › <b>Archive</b>. Now try <span class="ui">Download</span>: it fails because the blob is offline.</li>
+            <li><span class="ui">Change tier</span> again › choose <b>Hot</b> and show the <b>Rehydrate priority</b> options (Standard: up to 15 hours, High: faster, costs more). Cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Copy the blob's URL into a private browser window: it fails, because anonymous access is off. That's what we want.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Archive is the bank locker: very cheap, very safe, and you need an appointment to get your papers back.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m05-lifecycle">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Write a lifecycle rule that moves and deletes data for you</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the 'design the cost in' habit: a rule that moves blobs through the tiers and finally deletes them.</p>
+          <ol class="demo-steps">
+            <li>Storage account › <span class="ui">Data management</span> › <span class="ui">Lifecycle management</span> › <span class="ui">Add a rule</span>: name <code>age-out</code>, scope <b>Limit blobs with filters</b>, blob type <b>Block blobs</b>.</li>
+            <li><span class="ui">Base blobs</span>: <b>Last modified</b> more than 30 days ago › <b>Move to cool storage</b>. <span class="ui">+ Add conditions</span>: 90 days › <b>Move to cold storage</b>; 180 days › <b>Move to archive storage</b>; 2555 days › <b>Delete the blob</b>.</li>
+            <li><span class="ui">Filter set</span>: blob prefix <code>invoices/</code>, to show that a rule can target just part of an account › <span class="ui">Add</span>.</li>
+            <li>Switch to <span class="ui">Code view</span>: the same rule as JSON, ready for infrastructure-as-code.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Show the option to enable <b>access tracking</b>, so a rule can use <i>last accessed</i> instead of <i>last modified</i>.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Nobody remembers to move old data by hand. A rule does it every day, forever.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= PROTECT ======================= -->
+    <section id="protect">
+      <span class="sec-num">05.5</span>
+      <h2>Protecting blobs from mistakes and attacks</h2>
+      <p>Redundancy protects you from Azure's failures. This section protects you from <strong>your own</strong>: the accidental delete, the overwritten file, the script that ran against production, and the ransomware that encrypted everything it could reach.</p>
+
+      <div class="terms">
+        <div class="term"><b>Soft delete (blobs and containers)</b><span>Deleted items are kept for 1–365 days and can be restored. Turn it on for every production account; 7–14 days is a common default.</span></div>
+        <div class="term"><b>Versioning</b><span>Every overwrite keeps the previous version automatically. Protects against "someone uploaded the wrong file over the right one".</span></div>
+        <div class="term"><b>Point-in-time restore</b><span>Roll a set of block blobs back to how they looked at an earlier time. Needs versioning, change feed and soft delete.</span></div>
+        <div class="term"><b>Immutable storage (WORM)</b><span><strong>Time-based retention</strong> ("nobody can change or delete this for 7 years") or <strong>legal hold</strong> ("until the case is closed"). Once a policy is <em>locked</em>, not even the subscription Owner, or Microsoft, can shorten it.</span></div>
+        <div class="term"><b>Resource lock</b><span>A CanNotDelete lock (Module 02) stops the <em>account</em> being deleted. It does not protect the data inside.</span></div>
+        <div class="term"><b>Azure Backup for blobs</b><span>Operational backup (local, continuous) and vaulted backup (copies to a separate Backup vault), covered in Module 08.</span></div>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p><strong>Soft delete</strong> is the recycle bin. <strong>Versioning</strong> is Google Docs' version history. <strong>Immutable storage</strong> is the registrar's office: once a sale deed is registered, nobody, not even the person who registered it, can tear out that page.</p>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Locking an immutability policy is <strong>irreversible</strong>. You can't delete the container, or the account, until every blob has passed its retention period. In demos and tests, always leave the policy <strong>unlocked</strong>.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Data must be <strong>non-erasable and non-modifiable</strong>", "<strong>WORM</strong>", "SEC 17a-4 / regulatory retention" → <strong>immutable storage</strong> with time-based retention. "Keep data <strong>until litigation ends</strong>" → <strong>legal hold</strong>. "Recover from <strong>accidental deletion</strong>" → <strong>soft delete</strong>. "Recover a <strong>previous version</strong> of an overwritten file" → <strong>versioning</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m05-protect">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Delete a blob, bring it back, and see a WORM policy</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show soft delete and versioning rescuing a mistake, and show what immutability looks like.</p>
+          <ol class="demo-steps">
+            <li>In <code>images</code>, upload <code>logo.png</code> again with <b>Overwrite</b> ticked. Open the blob › <span class="ui">Versions</span>: the previous version is still there.</li>
+            <li>Back in the container, select the blob › <span class="ui">Delete</span>. Turn on <span class="ui">Show deleted blobs</span>: it's still listed as deleted › select it › <span class="ui">Undelete</span>.</li>
+            <li>Container › <span class="ui">Settings</span> › <span class="ui">Access policy</span> › under <b>Immutable blob storage</b> <span class="ui">+ Add policy</span> › <b>Time-based retention</b>, 1 day › <span class="ui">Save</span>. Leave it <b>unlocked</b>.</li>
+            <li>Try to delete the blob: refused. Show the <span class="ui">Lock policy</span> option and explain that locking is irreversible. Then delete the unlocked policy.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Redundancy would have replicated the delete to every copy. Soft delete is what saved it.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The recycle bin, the version history and the registrar's office: three different ways of saying 'you can't lose this'.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Delete the immutability policy before you finish (it must be unlocked).</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= FILES ======================= -->
+    <section id="files">
+      <span class="sec-num">05.6</span>
+      <h2>Azure Files and Azure File Sync</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13h6"/></svg></span>
+        <h3>The shared drive, without the file server</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Files offers fully managed file shares in the cloud, accessible through the industry-standard SMB and NFS protocols and the Azure Files REST API. Shares can be mounted concurrently by cloud and on-premises clients. Azure File Sync caches Azure file shares on Windows Servers on-premises or in the cloud, keeping the share in Azure as the source of truth.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Azure Files is the <strong>S: drive</strong> your office has always had, except Microsoft runs the server, patches it, and never runs out of disk. Apps that expect a normal folder path work <strong>without code changes</strong>. That's why it's the natural answer for "lift and shift a file server" or "an old app that writes to a network share".</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="fst fsd">
+            <title id="fst">Azure Files with Azure File Sync</title>
+            <desc id="fsd">In Azure, a Storage Sync Service holds a sync group linking an Azure file share (the cloud endpoint, holding the full copy) with on-premises Windows Servers (server endpoints). The HQ file server and branch servers run the File Sync agent and keep only frequently used files locally through cloud tiering. Azure VMs and virtual desktops can also mount the share directly over SMB through a private endpoint.</desc>
+
+            <rect x="20" y="16" width="420" height="268" rx="14" class="s-surface2"/>
+            <text x="40" y="42" class="t-m t-accent">AZURE</text>
+            <rect x="40" y="60" width="180" height="64" rx="10" class="s-teal"/>
+            <text x="130" y="86" class="t-b mid">Storage Sync</text>
+            <text x="130" y="106" class="t-s mid">service · sync group</text>
+            <rect x="240" y="60" width="180" height="64" rx="10" class="s-blue"/>
+            <text x="330" y="86" class="t-b mid">Azure file share</text>
+            <text x="330" y="106" class="t-s mid">cloud endpoint · full copy</text>
+            <path d="M220 92 H236" class="s-line"/>
+            <rect x="40" y="160" width="380" height="104" rx="10" class="s-surface"/>
+            <text x="56" y="188" class="t-b">Direct mount from Azure VMs / AVD</text>
+            <text x="56" y="210" class="t-s">SMB 3.x with encryption, over a private endpoint</text>
+            <text x="56" y="230" class="t-s">identity: AD DS · Entra Domain Services ·</text>
+            <text x="56" y="248" class="t-s">Entra Kerberos (hybrid users)</text>
+            <path d="M330 124 V156" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+
+            <rect x="560" y="16" width="420" height="268" rx="14" class="s-surface2"/>
+            <text x="580" y="42" class="t-m t-accent">ON-PREMISES</text>
+            <rect x="580" y="60" width="380" height="70" rx="10" class="s-amber"/>
+            <text x="596" y="88" class="t-b">HQ file server (Windows Server)</text>
+            <text x="596" y="110" class="t-s">File Sync agent · server endpoint · cloud tiering</text>
+            <rect x="580" y="150" width="380" height="70" rx="10" class="s-amber"/>
+            <text x="596" y="178" class="t-b">Branch servers (as many as you need)</text>
+            <text x="596" y="200" class="t-s">local cache of hot files; cold files stay in Azure</text>
+            <text x="596" y="254" class="t-s">Users keep their mapped drive and NTFS permissions.</text>
+
+            <path d="M424 86 H576" class="s-arrow-accent" marker-start="url(#ah-a)" marker-end="url(#ah-a)"/>
+            <text x="500" y="78" class="t-s mid">sync</text>
+            <path d="M424 108 Q500 185 576 185" class="s-arrow-accent" marker-start="url(#ah-a)" marker-end="url(#ah-a)"/>
+          </svg>
+        </div>
+        <figcaption><b>The cloud holds everything; local servers hold what's popular.</b> Cloud tiering keeps recently used files on the local disk and replaces older ones with pointers that download on demand. A branch server can be rebuilt in hours, not days.</figcaption>
+      </figure>
+
+      <h4>Tiers and protocols</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Option</th><th>Media</th><th>Protocols</th><th>Good for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Premium</strong> (FileStorage account)</td><td>SSD, provisioned</td><td>SMB and <strong>NFS 4.1</strong></td><td>Databases, latency-sensitive apps, Linux NFS workloads</td></tr>
+            <tr><td>Transaction optimised</td><td>HDD (Standard)</td><td>SMB</td><td>Heavy-transaction workloads that don't need SSD latency</td></tr>
+            <tr><td>Hot</td><td>HDD (Standard)</td><td>SMB</td><td>General team shares</td></tr>
+            <tr><td>Cool</td><td>HDD (Standard)</td><td>SMB</td><td>Online archive shares, File Sync cloud endpoints</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted">Newer Standard accounts can also use the provisioned (v2) billing model, where you choose capacity, IOPS and throughput up front instead of paying per transaction. Check what your region offers.</p>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>A share can grow to <strong>100 TiB</strong>. Up to 200 <strong>share snapshots</strong> per share give users "Previous Versions" in Windows Explorer.</li>
+        <li>SMB uses <strong>port 445</strong>, which many ISPs and company firewalls block. From on-premises, use VPN or ExpressRoute with a private endpoint, or File Sync (which talks over HTTPS 443).</li>
+        <li>NFS shares are Premium only and are reached over a private network, not the public internet.</li>
+        <li>Identity-based access keeps your existing <strong>NTFS ACLs</strong>, so permissions migrate along with the files.</li>
+      </ul>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"We'll rewrite the app to use Blob storage instead of the file share. It's more cloud-native."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Rewrite costs months. Azure Files lets us migrate <strong>now</strong> with zero code change. If Blob is better long term, that's a later modernisation step with its own business case."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Replace on-premises <strong>file servers</strong>", "<strong>SMB</strong> share", "<strong>lift and shift</strong> an app that uses a file share" → <strong>Azure Files</strong>. "Keep a <strong>local cache</strong> at branch offices", "<strong>centralise</strong> file servers but keep performance on-prem", "<strong>cloud tiering</strong>" → <strong>Azure File Sync</strong>. "<strong>NFS</strong> for Linux" → Premium Azure Files (or Azure NetApp Files for the most demanding cases).</p>
+      </div>
+      <details class="demo" id="demo-m05-files">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a file share, get the mount script, and walk the File Sync setup</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that Azure Files is a normal network drive, and where File Sync fits.</p>
+          <ol class="demo-steps">
+            <li>Storage account › <span class="ui">Data storage</span> › <span class="ui">File shares</span> › <span class="ui">+ File share</span>: name <code>finance</code>, tier <b>Transaction optimized</b> (or the provisioned options your account offers) › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open <code>finance</code> › <span class="ui">Upload</span> a file › <span class="ui">Connect</span>: choose Windows, drive letter <b>S</b>. The portal generates a PowerShell script that checks port 445 and maps the drive. Show it; run it only if your network allows SMB.</li>
+            <li><span class="ui">Snapshots</span> › <span class="ui">+ Add snapshot</span>: this is what users see as <b>Previous Versions</b>.</li>
+            <li>Point at <span class="ui">Operations</span> › <span class="ui">Backup</span>: shares are protected by Azure Backup (Module 08).</li>
+            <li>Search <span class="ui">Storage Sync Services</span> › <span class="ui">+ Create</span>: walk the form (same resource group, Central India). Explain sync group → cloud endpoint (this share) → server endpoints (agents on Windows Servers) → cloud tiering. Create it only if you have a server to register; otherwise cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Storage account › <span class="ui">File shares</span> › <b>Identity-based access</b>: AD DS, Entra Domain Services or Entra Kerberos. That's how NTFS permissions keep working.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Same S: drive your users always had. Microsoft just took the server away.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= DISKS ======================= -->
+    <section id="disks">
+      <span class="sec-num">05.7</span>
+      <h2>Managed disks</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v3"/></svg></span>
+        <h3>The hard drives of your virtual machines</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure managed disks are block-level storage volumes managed by Azure and used with Azure Virtual Machines. You choose the disk type and size (and, for some types, performance), and Azure handles placement, replication and availability. Each VM has an OS disk, optional data disks and, depending on the size, a temporary disk.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A managed disk is the <strong>hard drive of a VM</strong>. You don't worry about which storage account it lives in (that's what "managed" means). Your only real decision is <strong>how fast it must be</strong>, and fast disks cost more, so you match the disk to the workload.</p>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Disk type</th><th>Max IOPS (per disk)</th><th>Max throughput</th><th>OS disk?</th><th>Use for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Ultra Disk</strong></td><td>up to 400,000</td><td>up to 10,000 MB/s</td><td>No</td><td>SAP HANA, top-tier databases, sub-millisecond latency</td></tr>
+            <tr><td><strong>Premium SSD v2</strong></td><td>up to 80,000</td><td>up to 1,200 MB/s</td><td>No</td><td>Production SQL Server, Oracle, big data: set IOPS and throughput independently of size</td></tr>
+            <tr><td><strong>Premium SSD</strong></td><td>up to 20,000</td><td>up to 900 MB/s</td><td>Yes</td><td>Production VMs, OS disks of important servers</td></tr>
+            <tr><td><strong>Standard SSD</strong></td><td>up to 6,000</td><td>up to 750 MB/s</td><td>Yes</td><td>Web servers, light apps, dev/test</td></tr>
+            <tr><td><strong>Standard HDD</strong></td><td>up to 2,000</td><td>up to 500 MB/s</td><td>Yes</td><td>Backups, non-critical, infrequent access</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted">Figures are per-disk maximums at the largest sizes and change over time. A VM size also has its own IOPS and throughput cap, so a fast disk on a small VM is throttled by the VM.</p>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Disk types are like <strong>roads</strong>. Standard HDD is a village road: fine for a bullock cart. Standard SSD is a city road. Premium SSD is a four-lane highway. Ultra Disk is a dedicated expressway with no traffic signals. But your <strong>car</strong> (the VM size) still has a top speed, and a Nano on the expressway is still a Nano.</p>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Managed disks are <strong>LRS</strong> by default. <strong>ZRS disks</strong> (Premium SSD and Standard SSD) keep the disk available through a zone outage.</li>
+        <li><strong>Shared disks</strong> let several VMs attach the same disk, for clustered apps such as Windows Server Failover Clustering.</li>
+        <li><strong>Ephemeral OS disks</strong> live on the VM's local cache: free, fast, and lost when the VM is reimaged. Perfect for stateless scale sets.</li>
+        <li><strong>Snapshots</strong> are incremental and cheap; use them before risky changes. Real backup is Azure Backup (Module 08).</li>
+        <li>Encryption at rest (server-side encryption) is <strong>always on</strong>. Add <strong>customer-managed keys</strong> through a disk encryption set, and <strong>encryption at host</strong> to cover temp disks and caches too.</li>
+      </ul>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p><strong>Azure Disk Encryption</strong> (BitLocker or dm-crypt inside the guest) is on its way out: Microsoft has announced its retirement and recommends <strong>encryption at host</strong> for new designs. Older practice questions may still show ADE as the answer for "encrypt the OS disk".</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Sub-millisecond</strong> latency", "SAP HANA", "highest IOPS" → <strong>Ultra Disk</strong>. "Tune <strong>IOPS and throughput independently</strong> of capacity" → <strong>Premium SSD v2</strong>. "Production workload <strong>with an SLA</strong>, OS disk" → <strong>Premium SSD</strong>. "Dev/test, <strong>lowest cost</strong>" → Standard SSD or HDD. "Disk must <strong>survive a zone failure</strong>" → <strong>ZRS</strong> managed disk.</p>
+      </div>
+      <details class="demo" id="demo-m05-disks">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Compare disk types on the create form</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that the disk decision is IOPS, throughput and redundancy, and that Premium SSD v2 separates them from size.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Disks</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m05-demo</code>, name <code>disk-az305-m05</code>, region Central India, availability zone <b>Zone 1</b>.</li>
+            <li><span class="ui">Change size</span>: switch <span class="ui">Disk SKU</span> between Standard HDD, Standard SSD, Premium SSD, Premium SSD v2 and Ultra Disk. Read the IOPS and MB/s columns aloud as they change.</li>
+            <li>Pick <b>Premium SSD v2</b>: show size, <b>IOPS</b> and <b>throughput</b> as three separate sliders.</li>
+            <li>Set availability zone to <b>No infrastructure redundancy required</b> and show the <b>ZRS</b> options appear for Premium SSD and Standard SSD.</li>
+            <li><span class="ui">Encryption</span> tab: platform-managed key, customer-managed key (disk encryption set), or both › <span class="ui">Advanced</span> tab: <b>Enable shared disk</b>. Then <b>cancel</b>; don't create.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>On any VM › <span class="ui">Disks</span> you can see the VM size's own IOPS cap: the reason a fast disk on a small VM still feels slow.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The disk is the road; the VM size is the car. Buy both for the same speed.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SECURITY ======================= -->
+    <section id="security">
+      <span class="sec-num">05.8</span>
+      <h2>Storage security</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+        <h3>Three gates every request passes through</h3>
+      </div>
+
+      <p>A storage account has a public DNS name by default. That makes security a design topic, not a checkbox. Think of every request passing three gates in order.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 250" role="img" aria-labelledby="sct scd">
+            <title id="sct">The three gates of storage security</title>
+            <desc id="scd">A caller's request passes three gates. Gate one is the network: public access disabled, private endpoints, firewall rules and minimum TLS 1.2. Gate two is identity: Microsoft Entra ID with RBAC is best, then user delegation SAS, then service or account SAS, and shared keys should be disabled. Gate three is the data itself: always encrypted at rest with Microsoft or customer-managed keys, optional infrastructure encryption, plus soft delete and immutability.</desc>
+
+            <rect x="10" y="90" width="140" height="76" rx="12" class="s-surface"/>
+            <text x="80" y="122" class="t-b mid">Caller</text>
+            <text x="80" y="142" class="t-s mid">app, user, partner</text>
+            <path d="M150 128 H196" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="200" y="20" width="240" height="214" rx="14" class="s-violet"/>
+            <text x="220" y="50" class="t-b">1 · Can you even reach it?</text>
+            <text x="220" y="80" class="t-s">· public network access: off</text>
+            <text x="220" y="104" class="t-s">· private endpoint in your VNet</text>
+            <text x="220" y="128" class="t-s">· or firewall: selected VNets / IPs</text>
+            <text x="220" y="152" class="t-s">· trusted Azure services exception</text>
+            <text x="220" y="176" class="t-s">· secure transfer, minimum TLS 1.2</text>
+            <path d="M440 128 H476" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="480" y="20" width="240" height="214" rx="14" class="s-teal"/>
+            <text x="500" y="50" class="t-b">2 · Who are you?</text>
+            <text x="500" y="80" class="t-s t-green">· Entra ID + RBAC (best)</text>
+            <text x="500" y="104" class="t-s">· user delegation SAS</text>
+            <text x="500" y="128" class="t-s">· service / account SAS</text>
+            <text x="500" y="152" class="t-s t-rose">· shared key: disable it</text>
+            <text x="500" y="176" class="t-s">· anonymous read: off</text>
+            <path d="M720 128 H756" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="760" y="20" width="230" height="214" rx="14" class="s-blue"/>
+            <text x="780" y="50" class="t-b">3 · The data itself</text>
+            <text x="780" y="80" class="t-s">· always encrypted at rest</text>
+            <text x="780" y="104" class="t-s">· Microsoft or customer keys</text>
+            <text x="780" y="128" class="t-s">· infrastructure (double)</text>
+            <text x="780" y="152" class="t-s" xml:space="preserve" style="white-space:pre">  encryption</text>
+            <text x="780" y="176" class="t-s">· soft delete, WORM</text>
+            <text x="780" y="200" class="t-s">· Defender for Storage</text>
+          </svg>
+        </div>
+        <figcaption><b>Network, identity, data.</b> A good design closes all three. "We have a SAS token" is gate two only; anyone on the internet who gets that URL can still use it.</figcaption>
+      </figure>
+
+      <div class="topic" style="border-top:0;padding-top:0">
+        <h3>Gate 2 in detail: the ways to authorise a request</h3>
+        <div class="table-wrap min">
+          <table>
+            <thead><tr><th>Method</th><th>What it is</th><th>Architect's verdict</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Microsoft Entra ID + RBAC</strong></td><td>Users, groups or managed identities get data roles such as <em>Storage Blob Data Reader</em></td><td>The default. No secrets, full audit, works with Conditional Access.</td></tr>
+              <tr><td><strong>User delegation SAS</strong></td><td>A time-limited URL signed with Entra credentials (max 7 days)</td><td>Best way to give a partner temporary access to a specific blob or container.</td></tr>
+              <tr><td>Service SAS</td><td>Time-limited URL for one service, signed with the account key</td><td>Acceptable; pair with a <strong>stored access policy</strong> so you can revoke it.</td></tr>
+              <tr><td>Account SAS</td><td>Time-limited URL for one or more services, signed with the account key</td><td>Wide reach; the only "revoke" is rotating the key.</td></tr>
+              <tr><td>Shared key</td><td>The account access key: full control of everything</td><td>Treat it as root. <strong>Disable shared key access</strong> where you can.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout analogy">
+          <div class="c-label">Imagine this</div>
+          <p>The <strong>account key</strong> is the master key to the whole housing society: whoever has it opens every flat. A <strong>SAS</strong> is a visitor's pass from the security guard: it says which flat, which hours, and expires tonight. <strong>Entra ID with RBAC</strong> is the resident's ID card, linked to a real person, checked every time, and cancelled the day they move out.</p>
+        </div>
+
+        <div class="callout pitfall">
+          <div class="c-label">Common trap</div>
+          <p>Being <strong>Owner</strong> of a storage account doesn't give you a <em>data</em> role. Owner can read the account keys (and so can do everything), but if keys are disabled, an Owner without <em>Storage Blob Data Reader</em> can't list a single blob. It's the same control-plane vs data-plane split you saw with Key Vault in Module 03.</p>
+        </div>
+      </div>
+
+      <div class="topic">
+        <h3>Gates 1 and 3: network and encryption</h3>
+        <ul>
+          <li><strong>Private endpoints</strong> give the account a private IP in your VNet (one per sub-service: blob, file, dfs…). Combine with <strong>public network access: Disabled</strong>. Service endpoints are the older, simpler option that keeps the public endpoint but restricts it to chosen subnets.</li>
+          <li><strong>Encryption at rest</strong> is AES-256, always on, and can't be turned off. Choose <strong>Microsoft-managed keys</strong> (default) or <strong>customer-managed keys</strong> in Key Vault or Managed HSM, accessed by the account's managed identity.</li>
+          <li><strong>Infrastructure encryption</strong> adds a second layer of encryption. It can only be enabled <strong>when the account is created</strong>.</li>
+          <li><strong>Microsoft Defender for Storage</strong> detects unusual access and can scan uploaded blobs for malware, which is valuable on any container that accepts uploads from outside.</li>
+        </ul>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Grant <strong>temporary</strong>, limited access to an <strong>external</strong> partner" → <strong>SAS</strong> (preferably <strong>user delegation SAS</strong>). "Be able to <strong>revoke</strong> a SAS" → <strong>stored access policy</strong>. "App in Azure accesses storage <strong>without storing credentials</strong>" → <strong>managed identity + RBAC</strong>. "Storage reachable <strong>only from the VNet</strong>, no public IP" → <strong>private endpoint</strong>. "Company must <strong>control and rotate the encryption keys</strong>" → <strong>customer-managed keys</strong> in Key Vault.</p>
+      </div>
+      <details class="demo" id="demo-m05-security">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Get blocked as Owner, fix it with RBAC, then issue a user delegation SAS</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show gate 2 (control plane vs data plane) and gate 1 (network) on a real account.</p>
+          <p class="demo-note"><b>Before you start:</b> The RBAC role assignment can take a minute or two to take effect. Do steps 1–2, explain the table, then continue.</p>
+          <ol class="demo-steps">
+            <li>Open the <code>images</code> container. Above the list, switch <span class="ui">Authentication method</span> from <b>Access key</b> to <b>Microsoft Entra user account</b>. As Owner, you get <b>"You do not have permissions to list the data"</b>.</li>
+            <li>Storage account › <span class="ui">Access Control (IAM)</span> › <span class="ui">+ Add</span> › <span class="ui">Add role assignment</span> › <b>Storage Blob Data Contributor</b> › assign to yourself › <span class="ui">Review + assign</span>. Wait a minute and refresh the container: the blobs appear.</li>
+            <li>Select <code>logo.png</code> › <span class="ui">Generate SAS</span>: signing method <b>User delegation key</b>, permission <b>Read</b>, expiry in 1 hour › <span class="ui">Generate SAS token and URL</span>. Open the URL in a private window: it works, until the expiry.</li>
+            <li>Storage account › <span class="ui">Settings</span> › <span class="ui">Configuration</span>: show <b>Allow storage account key access</b> (set it to <b>Disabled</b> to force Entra ID; keys and account SAS stop working) and <b>Minimum TLS version</b>.</li>
+            <li><span class="ui">Security + networking</span> › <span class="ui">Networking</span>: set public network access to <b>Disabled</b> (or selected networks) and show the <span class="ui">Private endpoint connections</span> tab. Refresh the container from your laptop: blocked.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li><span class="ui">Security + networking</span> › <span class="ui">Encryption</span>: switch to customer-managed keys points to a Key Vault, accessed through a managed identity, just like Module 03.</li><li><span class="ui">Microsoft Defender for Cloud</span> on the account: Defender for Storage and malware scanning on upload.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Owner manages the building. Reading what's inside the flats needs a separate key, and that's exactly the point.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Set public network access back to enabled if you want to continue using the account; otherwise just delete the resource group.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CHOOSE ======================= -->
+    <section id="choose">
+      <span class="sec-num">05.9</span>
+      <h2>Choosing the right storage</h2>
+      <p>Here's the comparison I put on the whiteboard at the end of this module. Read it from left to right: <em>"If the workload needs… then choose…"</em></p>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>If the workload needs…</th><th>Choose</th><th>Remember</th></tr></thead>
+          <tbody>
+            <tr><td>Objects over HTTP: images, video, documents, backups</td><td><strong>Blob storage</strong></td><td>Tiers + lifecycle for cost; Front Door for global delivery</td></tr>
+            <tr><td>A big-data lake with folders and POSIX permissions</td><td><strong>Data Lake Storage Gen2</strong></td><td>Blob with hierarchical namespace; Module 07</td></tr>
+            <tr><td>A shared SMB/NFS folder, lift-and-shift file server</td><td><strong>Azure Files</strong> (+ File Sync)</td><td>No code change; cache at branches</td></tr>
+            <tr><td>Enterprise NAS with very high performance (SAP, HPC, Oracle on NFS)</td><td><strong>Azure NetApp Files</strong></td><td>NetApp-grade features, sub-millisecond latency</td></tr>
+            <tr><td>A drive for one VM (or a cluster)</td><td><strong>Managed disks</strong></td><td>Match disk type to IOPS; ZRS or shared if needed</td></tr>
+            <tr><td>SAN-style block storage shared across many workloads (iSCSI)</td><td><strong>Azure Elastic SAN</strong></td><td>Consolidates on-prem SAN; volumes for VMs, AKS, AVS</td></tr>
+            <tr><td>Simple message queue between app components</td><td><strong>Queue storage</strong></td><td>Basic; Service Bus for enterprise messaging (Module 10)</td></tr>
+            <tr><td>Cheap key-value table, simple lookups</td><td><strong>Table storage</strong></td><td>Or Cosmos DB for Table for global scale (Module 06)</td></tr>
+            <tr><td>Moving tens of terabytes in with no fast network</td><td><strong>Azure Data Box</strong></td><td>Offline transfer appliance; Module 12</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Start from <strong>how the data is accessed</strong> (HTTP object, file path, block device), not from the service you know best. The access pattern picks the service; temperature, lifespan and blast radius pick the settings.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">05.10</span>
+      <h2>Meridian: the storage design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 05</span></div>
+        <div class="case-body">
+          <p>Meridian has product images and videos for the new online store, roughly 40 TB of HQ file shares, file servers in many of its 180 stores, about 200 TB of old archive shares nobody has opened in years, SQL Server VMs that won't move to PaaS straight away, and a German subsidiary whose data must stay in the EU.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Product images load fast and survive a regional outage</td><td>Blob (Hot) in Central India with <strong>RA-GZRS</strong> (secondary South India), served through <strong>Azure Front Door</strong></td><td>Zones for daily resilience, a readable secondary for the "checkout survives a region" goal, edge caching cuts reads.</td></tr>
+                <tr><td>Invoices and order exports kept 7 years for audit</td><td>Blob with a <strong>lifecycle policy</strong> (Hot → Cool at 30 days → Cold at 90 → Archive at 180 → delete at 7 years) and <strong>time-based immutability</strong> on the audit container</td><td>Matches the 7-year retention from Module 04 at the lowest cost; WORM satisfies auditors.</td></tr>
+                <tr><td>HQ file shares (finance, HR)</td><td><strong>Azure Files</strong> Standard, ZRS, with <strong>AD DS authentication</strong> and <strong>File Sync</strong> on the HQ server with cloud tiering</td><td>No change for users or NTFS permissions; Azure holds the master copy.</td></tr>
+                <tr><td>Store file servers (price lists, planograms)</td><td>File Sync server endpoints in the same sync group, small local cache per store</td><td>One central copy; a failed store server is rebuilt from Azure in hours.</td></tr>
+                <tr><td>200 TB of old archive shares</td><td>Ship with <strong>Data Box</strong> into Blob, then straight to <strong>Archive</strong></td><td>Too big for the WAN link; almost never read. Details in Module 12.</td></tr>
+                <tr><td>SQL Server VMs during migration</td><td><strong>Premium SSD v2</strong> for data and log, Premium SSD for OS, <strong>encryption at host</strong></td><td>Pay for the IOPS the database needs, not for oversized disks.</td></tr>
+                <tr><td>Security baseline</td><td>Shared key access <strong>disabled</strong>; managed identities + RBAC (Module 03); <strong>private endpoints</strong> and public access off in Corp and PCI landing zones; <strong>user delegation SAS</strong> for logistics partners uploading proof-of-delivery photos; <strong>Defender for Storage</strong> malware scanning on that upload container; <strong>customer-managed keys</strong> for PCI-scope accounts</td><td>Closes all three gates; partners get narrow, expiring access.</td></tr>
+                <tr><td>EU data stays in the EU</td><td>Separate accounts in Germany West Central with ZRS (GZRS only where needed, as the pair, Germany North, is also in Germany); "Allowed locations" policy from Module 02</td><td>Residency is enforced by policy and by the account's region, not by trust.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">05.11</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's storage checklist</h3>
+      <ul class="checklist">
+        <li>Each data set mapped to a service by its access pattern: object, file share or block device.</li>
+        <li>Storage accounts split by real differences: region, redundancy, network, compliance.</li>
+        <li>Redundancy chosen by the disaster it must survive (disk, zone or region), and whether the secondary must be readable.</li>
+        <li>Access tiers and lifecycle policies set, including a final delete rule.</li>
+        <li>Soft delete and versioning on; immutability where regulations demand it.</li>
+        <li>Disk types matched to IOPS needs, and to the VM size's limits.</li>
+        <li>Entra ID + RBAC first, SAS only when needed, shared key disabled.</li>
+        <li>Private endpoints, public access off, and encryption keys owned where compliance requires it.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. A storage account must allow applications to read data even while the primary region is down. Which redundancy option?</summary>
+          <div><p><strong>RA-GRS</strong> or <strong>RA-GZRS</strong>. Plain GRS/GZRS keeps the secondary copy but doesn't let you read it until a failover.</p></div>
+        </details>
+        <details>
+          <summary>2. Compliance documents are read about once a year, must be kept for 10 years, and a retrieval delay of several hours is fine. Cheapest design?</summary>
+          <div><p>Blob storage in the <strong>Archive</strong> tier, moved there automatically by a <strong>lifecycle management policy</strong>, with a delete rule at 10 years. Add <strong>immutable storage</strong> if they must be tamper-proof.</p></div>
+        </details>
+        <details>
+          <summary>3. A company wants to retire its branch-office file servers but keep fast local access to frequently used files. What do you recommend?</summary>
+          <div><p><strong>Azure Files</strong> as the central share plus <strong>Azure File Sync</strong> with <strong>cloud tiering</strong> on a small Windows Server in each branch.</p></div>
+        </details>
+        <details>
+          <summary>4. A partner needs to upload files to one container for the next 48 hours, and you must be able to cut them off early. How?</summary>
+          <div><p>Give a <strong>SAS</strong> limited to that container with write/create permissions and a 48-hour expiry. Use a <strong>user delegation SAS</strong> (signed with Entra credentials; revoke by revoking the user delegation key) or a service SAS tied to a <strong>stored access policy</strong> you can delete.</p></div>
+        </details>
+        <details>
+          <summary>5. You need a Premium storage account and geo-redundancy. Can you have both?</summary>
+          <div><p>No. Premium accounts support only <strong>LRS and ZRS</strong>. Either use Standard GPv2 with GRS/GZRS, or keep Premium and replicate at the application level (or with object replication to a second account).</p></div>
+        </details>
+        <details>
+          <summary>6. A production SQL Server VM needs 40,000 IOPS on a 1 TiB data disk without paying for a much larger disk. Which disk type?</summary>
+          <div><p><strong>Premium SSD v2</strong>, which lets you set IOPS and throughput independently of capacity (and check the VM size can deliver 40,000 IOPS too).</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 06</div>
+        <p>Storage holds <strong>bytes</strong>. A database adds <strong>meaning</strong> to them: structure, queries, transactions and consistency. The same three questions follow you there: how fast must it be, how many copies, and who can touch it?</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="04-monitoring.html"><small>Previous module</small><span>← 04 · Monitoring &amp; Logging</span></a>
+        <a class="next" href="06-databases.html"><small>Next module</small><span>06 · Databases →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Databases in Azure</title>
+<meta name="description" content="Module 06 of the AZ-305 Architect Handbook: the Azure SQL family, purchasing models and service tiers, scaling, high availability and disaster recovery, protecting data at rest, in transit and in use, open-source databases and Azure Cosmos DB.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part II · Data</div>
+    <span class="eyebrow">Module 06</span>
+    <h1>Databases: SQL, Cosmos DB and Keeping Data Safe</h1>
+    <p class="lead">The database is usually the one part of a system you can't just redeploy. Lose the web servers and you rebuild them in ten minutes; lose the orders table and you lose the business. This module is about choosing the right database, sizing it sensibly, and making sure it survives both failures and attackers.</p>
+    <div class="hero-meta">
+      <span class="chip">Azure SQL Database</span><span class="chip">SQL Managed Instance</span><span class="chip">SQL Server on VMs</span><span class="chip">vCore / DTU</span><span class="chip">Failover groups</span><span class="chip">TDE · Always Encrypted</span><span class="chip">PostgreSQL / MySQL</span><span class="chip">Cosmos DB</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why database choice is an architect's call</a></li>
+        <li><a href="#sql">The Azure SQL family</a></li>
+        <li><a href="#tiers">Purchasing models and service tiers</a></li>
+        <li><a href="#scale">Scaling databases</a></li>
+        <li><a href="#ha">Availability and disaster recovery</a></li>
+        <li><a href="#security">Protecting data: at rest, in transit, in use</a></li>
+        <li><a href="#oss">Open-source databases and SQL at the edge</a></li>
+        <li><a href="#cosmos">Azure Cosmos DB</a></li>
+        <li><a href="#choose">Choosing the right database</a></li>
+        <li><a href="#case">Meridian: the database design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">06.0</span>
+      <h2>The mental map</h2>
+      <p>Database questions in AZ-305 follow one path: <strong>what shape is the data → which engine fits that shape → how big, how available and how protected it must be</strong>. The services change; the path doesn't.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 420" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">The Azure database mental map</title>
+            <desc id="m0d">Three shapes of data map to three groups of services. Relational data from existing SQL Server goes to the Azure SQL family: SQL Server on VMs, SQL Managed Instance and Azure SQL Database. Relational open-source data goes to Azure Database for PostgreSQL or MySQL. JSON, key-value and graph data needing global scale goes to Azure Cosmos DB. For every choice the architect decides tier and scale, availability and disaster recovery, protection, and backup and retention.</desc>
+
+            <text x="20" y="26" class="t-m t-accent">1 · WHAT SHAPE IS THE DATA?</text>
+            <text x="360" y="26" class="t-m t-accent">2 · WHICH ENGINE?</text>
+            <text x="700" y="26" class="t-m t-accent">3 · WHAT YOU DECIDE</text>
+
+            <rect x="20" y="44" width="280" height="64" rx="10" class="s-surface"/>
+            <text x="36" y="70" class="t-b">Relational, SQL Server</text>
+            <text x="36" y="90" class="t-s">tables, joins, transactions, T-SQL</text>
+            <rect x="20" y="134" width="280" height="64" rx="10" class="s-surface"/>
+            <text x="36" y="160" class="t-b">Relational, open source</text>
+            <text x="36" y="180" class="t-s">PostgreSQL or MySQL apps</text>
+            <rect x="20" y="224" width="280" height="64" rx="10" class="s-surface"/>
+            <text x="36" y="250" class="t-b">Documents, key-value, graph</text>
+            <text x="36" y="270" class="t-s">flexible schema, global, millisecond</text>
+
+            <rect x="360" y="44" width="260" height="64" rx="10" class="s-blue"/>
+            <text x="490" y="70" class="t-b mid">Azure SQL family</text>
+            <text x="490" y="90" class="t-s mid">VM · Managed Instance · Database</text>
+            <rect x="360" y="134" width="260" height="64" rx="10" class="s-teal"/>
+            <text x="490" y="160" class="t-b mid">Azure Database for</text>
+            <text x="490" y="180" class="t-s mid">PostgreSQL · MySQL</text>
+            <rect x="360" y="224" width="260" height="64" rx="10" class="s-violet"/>
+            <text x="490" y="250" class="t-b mid">Azure Cosmos DB</text>
+            <text x="490" y="270" class="t-s mid">NoSQL · MongoDB · Cassandra · Table</text>
+
+            <path d="M300 76 H356" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M300 166 H356" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M300 256 H356" class="s-arrow" marker-end="url(#ah)"/>
+
+            <path d="M620 76 H666 M620 166 H666 M620 256 H666 M666 72 V264" class="s-line"/>
+            <path d="M666 72 H694" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M666 136 H694" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M666 200 H694" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M666 264 H694" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="700" y="44" width="280" height="56" rx="10" class="s-amber"/>
+            <text x="716" y="67" class="t-b">Tier and scale</text>
+            <text x="716" y="86" class="t-s">how big, how elastic, how billed</text>
+            <rect x="700" y="108" width="280" height="56" rx="10" class="s-green"/>
+            <text x="716" y="131" class="t-b">Availability and DR</text>
+            <text x="716" y="150" class="t-s">zones, geo-replicas, failover</text>
+            <rect x="700" y="172" width="280" height="56" rx="10" class="s-violet"/>
+            <text x="716" y="195" class="t-b">Protection</text>
+            <text x="716" y="214" class="t-s">at rest, in transit, in use</text>
+            <rect x="700" y="236" width="280" height="56" rx="10" class="s-surface"/>
+            <text x="716" y="259" class="t-b">Backup and retention</text>
+            <text x="716" y="278" class="t-s">point-in-time, long-term, geo-restore</text>
+
+            <rect x="20" y="320" width="960" height="80" rx="12" class="s-surface2"/>
+            <text x="500" y="352" class="t-b mid">Pick the engine from the data's shape and the app's needs, not from the team's favourite.</text>
+            <text x="500" y="376" class="t-s mid">Then size it for today, make it elastic for tomorrow, and prove it survives a zone, a region and a bad admin.</text>
+          </svg>
+        </div>
+        <figcaption><b>Shape → engine → four decisions.</b> Most wrong answers in the exam pick a good engine for the wrong shape, or the right engine with the wrong tier.</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>Want every Part II service in one view? The <a href="data-map.html#t-db">Data Services Map</a> puts storage, databases and analytics on one expandable tree, with when to use each, when not to, and the exam words. This module's database services sit on their own branch.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 10 quick portal walkthroughs · about 33 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos create one free Azure SQL database (with sample data) and one free-tier Cosmos DB account, then use them to show tiers, scaling, high availability, backups and the three states of data protection. Managed Instance, failover groups and PostgreSQL are walked through on the create forms and cancelled.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are Owner or Contributor.</li><li>The <b>Azure SQL Database free offer</b> (one free General Purpose serverless database per subscription) and the <b>Cosmos DB free tier</b> (one account per subscription). If either is already used, the demos still work at low cost; delete the resources straight after.</li><li>Module 04's workspace <code>law-az305-m04</code> if you want to send SQL auditing somewhere (optional).</li><li>Names below: resource group <code>rg-az305-m06-demo</code>, logical server <code>sql-az305-m06</code> plus your initials, database <code>sqldb-orders</code>, Cosmos account <code>cosmos-az305-m06</code> plus initials, region Central India.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li><b>At the start of the module</b>, start creating the Cosmos DB account (demo 9, steps 1–2). It takes about 5 minutes; come back to it in the Cosmos section.</li><li>Create the SQL database (demo 1) and run the query editor demo straight away. Everything until the Cosmos section reuses this database.</li><li>Walk the Managed Instance and PostgreSQL forms without creating them: a Managed Instance takes a long time to deploy and isn't free.</li><li>Don't click <b>Apply</b> on the compute tier changes or <b>Create</b> on the replica or failover group forms. They would end the free offer or add cost.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m06-sqldb">Create a free Azure SQL database with sample data</a><span>~5m</span></li><li><a href="#demo-m06-query">Hit the firewall, fix it, and run a query</a><span>~3m</span></li><li><a href="#demo-m06-mi">Walk the Managed Instance form and spot the VNet</a><span>~2m</span></li><li><a href="#demo-m06-tiers">Flip through the tiers and watch the price change</a><span>~3m</span></li><li><a href="#demo-m06-ha">Walk the replica and failover group forms</a><span>~4m</span></li><li><a href="#demo-m06-backup">Find the backups you never configured, and start a restore</a><span>~3m</span></li><li><a href="#demo-m06-security">TDE, Defender, auditing and a masking rule</a><span>~4m</span></li><li><a href="#demo-m06-oss">PostgreSQL flexible server: the same decisions, open-source engine</a><span>~2m</span></li><li><a href="#demo-m06-cosmos">Create a free Cosmos DB account, pick a partition key, and see the RU bill</a><span>~5m</span></li><li><a href="#demo-m06-cosmos-global">Click the map to go global, then choose a consistency level</a><span>~2m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m06-demo</code>: it holds the logical server, the database and the Cosmos DB account.</li><li>If you enabled SQL auditing to the Module 04 workspace, the logs stay there until that workspace is deleted.</li><li>Microsoft Defender for SQL can be enabled at the <b>subscription</b> level from Defender for Cloud. If you switched it on there, switch it off again.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">06.1</span>
+      <h2>Why database choice is an architect's call</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Think of a <strong>bank's paper ledger</strong> versus a <strong>shopkeeper's notebook</strong>. The ledger has fixed columns, every entry balances, and two clerks can never spend the same rupee twice. That's a relational database. The notebook is flexible: one page lists a customer's phone number, the next adds their favourite brand and a sketch of where they live. Nobody minds, because speed and flexibility matter more than strict columns. That's a NoSQL document database. Both are right, for different shops.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I know SQL Server, so we'll use SQL Server. Size? Let's take the biggest one so it's never slow."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"What's the data shape and the access pattern? What's the <strong>RPO and RTO</strong> from Module 01? Does it need to be written in more than one region? Which SQL Server features does the app really use (SQL Agent? cross-database queries?), because that decides <strong>VM vs Managed Instance vs Database</strong>. Then the smallest tier that meets the SLO, with a plan to scale."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>A database decision is really four decisions: <strong>engine</strong> (shape), <strong>deployment</strong> (how much you manage), <strong>tier</strong> (performance and cost) and <strong>resilience</strong> (how much data and time you can afford to lose). Write all four down, with the "why", in the design document.</p>
+      </div>
+    </section>
+
+    <!-- ======================= SQL FAMILY ======================= -->
+    <section id="sql">
+      <span class="sec-num">06.2</span>
+      <h2>The Azure SQL family</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></span>
+        <h3>Same engine, three ways to run it</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure SQL is a family of managed, secure products built on the SQL Server database engine. <strong>SQL Server on Azure Virtual Machines</strong> is infrastructure as a service with full control of the OS and instance. <strong>Azure SQL Managed Instance</strong> is a platform service with near-100% compatibility with SQL Server, deployed into your virtual network. <strong>Azure SQL Database</strong> is a fully managed platform service for individual databases and elastic pools.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>All three run the <strong>same SQL Server engine</strong>. The difference is <strong>how much of the building you look after</strong>. On a VM you own the whole house. Managed Instance is a furnished flat: the society handles repairs, but you still have your own complete home. SQL Database is a hotel room: you bring only your luggage (the database), and everything else is done for you.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="sqt sqd">
+            <title id="sqt">SQL Server on VM, SQL Managed Instance and Azure SQL Database</title>
+            <desc id="sqd">A spectrum from more control to less to manage. SQL Server on an Azure VM is IaaS: full SQL Server with OS access, where you patch, back up and build high availability. SQL Managed Instance is PaaS for a whole instance: near-100% compatible, with SQL Agent and cross-database queries, inside your VNet. Azure SQL Database is PaaS for a single database: serverless, Hyperscale and elastic pools, built-in high availability and backups, newest features first.</desc>
+
+            <path d="M40 34 H960" class="s-arrow-accent" marker-start="url(#ah-a)" marker-end="url(#ah-a)"/>
+            <text x="40" y="22" class="t-m t-accent">MORE CONTROL</text>
+            <text x="960" y="22" class="t-m t-accent end">LESS TO MANAGE</text>
+
+            <rect x="20" y="56" width="300" height="230" rx="14" class="s-amber"/>
+            <text x="40" y="88" class="t-h">SQL Server on Azure VM</text>
+            <text x="40" y="110" class="t-s">IaaS · you own the OS and instance</text>
+            <text x="40" y="146" class="t-s">· any SQL Server version or feature</text>
+            <text x="40" y="170" class="t-s">· OS access: agents, SSRS, custom tools</text>
+            <text x="40" y="194" class="t-s">· you patch, back up and build HA</text>
+            <text x="40" y="218" class="t-s" xml:space="preserve" style="white-space:pre">  (with automation help)</text>
+            <text x="40" y="262" class="t-b">"We need the operating system."</text>
+
+            <rect x="350" y="56" width="300" height="230" rx="14" class="s-teal"/>
+            <text x="370" y="88" class="t-h">SQL Managed Instance</text>
+            <text x="370" y="110" class="t-s">PaaS · a whole SQL Server instance</text>
+            <text x="370" y="146" class="t-s">· near-100% SQL Server compatible</text>
+            <text x="370" y="170" class="t-s">· SQL Agent, cross-database queries,</text>
+            <text x="370" y="194" class="t-s" xml:space="preserve" style="white-space:pre">  CLR, Database Mail, linked servers</text>
+            <text x="370" y="218" class="t-s">· deployed inside your VNet</text>
+            <text x="370" y="262" class="t-b">"Lift and shift, but stop patching."</text>
+
+            <rect x="680" y="56" width="300" height="230" rx="14" class="s-blue"/>
+            <text x="700" y="88" class="t-h">Azure SQL Database</text>
+            <text x="700" y="110" class="t-s">PaaS · a single database (or a pool)</text>
+            <text x="700" y="146" class="t-s">· serverless, Hyperscale, elastic pools</text>
+            <text x="700" y="170" class="t-s">· built-in HA, backups, auto-tuning</text>
+            <text x="700" y="194" class="t-s">· database-scoped: no SQL Agent,</text>
+            <text x="700" y="218" class="t-s" xml:space="preserve" style="white-space:pre">  no cross-database joins</text>
+            <text x="700" y="262" class="t-b">"A new app built for the cloud."</text>
+          </svg>
+        </div>
+        <figcaption><b>Move right whenever the app allows it.</b> Every step right removes work (patching, backups, HA) and adds features (serverless, auto-tuning). You move left only for a specific feature or control the app can't live without.</figcaption>
+      </figure>
+
+      <h4>How to pick in under a minute</h4>
+      <ol class="steps">
+        <li><strong>Does the app need OS access</strong>, a SQL Server version or feature that PaaS doesn't support, or third-party software installed beside SQL? → <strong>SQL Server on Azure VM</strong>.</li>
+        <li><strong>Does it use instance-level features</strong>: SQL Agent jobs, cross-database queries, CLR, Service Broker, linked servers, Database Mail? → <strong>SQL Managed Instance</strong>.</li>
+        <li><strong>Otherwise</strong>, especially for new apps or SaaS → <strong>Azure SQL Database</strong>.</li>
+      </ol>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li><strong>Azure Hybrid Benefit</strong> lets you reuse existing SQL Server licences (with Software Assurance) to cut the vCore price of all three options significantly.</li>
+        <li>SQL Server on a VM gets helpful automation from the <strong>SQL IaaS Agent extension</strong>: automated patching, automated backup and licence management.</li>
+        <li>Managed Instance sits in a <strong>dedicated subnet</strong> of your VNet. It's the most "on-prem-like" option, and its <strong>Managed Instance link</strong> can replicate from an on-prem SQL Server for migration or DR.</li>
+        <li>Azure SQL Database lives on a <strong>logical server</strong> (<code>&lt;name&gt;.database.windows.net</code>), which is a management boundary for logins, firewall rules and auditing, not a machine you can log in to.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Requires <strong>SQL Server Agent</strong> / <strong>cross-database queries</strong> / CLR", "<strong>minimal changes</strong> to migrate to PaaS" → <strong>SQL Managed Instance</strong>. "Requires <strong>OS-level access</strong>", "<strong>SSRS / SSIS / SSAS</strong> on the same server", "unsupported <strong>SQL Server version</strong>" → <strong>SQL Server on Azure VM</strong>. "New cloud app, <strong>minimise administration</strong>" → <strong>Azure SQL Database</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m06-sqldb">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a free Azure SQL database with sample data</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that a PaaS database is a few decisions, not a server build: server, authentication, compute, redundancy and network.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">SQL databases</span> › <span class="ui">+ Create</span>. If the banner offers the free database, select <span class="ui">Apply offer</span>.</li>
+            <li>Resource group <code>rg-az305-m06-demo</code>, database <code>sqldb-orders</code>, <span class="ui">Create new</span> server: name <code>sql-az305-m06</code> + initials, Central India, authentication <b>Use Microsoft Entra-only authentication</b>, set yourself as Entra admin.</li>
+            <li><span class="ui">Configure database</span>: show the service tiers (General Purpose, Business Critical, Hyperscale and the DTU options), <b>Serverless</b> vs Provisioned, the vCore range and the <b>auto-pause</b> delay. Keep the free offer's settings.</li>
+            <li>Point at <b>Backup storage redundancy</b> (LRS, ZRS, GRS) and, where offered, <b>zone redundancy</b>.</li>
+            <li><span class="ui">Networking</span>: <b>Public endpoint</b> with <b>Add current client IP address</b> = Yes, or <b>Private endpoint</b> (the production choice). Show <b>Minimum TLS version</b>.</li>
+            <li><span class="ui">Additional settings</span> › <b>Use existing data</b> = <b>Sample</b> (AdventureWorksLT) › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The server name ends in <code>.database.windows.net</code>. It's a logical server: a management boundary, not a machine you log in to.</li></ul>
+          <p class="demo-say"><b>Say:</b> “We just built a database with HA, backups and encryption already on, and never saw a server.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m06-query">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Hit the firewall, fix it, and run a query</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the server firewall as gate one, and prove the database is a normal SQL Server engine.</p>
+          <ol class="demo-steps">
+            <li>Database › <span class="ui">Query editor</span>: sign in with your Entra account. If you skipped the client IP rule, the error names your IP and offers to allow it: that's the server firewall at work.</li>
+            <li>Allow the IP (or open server › <span class="ui">Security</span> › <span class="ui">Networking</span> and add it). Point at <b>Allow Azure services and resources to access this server</b> and why architects usually leave it off.</li>
+            <li>Run:<pre class="kql"><code>SELECT TOP 10 c.CompanyName, SUM(h.TotalDue) AS Total
+FROM SalesLT.Customer c
+JOIN SalesLT.SalesOrderHeader h ON h.CustomerID = c.CustomerID
+GROUP BY c.CompanyName
+ORDER BY Total DESC;</code></pre></li>
+            <li>Run <code>SELECT @@VERSION;</code>: it's the SQL Server engine, kept on the latest version for you.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Same T-SQL you already know. Microsoft just took the patching weekend away.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m06-mi">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the Managed Instance form and spot the VNet</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show what makes Managed Instance different: a whole instance, inside your own network.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure SQL</span> › <span class="ui">+ Create</span>: one page offers <b>SQL databases</b>, <b>SQL managed instances</b> and <b>SQL virtual machines</b>. This is the family diagram as a screen.</li>
+            <li>Choose <b>SQL managed instances</b> › <span class="ui">Create</span>: point at the instance name, <span class="ui">Configure Managed Instance</span> (General Purpose or Business Critical, vCores, storage, <b>Azure Hybrid Benefit</b>).</li>
+            <li><span class="ui">Networking</span> tab: it must go into a <b>virtual network and a dedicated subnet</b>. That's why lift-and-shift apps feel at home.</li>
+            <li><b>Cancel.</b> A Managed Instance can take a long time to deploy and isn't free.</li>
+            <li>Back on the <span class="ui">Azure SQL</span> create page, open <b>SQL virtual machines</b> to show the marketplace images with SQL Server already installed. Cancel.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Database, instance or whole VM: same engine, a different amount of the building you look after.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= TIERS ======================= -->
+    <section id="tiers">
+      <span class="sec-num">06.3</span>
+      <h2>Purchasing models and service tiers</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure SQL Database offers two purchasing models. The <strong>DTU model</strong> bundles compute, memory and I/O into preconfigured sizes (Basic, Standard, Premium). The <strong>vCore model</strong> lets you choose compute and storage independently, in the General Purpose, Business Critical and Hyperscale service tiers, with provisioned or serverless compute.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p><strong>DTU</strong> is a thali: one price, a fixed mix of everything. <strong>vCore</strong> is ordering à la carte: choose how much compute, how much storage, and pay for each. Microsoft recommends vCore for most new designs, because it maps to real hardware, supports Azure Hybrid Benefit and reserved capacity, and makes comparisons with on-prem servers easy.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="tst tsd">
+            <title id="tst">How the vCore service tiers are built</title>
+            <desc id="tsd">General Purpose separates a stateless compute node from remote premium storage; on failure a new compute node attaches to the same storage. Business Critical runs an Always On availability group of one primary and three replicas on local SSD, giving fast failover, low latency and a free read replica. Hyperscale separates compute, a log service and page servers, so storage grows up to 128 TB and backups are near-instant snapshots.</desc>
+
+            <rect x="10" y="10" width="315" height="280" rx="14" class="s-surface2"/>
+            <text x="30" y="40" class="t-h">General Purpose</text>
+            <text x="30" y="60" class="t-s">most workloads · budget-friendly</text>
+            <rect x="40" y="80" width="255" height="52" rx="10" class="s-blue"/>
+            <text x="167" y="104" class="t-b mid">compute node</text>
+            <text x="167" y="122" class="t-s mid">stateless, replaceable</text>
+            <path d="M167 132 V166" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="40" y="170" width="255" height="52" rx="10" class="s-surface"/>
+            <text x="167" y="194" class="t-b mid">remote premium storage</text>
+            <text x="167" y="212" class="t-s mid">data and log files</text>
+            <text x="30" y="252" class="t-s">failover: a new node attaches to</text>
+            <text x="30" y="270" class="t-s">the same storage (seconds to a minute)</text>
+
+            <rect x="343" y="10" width="315" height="280" rx="14" class="s-surface2"/>
+            <text x="363" y="40" class="t-h">Business Critical</text>
+            <text x="363" y="60" class="t-s">lowest latency · heavy OLTP</text>
+            <rect x="363" y="84" width="62" height="64" rx="8" class="s-blue"/><text x="394" y="112" class="t-b mid">P</text><text x="394" y="132" class="t-s mid">SSD</text>
+            <rect x="435" y="84" width="62" height="64" rx="8" class="s-surface"/><text x="466" y="112" class="t-b mid">R</text><text x="466" y="132" class="t-s mid">SSD</text>
+            <rect x="507" y="84" width="62" height="64" rx="8" class="s-surface"/><text x="538" y="112" class="t-b mid">R</text><text x="538" y="132" class="t-s mid">SSD</text>
+            <rect x="579" y="84" width="62" height="64" rx="8" class="s-surface"/><text x="610" y="112" class="t-b mid">R</text><text x="610" y="132" class="t-s mid">SSD</text>
+            <text x="500" y="180" class="t-s mid">Always On availability group</text>
+            <text x="500" y="200" class="t-s mid">1 primary + 3 replicas, local SSD</text>
+            <text x="363" y="252" class="t-s">fast failover · one replica free for</text>
+            <text x="363" y="270" class="t-s">read-only queries · in-memory OLTP</text>
+
+            <rect x="676" y="10" width="315" height="280" rx="14" class="s-surface2"/>
+            <text x="696" y="40" class="t-h">Hyperscale</text>
+            <text x="696" y="60" class="t-s">very large · scales fast</text>
+            <rect x="696" y="76" width="134" height="44" rx="8" class="s-blue"/><text x="763" y="103" class="t-s mid">primary compute</text>
+            <rect x="840" y="76" width="134" height="44" rx="8" class="s-surface"/><text x="907" y="103" class="t-s mid">HA / named replicas</text>
+            <rect x="696" y="132" width="278" height="34" rx="8" class="s-teal"/><text x="835" y="154" class="t-s mid">log service</text>
+            <rect x="696" y="178" width="86" height="40" rx="8" class="s-surface"/><text x="739" y="203" class="t-s mid">page server</text>
+            <rect x="792" y="178" width="86" height="40" rx="8" class="s-surface"/><text x="835" y="203" class="t-s mid">page server</text>
+            <rect x="888" y="178" width="86" height="40" rx="8" class="s-surface"/><text x="931" y="203" class="t-s mid">page server</text>
+            <text x="696" y="252" class="t-s">up to 128 TB · storage grows by itself</text>
+            <text x="696" y="270" class="t-s">snapshot backups, near-instant restore</text>
+          </svg>
+        </div>
+        <figcaption><b>Three architectures, not three price points.</b> General Purpose separates compute from storage. Business Critical keeps four copies on local SSD. Hyperscale splits the engine into layers so storage and replicas scale independently.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Option</th><th>What it gives you</th><th>Choose it when</th></tr></thead>
+          <tbody>
+            <tr><td><strong>General Purpose</strong></td><td>Balanced compute and remote storage; 99.99% SLA</td><td>Most business apps; cost matters</td></tr>
+            <tr><td><strong>Business Critical</strong></td><td>Local SSD, 4 replicas, a free read replica, in-memory OLTP</td><td>Low-latency OLTP, fast failover, reporting on a replica</td></tr>
+            <tr><td><strong>Hyperscale</strong></td><td>Up to 128 TB, rapid scale, near-instant backup and restore, up to 30 named replicas</td><td>Large or fast-growing databases; heavy read scale-out</td></tr>
+            <tr><td><strong>Serverless</strong> (compute option)</td><td>Auto-scales vCores within a range and bills per second; General Purpose can <strong>auto-pause</strong> when idle</td><td>Intermittent or unpredictable use: dev/test, internal tools, new apps</td></tr>
+            <tr><td><strong>Elastic pool</strong></td><td>Many databases share one pool of resources</td><td>Many databases whose peaks happen at different times (SaaS)</td></tr>
+            <tr><td>DTU: Basic / Standard / Premium</td><td>Simple bundled sizes</td><td>Small, simple workloads; existing estates already on DTU</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Serverless isn't "always cheaper". If a database is busy all day, provisioned compute (with reserved capacity) usually costs less. Serverless shines when the database is <strong>idle much of the time</strong>. Also, after an auto-pause, the first connection waits while the database resumes, so the app must retry.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Unpredictable</strong> or intermittent usage", "<strong>pause</strong> when not used", "minimise cost for <strong>dev/test</strong>" → <strong>serverless</strong>. "Database will grow beyond <strong>4 TB</strong>, up to 100 TB" → <strong>Hyperscale</strong>. "<strong>Lowest latency</strong>, highest resilience, in-memory OLTP" → <strong>Business Critical</strong>. "<strong>Hundreds of databases</strong> with varying load", "multi-tenant SaaS" → <strong>elastic pool</strong>. "Reuse <strong>existing licences</strong>" → vCore with <strong>Azure Hybrid Benefit</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m06-tiers">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Flip through the tiers and watch the price change</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Make vCore vs DTU and General Purpose vs Business Critical vs Hyperscale tangible, without changing anything.</p>
+          <ol class="demo-steps">
+            <li>Database › <span class="ui">Settings</span> › <span class="ui">Compute + storage</span>: switch the service tier between <b>General Purpose</b>, <b>Business Critical</b> and <b>Hyperscale</b>, and watch the cost estimate on the right.</li>
+            <li>Switch to the DTU options (Basic, Standard, Premium) to show the bundled model.</li>
+            <li>On Business Critical, point at <b>read scale-out</b> and zone redundancy; on Hyperscale, at the HA replicas.</li>
+            <li><b>Don't apply.</b> Leave the page without saving.</li>
+            <li>Search <span class="ui">SQL elastic pools</span> › <span class="ui">+ Create</span>: point at pool vCores and <b>per-database min/max</b> settings. Cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Changing tiers is an online operation with a short reconnect at the end, which is why apps need retry logic.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Three architectures, three price tags. Pick by the workload, not by the biggest number.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SCALE ======================= -->
+    <section id="scale">
+      <span class="sec-num">06.4</span>
+      <h2>Scaling databases</h2>
+      <p>In Module 01 we said: design for the load you'll have, not the load you fear. Databases give you four ways to grow, and the architect's job is to know which one fits the problem.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 250" role="img" aria-labelledby="sct scd">
+            <title id="sct">Four ways to scale a database</title>
+            <desc id="scd">Scale up gives one database more vCores or a higher tier. Read scale-out sends read-only queries to a replica. An elastic pool lets many databases share resources because their peaks happen at different times. Sharding splits the data itself across several databases, for example by customer or region.</desc>
+
+            <rect x="10" y="10" width="235" height="230" rx="14" class="s-blue"/>
+            <text x="30" y="40" class="t-b">1 · Scale up</text>
+            <rect x="40" y="88" width="40" height="40" rx="6" class="s-surface"/>
+            <path d="M88 108 H120" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="128" y="64" width="88" height="88" rx="8" class="s-surface"/>
+            <text x="30" y="182" class="t-s">more vCores or a higher tier</text>
+            <text x="30" y="202" class="t-s">minutes; brief reconnect</text>
+            <text x="30" y="222" class="t-s">the simplest first step</text>
+
+            <rect x="258" y="10" width="235" height="230" rx="14" class="s-teal"/>
+            <text x="278" y="40" class="t-b">2 · Read scale-out</text>
+            <rect x="288" y="80" width="76" height="56" rx="8" class="s-surface"/><text x="326" y="105" class="t-s mid">primary</text><text x="326" y="122" class="t-s mid">writes</text>
+            <path d="M364 108 H394" class="s-dash" marker-end="url(#ah)"/>
+            <rect x="398" y="80" width="76" height="56" rx="8" class="s-surface"/><text x="436" y="105" class="t-s mid">replica</text><text x="436" y="122" class="t-s mid">reports</text>
+            <text x="278" y="182" class="t-s">ApplicationIntent=ReadOnly</text>
+            <text x="278" y="202" class="t-s">sends reports to the replica</text>
+            <text x="278" y="222" class="t-s">BC, Premium and Hyperscale</text>
+
+            <rect x="506" y="10" width="235" height="230" rx="14" class="s-amber"/>
+            <text x="526" y="40" class="t-b">3 · Elastic pool</text>
+            <rect x="536" y="62" width="175" height="96" rx="10" class="s-surface"/>
+            <circle cx="566" cy="90" r="12" class="s-teal"/><circle cx="606" cy="90" r="12" class="s-teal"/><circle cx="646" cy="90" r="12" class="s-teal"/><circle cx="686" cy="90" r="12" class="s-teal"/>
+            <circle cx="566" cy="128" r="12" class="s-teal"/><circle cx="606" cy="128" r="12" class="s-teal"/><circle cx="646" cy="128" r="12" class="s-teal"/><circle cx="686" cy="128" r="12" class="s-teal"/>
+            <text x="526" y="182" class="t-s">many databases share one pool</text>
+            <text x="526" y="202" class="t-s">their peaks come at different times</text>
+            <text x="526" y="222" class="t-s">SaaS: one database per tenant</text>
+
+            <rect x="754" y="10" width="235" height="230" rx="14" class="s-violet"/>
+            <text x="774" y="40" class="t-b">4 · Sharding</text>
+            <rect x="784" y="80" width="55" height="56" rx="8" class="s-surface"/><text x="811" y="113" class="t-s mid">A–H</text>
+            <rect x="844" y="80" width="55" height="56" rx="8" class="s-surface"/><text x="871" y="113" class="t-s mid">I–P</text>
+            <rect x="904" y="80" width="55" height="56" rx="8" class="s-surface"/><text x="931" y="113" class="t-s mid">Q–Z</text>
+            <text x="774" y="182" class="t-s">split the data across databases</text>
+            <text x="774" y="202" class="t-s">by customer, region or tenant</text>
+            <text x="774" y="222" class="t-s">most power, most app changes</text>
+          </svg>
+        </div>
+        <figcaption><b>Up, out for reads, share, or split.</b> Try them in that order: each step gives more scale but asks more of the application.</figcaption>
+      </figure>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A busy <strong>dosa stall</strong>. <em>Scale up</em>: buy a bigger tawa. <em>Read scale-out</em>: a second counter that only hands out parcels already packed. <em>Elastic pool</em>: five small stalls in a food court sharing one kitchen, because their rush hours differ. <em>Sharding</em>: open branches in Jayanagar, Indiranagar and Whitefield, each serving its own area.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"The dashboard is slow. Let's double the vCores."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"The dashboard is <strong>read-only</strong> reporting running against the same primary that takes orders. Move it to the <strong>read replica</strong> we already pay for in Business Critical, and the checkout gets faster too, without adding a single vCore."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Offload reporting</strong> / read-only workloads" → <strong>read scale-out</strong> (or a geo-replica, or Hyperscale named replicas). "<strong>Many databases</strong>, unpredictable individual usage, <strong>minimise cost</strong>" → <strong>elastic pool</strong>. "Data too large or busy for one database; <strong>partition by tenant</strong>" → <strong>sharding</strong> (Elastic Database tools), or Cosmos DB if the data model allows.</p>
+      </div>
+    </section>
+
+    <!-- ======================= HA / DR ======================= -->
+    <section id="ha">
+      <span class="sec-num">06.5</span>
+      <h2>Availability and disaster recovery</h2>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>High availability</strong> keeps a database running through local failures (a node, a rack, a zone). <strong>Disaster recovery</strong> restores service in another region after a regional outage. In Azure SQL, HA is built in, with optional zone redundancy; DR uses <strong>active geo-replication</strong> or <strong>failover groups</strong>, and every database also has automated <strong>backups</strong> for point-in-time restore.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Three layers, three questions. <strong>HA</strong>: "what if a server dies?" Azure handles it. <strong>DR</strong>: "what if Central India goes dark?" You design it. <strong>Backup</strong>: "what if someone runs <code>DELETE</code> without a <code>WHERE</code>?" Replicas won't help there, because they faithfully copy the mistake. Only a restore to a point in time will.</p>
+      </div>
+
+      <h3>Failover groups: the DR answer for most designs</h3>
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="fgt fgd">
+            <title id="fgt">An Azure SQL failover group across two regions</title>
+            <desc id="fgd">The checkout app connects to two listener names that never change: a read-write listener pointing to the primary database in Central India, and a read-only listener pointing to the geo-secondary in South India. The primary replicates asynchronously to the secondary. After a failover the roles swap, and the listeners follow automatically.</desc>
+
+            <rect x="20" y="110" width="170" height="80" rx="12" class="s-surface"/>
+            <text x="105" y="140" class="t-b mid">Checkout app</text>
+            <text x="105" y="160" class="t-s mid">connection string</text>
+            <text x="105" y="176" class="t-s mid">never changes</text>
+
+            <path d="M190 135 Q215 90 236 76" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M190 165 Q215 210 236 224" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="240" y="40" width="270" height="64" rx="10" class="s-green"/>
+            <text x="256" y="66" class="t-b">read-write listener</text>
+            <text x="256" y="88" class="t-m">fog-orders.database.windows.net</text>
+            <rect x="240" y="196" width="270" height="64" rx="10" class="s-surface"/>
+            <text x="256" y="222" class="t-b">read-only listener</text>
+            <text x="256" y="244" class="t-m">fog-orders.secondary.…</text>
+
+            <rect x="560" y="10" width="420" height="130" rx="14" class="s-surface2"/>
+            <text x="580" y="38" class="t-b">Central India · primary</text>
+            <text x="580" y="58" class="t-s">zone-redundant</text>
+            <rect x="780" y="30" width="180" height="90" rx="10" class="s-blue"/>
+            <text x="870" y="68" class="t-b mid">orders-db</text>
+            <text x="870" y="90" class="t-s mid">read-write</text>
+
+            <rect x="560" y="160" width="420" height="130" rx="14" class="s-surface2"/>
+            <text x="580" y="188" class="t-b">South India · secondary</text>
+            <text x="580" y="208" class="t-s">same tier, readable</text>
+            <rect x="780" y="180" width="180" height="90" rx="10" class="s-surface"/>
+            <text x="870" y="218" class="t-b mid">orders-db</text>
+            <text x="870" y="240" class="t-s mid">read-only</text>
+
+            <path d="M510 72 H776" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M510 228 H776" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M870 120 V176" class="s-dash" marker-end="url(#ah)"/>
+            <text x="860" y="153" class="t-s end">async geo-replication</text>
+          </svg>
+        </div>
+        <figcaption><b>The app talks to names, not servers.</b> When the group fails over, the roles swap and both listeners follow automatically, so nobody edits a connection string at 2 a.m.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Feature</th><th>Protects against</th><th>Key facts</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Built-in HA</strong></td><td>Node or hardware failure</td><td>Always on, in every tier. 99.99% SLA.</td></tr>
+            <tr><td><strong>Zone redundancy</strong></td><td>A whole availability zone failing</td><td>A setting on General Purpose, Business Critical and Hyperscale; up to 99.995% SLA on Business Critical.</td></tr>
+            <tr><td><strong>Active geo-replication</strong></td><td>Region outage</td><td>SQL Database only. Up to four readable secondaries, per database, any region. You fail over each database and update connection strings.</td></tr>
+            <tr><td><strong>Failover groups</strong></td><td>Region outage</td><td>SQL Database <em>and</em> Managed Instance. A group of databases fails over together, behind listeners that keep the same names.</td></tr>
+            <tr><td><strong>Point-in-time restore</strong></td><td>Mistakes, bad deployments, corruption</td><td>Automatic backups; restore to any point in the last 1–35 days (7 by default). Restores create a <em>new</em> database.</td></tr>
+            <tr><td><strong>Long-term retention</strong></td><td>Compliance</td><td>Keep weekly, monthly or yearly full backups for up to 10 years.</td></tr>
+            <tr><td><strong>Geo-restore</strong></td><td>Region outage, cheaply</td><td>Restore from geo-replicated backups into any region. Slowest and loses the most data, but costs nothing extra.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A <strong>failover group</strong> is like your company's toll-free number. Customers always dial 1800-xxx-xxxx. If the Bengaluru call centre floods, the number quietly rings in Chennai instead. Customers never learn a new number; they just get through.</p>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Geo-replication is <strong>asynchronous</strong>, so the secondary can be a few seconds behind. If the business says "zero data loss in a regional disaster", be honest: that needs a different design (synchronous writes across regions are slow and expensive). Write the real <strong>RPO</strong> in the design.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Fail over <strong>several databases together</strong>", "<strong>connection strings must not change</strong> after failover", "<strong>Managed Instance</strong> DR" → <strong>failover group</strong>. "<strong>Multiple readable secondaries</strong> in different regions for one database" → <strong>active geo-replication</strong>. "Survive a <strong>zone</strong> failure" → <strong>zone-redundant</strong> configuration. "Restore data <strong>deleted yesterday</strong>" → <strong>point-in-time restore</strong>. "Keep backups <strong>7 years</strong>" → <strong>long-term retention</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m06-ha">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the replica and failover group forms</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the difference between geo-replication of one database and a failover group with stable listener names.</p>
+          <ol class="demo-steps">
+            <li>Database › <span class="ui">Data management</span> › <span class="ui">Replicas</span> › <span class="ui">+ Create replica</span>: target server in <b>South India</b>, the same tier. This is <b>active geo-replication</b>. Cancel.</li>
+            <li>Server › <span class="ui">Data management</span> › <span class="ui">Failover groups</span> › <span class="ui">+ Add group</span>: name <code>fog-orders</code> + initials, secondary server in South India, add <code>sqldb-orders</code>.</li>
+            <li>Point at the <b>read/write failover policy</b> (customer-managed is recommended) and at the two listener names the group will create. Cancel.</li>
+            <li>Database › <span class="ui">Overview</span>: find <b>zone redundant</b> in the settings (or in <span class="ui">Compute + storage</span>) and explain HA vs DR.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Replicas protect against region loss, not against a bad <code>DELETE</code>. That's the next demo.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Apps talk to names, not servers. A failover group keeps those names working through a disaster.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m06-backup">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Find the backups you never configured, and start a restore</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that backups are automatic, and that a point-in-time restore creates a new database.</p>
+          <ol class="demo-steps">
+            <li>Server › <span class="ui">Data management</span> › <span class="ui">Backups</span> › <span class="ui">Retention policies</span>: select <code>sqldb-orders</code> › <span class="ui">Configure policies</span>: point-in-time retention (1–35 days) and <b>long-term retention</b> (weekly, monthly, yearly, up to 10 years). Cancel.</li>
+            <li><span class="ui">Available backups</span>: the earliest restore point is already there.</li>
+            <li>Database › <span class="ui">Overview</span> › <span class="ui">Restore</span>: pick a time from a few minutes ago. The target is a <b>new database name</b>. Cancel (or restore if time allows, then delete it).</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Replicas copy your mistakes in seconds. Backups are the only undo button.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SECURITY ======================= -->
+    <section id="security">
+      <span class="sec-num">06.6</span>
+      <h2>Protecting data: at rest, in transit, in use</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.5"/></svg></span>
+        <h3>Data has three states. Protect all three.</h3>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 250" role="img" aria-labelledby="pst psd">
+            <title id="pst">Protecting data in its three states</title>
+            <desc id="psd">At rest, data on disk and in backups is protected by Transparent Data Encryption, on by default, with service-managed or customer-managed keys. In transit, data moving over networks is protected by TLS 1.2 or later and by private endpoints. In use, data in memory and in query results is protected by Always Encrypted with secure enclaves, while dynamic data masking and row-level security limit what users see.</desc>
+
+            <rect x="10" y="10" width="315" height="230" rx="14" class="s-blue"/>
+            <text x="30" y="44" class="t-h">At rest</text>
+            <text x="30" y="66" class="t-s">data files, logs and backups on disk</text>
+            <text x="30" y="104" class="t-s">· Transparent Data Encryption (TDE),</text>
+            <text x="30" y="124" class="t-s" xml:space="preserve" style="white-space:pre">  on by default in Azure SQL</text>
+            <text x="30" y="148" class="t-s">· service-managed key, or your own</text>
+            <text x="30" y="168" class="t-s" xml:space="preserve" style="white-space:pre">  key in Key Vault (BYOK)</text>
+            <text x="30" y="214" class="t-b">"Stolen disk? Useless."</text>
+
+            <rect x="343" y="10" width="315" height="230" rx="14" class="s-teal"/>
+            <text x="363" y="44" class="t-h">In transit</text>
+            <text x="363" y="66" class="t-s">data moving between app and database</text>
+            <text x="363" y="104" class="t-s">· TLS encryption, minimum TLS 1.2</text>
+            <text x="363" y="128" class="t-s">· private endpoint: traffic stays</text>
+            <text x="363" y="148" class="t-s" xml:space="preserve" style="white-space:pre">  on your private network</text>
+            <text x="363" y="172" class="t-s">· deny public network access</text>
+            <text x="363" y="214" class="t-b">"Sniffed packet? Useless."</text>
+
+            <rect x="676" y="10" width="315" height="230" rx="14" class="s-violet"/>
+            <text x="696" y="44" class="t-h">In use</text>
+            <text x="696" y="66" class="t-s">data in memory and in query results</text>
+            <text x="696" y="104" class="t-s">· Always Encrypted: the database</text>
+            <text x="696" y="124" class="t-s" xml:space="preserve" style="white-space:pre">  never sees plaintext (+ enclaves)</text>
+            <text x="696" y="148" class="t-s">· dynamic data masking: hide values</text>
+            <text x="696" y="172" class="t-s">· row-level security: hide rows</text>
+            <text x="696" y="214" class="t-b">"Even the DBA can't read it."</text>
+          </svg>
+        </div>
+        <figcaption><b>TDE protects the disk, TLS protects the wire, Always Encrypted protects the data from everyone who doesn't hold the key</b>, including database administrators and cloud operators.</figcaption>
+      </figure>
+
+      <div class="terms">
+        <div class="term"><b>Transparent Data Encryption (TDE)</b><span>Encrypts data files, logs and backups in real time. Invisible to apps. On by default for new Azure SQL databases; with <strong>customer-managed keys</strong>, revoking the key makes the database inaccessible.</span></div>
+        <div class="term"><b>Always Encrypted</b><span>Columns are encrypted <strong>in the client driver</strong>; keys live in Key Vault, outside the database. Deterministic encryption allows equality lookups; <strong>secure enclaves</strong> add range queries and pattern matching on encrypted data.</span></div>
+        <div class="term"><b>Dynamic data masking</b><span>Shows <code>XXXX-XXXX-XXXX-1234</code> to users who don't have the UNMASK permission. It's a <strong>presentation</strong> control, not encryption: the real data is unchanged.</span></div>
+        <div class="term"><b>Row-level security</b><span>A predicate decides which rows each user sees, such as "store managers see only their own store".</span></div>
+        <div class="term"><b>Microsoft Entra authentication</b><span>Users, groups and managed identities sign in with Entra ID, with MFA and Conditional Access. <strong>Entra-only authentication</strong> turns SQL logins off completely.</span></div>
+        <div class="term"><b>Auditing, Defender for SQL and ledger</b><span>Auditing records who ran what (to a workspace, storage or Event Hubs). <strong>Defender for SQL</strong> finds vulnerabilities and alerts on threats like SQL injection. <strong>Ledger</strong> makes tampering cryptographically evident.</span></div>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>"Encrypt the credit card column so <strong>DBAs can't see it</strong>" is <strong>not</strong> TDE (DBAs see plaintext through TDE) and <strong>not</strong> masking (admins can unmask). The answer is <strong>Always Encrypted</strong>. And for real card numbers, the better PCI answer is not to store them at all: let a payment provider tokenise them.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Encrypt data <strong>at rest</strong>, no app changes" → <strong>TDE</strong>. "Company must <strong>manage / rotate / revoke</strong> the encryption key" → TDE with <strong>customer-managed key</strong> in Key Vault. "Protect sensitive columns from <strong>high-privilege users</strong> / <strong>DBAs</strong> / cloud operators" → <strong>Always Encrypted</strong>. "Show only the <strong>last four digits</strong> to support staff" → <strong>dynamic data masking</strong>. "Users see <strong>only their own rows</strong>" → <strong>row-level security</strong>. "Detect <strong>SQL injection</strong> attempts" → <strong>Microsoft Defender for SQL</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m06-security">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">TDE, Defender, auditing and a masking rule</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the three states of protection on a real database.</p>
+          <ol class="demo-steps">
+            <li>Database › <span class="ui">Security</span> › <span class="ui">Transparent data encryption</span>: already <b>ON</b>. Server › <span class="ui">Security</span> › <span class="ui">Transparent data encryption</span>: switch between service-managed key and <b>customer-managed key</b> (Key Vault). Don't save.</li>
+            <li>Server › <span class="ui">Security</span> › <span class="ui">Microsoft Defender for SQL</span>: vulnerability assessment and threat protection (SQL injection alerts).</li>
+            <li>Server › <span class="ui">Security</span> › <span class="ui">Auditing</span>: enable, destination <b>Log Analytics</b> › <code>law-az305-m04</code> (from Module 04) › <span class="ui">Save</span>.</li>
+            <li>Database › <span class="ui">Security</span> › <span class="ui">Dynamic Data Masking</span>: accept the suggested mask on <code>SalesLT.Customer.EmailAddress</code> (or add one) › <span class="ui">Save</span>. Point at the <b>SQL users excluded from masking</b> box.</li>
+            <li>Mention <b>Always Encrypted</b>: configured through SSMS or the client driver, with keys in Key Vault, so the server never sees plaintext.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>You're the Entra admin, so you'll still see unmasked data. Masking is a presentation control, not encryption.</li></ul>
+          <p class="demo-say"><b>Say:</b> “TDE protects the disk, TLS the wire, Always Encrypted protects the data from everyone without the key.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= OSS + EDGE ======================= -->
+    <section id="oss">
+      <span class="sec-num">06.7</span>
+      <h2>Open-source databases and SQL at the edge</h2>
+
+      <div class="topic" style="border-top:0;padding-top:0;margin-top:0">
+        <div class="topic-head">
+          <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3"/><path d="M17 16l2 2 3-4"/></svg></span>
+          <h3>Azure Database for PostgreSQL and MySQL</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Azure Database for PostgreSQL and Azure Database for MySQL are fully managed database services for the community editions of those engines. The <strong>flexible server</strong> deployment option provides control over configuration and maintenance windows, zone-redundant high availability, read replicas, automated backups and Burstable, General Purpose or Memory Optimized compute.</p>
+        </div>
+        <div class="callout plain">
+          <div class="c-label">In plain words</div>
+          <p>If the app was built on PostgreSQL or MySQL, don't force it onto SQL Server. Keep the engine the developers know, and let Azure do the patching, backups and HA. <strong>Burstable</strong> is the low-cost choice for small or quiet workloads.</p>
+        </div>
+        <div class="callout note">
+          <div class="c-label">Name check</div>
+          <p>"Single Server" for PostgreSQL and MySQL has been retired; <strong>flexible server</strong> is the only deployment option for new designs. Azure Database for <strong>MariaDB</strong> has also been retired; migrate to MySQL flexible server.</p>
+        </div>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></span>
+          <h3>Azure SQL Edge (retired)</h3>
+        </div>
+        <p>Azure SQL Edge was a small-footprint SQL engine for IoT gateways and edge devices, with built-in data streaming and time-series support. It was <strong>retired in September 2025</strong>.</p>
+        <div class="callout note">
+          <div class="c-label">Name check</div>
+          <p>You may still meet SQL Edge in older practice questions ("store and analyse IoT data <strong>on the device</strong>, even when <strong>disconnected</strong>"). For new designs, run <strong>SQL Server in a container</strong> (for example, on Linux) on the edge device, and sync or stream to Azure when connected. Know what SQL Edge was, but don't design with it.</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Existing <strong>PostgreSQL / MySQL</strong> app", "<strong>open-source</strong> engine, managed" → Azure Database for PostgreSQL / MySQL <strong>flexible server</strong>. "Low cost for a <strong>small, mostly idle</strong> open-source DB" → <strong>Burstable</strong> tier.</p>
+      </div>
+      <details class="demo" id="demo-m06-oss">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">PostgreSQL flexible server: the same decisions, open-source engine</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that the architect's decisions repeat for open-source engines.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Database for PostgreSQL</span> › <span class="ui">+ Create</span>.</li>
+            <li><span class="ui">Configure server</span>: <b>Burstable</b>, General Purpose and Memory Optimized compute; storage and IOPS.</li>
+            <li>Point at <b>High availability</b> = zone-redundant, backup retention and <b>geo-redundant backup</b>, and authentication with Microsoft Entra ID.</li>
+            <li><span class="ui">Networking</span>: public access or private access (VNet integration). <b>Cancel.</b></li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Different engine, same four questions: tier, availability, protection, backup.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= COSMOS ======================= -->
+    <section id="cosmos">
+      <span class="sec-num">06.8</span>
+      <h2>Azure Cosmos DB</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><ellipse cx="12" cy="12" rx="10" ry="4"/><ellipse cx="12" cy="12" rx="4" ry="10"/></svg></span>
+        <h3>A globally distributed database for any scale</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Cosmos DB is a fully managed, globally distributed NoSQL and relational database with single-digit millisecond response times, automatic and instant scalability, and SLAs covering availability, throughput, latency and consistency. It offers several APIs, including NoSQL, MongoDB, Apache Cassandra, Apache Gremlin and Table, so applications can use familiar data models and drivers.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Cosmos DB is the database for <strong>"millions of users, all over the world, and every millisecond counts"</strong>. You store JSON documents (or key-value, column or graph data), click a map to add regions, and Azure keeps a copy close to every user. You pay for <strong>throughput</strong>, not for servers.</p>
+      </div>
+
+      <h4>The four ideas you must know</h4>
+      <div class="terms">
+        <div class="term"><b>Request Units (RU/s)</b><span>The currency of Cosmos DB. Reading a 1 KB item by its id and partition key costs about <strong>1 RU</strong>; writes and queries cost more. Choose <strong>provisioned</strong> (manual or <strong>autoscale</strong>) or <strong>serverless</strong> (pay per request, for spiky or small workloads).</span></div>
+        <div class="term"><b>Partition key</b><span>The property that spreads your data and load across partitions, such as <code>/customerId</code>. Pick one with <strong>many distinct values</strong> that's used in most queries. A logical partition holds up to 20 GB. Changing the key later means moving the data.</span></div>
+        <div class="term"><b>Global distribution</b><span>Add or remove regions at any time. Enable <strong>multi-region writes</strong> to accept writes everywhere, for up to 99.999% availability.</span></div>
+        <div class="term"><b>Consistency levels</b><span>Five levels between "always the latest" and "fastest possible". This is the most-tested Cosmos DB topic. See the diagram.</span></div>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 220" role="img" aria-labelledby="cct ccd">
+            <title id="cct">Cosmos DB consistency levels</title>
+            <desc id="ccd">Five levels from stronger consistency to lower latency and higher availability: Strong always returns the latest write with the highest latency; Bounded staleness lags by at most a set number of versions or a time window; Session, the default, guarantees you read your own writes; Consistent prefix never returns writes out of order but may lag; Eventual is fastest and cheapest and may return writes out of order.</desc>
+
+            <path d="M20 34 H980" class="s-arrow-accent" marker-start="url(#ah-a)" marker-end="url(#ah-a)"/>
+            <text x="20" y="22" class="t-m t-accent">STRONGER CONSISTENCY</text>
+            <text x="980" y="22" class="t-m t-accent end">LOWER LATENCY · HIGHER AVAILABILITY</text>
+
+            <rect x="10" y="56" width="182" height="110" rx="12" class="s-blue"/>
+            <text x="101" y="88" class="t-b mid">Strong</text>
+            <text x="101" y="112" class="t-s mid">always the latest</text>
+            <text x="101" y="132" class="t-s mid">highest latency</text>
+
+            <rect x="207" y="56" width="182" height="110" rx="12" class="s-teal"/>
+            <text x="298" y="88" class="t-b mid">Bounded staleness</text>
+            <text x="298" y="112" class="t-s mid">lags by at most</text>
+            <text x="298" y="132" class="t-s mid">K versions or T time</text>
+
+            <rect x="404" y="56" width="182" height="110" rx="12" class="s-green"/>
+            <text x="495" y="88" class="t-b mid">Session</text>
+            <text x="495" y="112" class="t-s mid">read your own writes</text>
+            <text x="495" y="132" class="t-s mid t-green">default · most apps</text>
+
+            <rect x="601" y="56" width="182" height="110" rx="12" class="s-surface"/>
+            <text x="692" y="88" class="t-b mid">Consistent prefix</text>
+            <text x="692" y="112" class="t-s mid">never out of order</text>
+            <text x="692" y="132" class="t-s mid">may lag behind</text>
+
+            <rect x="798" y="56" width="182" height="110" rx="12" class="s-amber"/>
+            <text x="889" y="88" class="t-b mid">Eventual</text>
+            <text x="889" y="112" class="t-s mid">fastest, cheapest</text>
+            <text x="889" y="132" class="t-s mid">may be out of order</text>
+
+            <text x="500" y="200" class="t-s mid">Moving left costs latency and (for reads) RU; moving right risks reading stale data.</text>
+          </svg>
+        </div>
+        <figcaption><b>Session is the default because it matches how people use apps:</b> you always see your own changes immediately, while other users may see them a moment later.</figcaption>
+      </figure>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A cricket score. <strong>Strong</strong> is being at the stadium: you see every ball as it's bowled. <strong>Bounded staleness</strong> is TV with a fixed 10-second delay. <strong>Session</strong> is your own scorecard app: whatever <em>you</em> entered, you see straight away. <strong>Consistent prefix</strong> is the newspaper: a day late, but the overs are in the right order. <strong>Eventual</strong> is the WhatsApp group: everybody gets the score in the end, but messages sometimes arrive out of order.</p>
+      </div>
+
+      <h4>Which API?</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>API</th><th>Data model</th><th>Choose when</th></tr></thead>
+          <tbody>
+            <tr><td><strong>NoSQL</strong> (native)</td><td>JSON documents, SQL-like queries</td><td>New apps. Newest features first (e.g. vector search for AI apps).</td></tr>
+            <tr><td><strong>MongoDB</strong></td><td>BSON documents</td><td>Existing MongoDB apps and skills. RU-based or vCore-based options.</td></tr>
+            <tr><td><strong>Apache Cassandra</strong></td><td>Wide-column</td><td>Existing Cassandra workloads, without running clusters.</td></tr>
+            <tr><td><strong>Apache Gremlin</strong></td><td>Graph</td><td>Relationships first: social networks, recommendations, fraud rings.</td></tr>
+            <tr><td><strong>Table</strong></td><td>Key-value</td><td>Upgrade from Azure Table Storage with no code change.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Table Storage or Cosmos DB for Table?</h4>
+      <div class="two-col">
+        <div><h4>Azure Table Storage</h4><p>Part of a storage account. Very cheap, simple key-value. Indexes only PartitionKey and RowKey. No latency guarantees; geo-replication through GRS only.</p></div>
+        <div><h4>Cosmos DB for Table</h4><p>Same API and SDK. Single-digit millisecond latency, every property indexed automatically, throughput SLAs, turnkey global distribution and multi-region writes. Costs more.</p></div>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>The <strong>free tier</strong> gives the first 1,000 RU/s and 25 GB free on one account per subscription. Ideal for demos and small apps.</li>
+        <li>The <strong>change feed</strong> streams every insert and update in order, so you can trigger functions, update caches or build event-driven designs (Module 10).</li>
+        <li>Backups are <strong>periodic</strong> by default; <strong>continuous backup</strong> gives point-in-time restore over the last 7 or 30 days.</li>
+        <li>For analytics on Cosmos DB data without hurting the live app, use <strong>Microsoft Fabric mirroring</strong> (the newer path), or Azure Synapse Link on existing designs.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Globally distributed</strong>", "<strong>multi-region writes</strong>", "<strong>single-digit millisecond</strong> latency anywhere", "<strong>99.999%</strong>" → <strong>Cosmos DB</strong>. "Users must always <strong>see their own updates</strong>, best performance otherwise" → <strong>Session</strong>. "Reads must <strong>never be stale</strong>" → <strong>Strong</strong>. "Existing <strong>MongoDB / Cassandra</strong> app, minimal changes" → the matching API. "Upgrade <strong>Table Storage</strong> for global, low-latency access" → <strong>Cosmos DB for Table</strong>. "Spiky, <strong>low-traffic</strong> workload" → <strong>serverless</strong>; "variable but sustained" → <strong>autoscale</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m06-cosmos">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a free Cosmos DB account, pick a partition key, and see the RU bill</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show documents, partition keys and Request Units, the three things that make Cosmos DB different.</p>
+          <p class="demo-note"><b>Before you start:</b> Account creation takes about 5 minutes. Start steps 1–2 at the beginning of the module.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Cosmos DB</span> › <span class="ui">+ Create</span> › <b>Azure Cosmos DB for NoSQL</b>. Point at the other API choices on this page.</li>
+            <li>Resource group <code>rg-az305-m06-demo</code>, account <code>cosmos-az305-m06</code> + initials, Central India, <b>Apply Free Tier Discount</b> = Apply, capacity mode <b>Provisioned throughput</b>. Show <span class="ui">Global Distribution</span> (geo-redundancy, multi-region writes) and <span class="ui">Backup Policy</span> (periodic vs continuous) › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the account › <span class="ui">Data Explorer</span> › <span class="ui">New Container</span>: database <code>shop</code>, container <code>carts</code>, partition key <code>/cartId</code>, throughput <b>Autoscale</b> 1,000 RU/s max › <span class="ui">OK</span>.</li>
+            <li><code>carts</code> › <span class="ui">Items</span> › <span class="ui">New Item</span>:<pre class="kql"><code>{ "id": "1", "cartId": "c-1001", "customer": "Asha",
+  "items": [ { "sku": "KURTA-M", "qty": 2 } ] }</code></pre> › <span class="ui">Save</span>. Add a second item with a different shape (extra fields): it's accepted.</li>
+            <li><span class="ui">New SQL Query</span>: <code>SELECT * FROM c WHERE c.cartId = "c-1001"</code> › <span class="ui">Execute Query</span> › <span class="ui">Query Stats</span>: the <b>Request Charge</b> in RUs.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>A query without the partition key in the filter has to look in every partition and costs more RUs. That's why the partition key is a design decision.</li></ul>
+          <p class="demo-say"><b>Say:</b> “You don't buy servers here. You buy throughput, and you spend it in Request Units.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m06-cosmos-global">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Click the map to go global, then choose a consistency level</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show turnkey global distribution and the five consistency levels on screen.</p>
+          <ol class="demo-steps">
+            <li>Account › <span class="ui">Settings</span> › <span class="ui">Replicate data globally</span>: click <b>South India</b> on the map and point at <b>Multi-region writes</b>. <b>Don't save</b>: it adds cost.</li>
+            <li><span class="ui">Settings</span> › <span class="ui">Default consistency</span>: the five levels with the animated explanation. Session is selected.</li>
+            <li>Point at <span class="ui">Settings</span> › <span class="ui">Features</span> (or <span class="ui">Integrations</span>): vector search, analytical store and Fabric mirroring.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Global distribution is a click. Choosing the right consistency level is the architect's real job.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CHOOSE ======================= -->
+    <section id="choose">
+      <span class="sec-num">06.9</span>
+      <h2>Choosing the right database</h2>
+      <p>The whiteboard version, read from left to right: <em>"If the requirement says… then choose…"</em></p>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>If the requirement says…</th><th>Choose</th></tr></thead>
+          <tbody>
+            <tr><td>New relational app, minimal admin, elastic scale</td><td><strong>Azure SQL Database</strong> (serverless or provisioned; Hyperscale if large)</td></tr>
+            <tr><td>Many small databases for different customers (SaaS)</td><td><strong>Azure SQL Database elastic pool</strong></td></tr>
+            <tr><td>Migrate SQL Server with SQL Agent, cross-database queries, minimal change</td><td><strong>Azure SQL Managed Instance</strong></td></tr>
+            <tr><td>Needs OS access, SSRS/SSAS on the same box, or an unsupported version</td><td><strong>SQL Server on Azure VM</strong></td></tr>
+            <tr><td>Existing PostgreSQL or MySQL app</td><td><strong>Azure Database for PostgreSQL / MySQL</strong> (flexible server)</td></tr>
+            <tr><td>Global users, multi-region writes, flexible JSON schema, millisecond latency</td><td><strong>Azure Cosmos DB</strong> (NoSQL API)</td></tr>
+            <tr><td>Graph relationships</td><td><strong>Cosmos DB for Apache Gremlin</strong></td></tr>
+            <tr><td>Cheap key-value at small scale</td><td><strong>Azure Table Storage</strong></td></tr>
+            <tr><td>A fast in-memory cache in front of the database</td><td><strong>Azure Managed Redis</strong> (the successor to Azure Cache for Redis)</td></tr>
+            <tr><td>Analytics over terabytes of history</td><td>Not an OLTP database: a <strong>data lake + Synapse / Fabric</strong> (Module 07)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Real systems use <strong>more than one</strong> database. Orders in Azure SQL (transactions), the product catalogue in Cosmos DB (global, flexible), sessions in Redis (speed), history in a data lake (analytics). The architect's skill is drawing the line between them, not forcing everything into one.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">06.10</span>
+      <h2>Meridian: the database design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 06</span></div>
+        <div class="case-body">
+          <p>Today Meridian runs dozens of SQL Server databases in its datacentre: an orders system, a merchandising ERP full of SQL Agent jobs and cross-database queries, one vendor app stuck on an old SQL Server version, and a small inventory database for every store. The new online store adds a product catalogue and shopping carts. Leadership's goal: <em>checkout survives a regional outage</em>, and PCI DSS for payments.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Online orders: checkout survives a regional outage</td><td><strong>Azure SQL Database, Business Critical, zone-redundant</strong> in Central India, in a <strong>failover group</strong> with South India; the app uses the listener names</td><td>Zones handle local failures; the failover group handles a region with RPO of seconds and no connection-string changes.</td></tr>
+                <tr><td>Merchandising ERP (SQL Agent, cross-database queries, CLR)</td><td><strong>SQL Managed Instance</strong>, General Purpose, in the Corp landing zone, with its own failover group</td><td>Near-100% compatibility means no rewrite; Meridian stops patching servers.</td></tr>
+                <tr><td>Vendor app on an unsupported SQL Server version</td><td><strong>SQL Server on Azure VM</strong> (Premium SSD v2 from Module 05) with the SQL IaaS Agent extension, until the vendor upgrades</td><td>The only option that runs it; kept on the list for modernisation.</td></tr>
+                <tr><td>180 store inventory databases</td><td><strong>Elastic pools</strong> (vCore General Purpose) in Azure SQL Database</td><td>Each store peaks at different hours; sharing resources is far cheaper than 180 separate databases.</td></tr>
+                <tr><td>Head-office reports slow down checkout</td><td>Reports use <strong>ApplicationIntent=ReadOnly</strong> against the Business Critical read replica</td><td>Uses capacity already paid for; long-term analytics move to the lake in Module 07.</td></tr>
+                <tr><td>Product catalogue and carts, for shoppers across India</td><td><strong>Cosmos DB for NoSQL</strong> in Central India and South India, <strong>Session</strong> consistency, <strong>autoscale</strong> RU/s; partition keys <code>/productId</code> (catalogue) and <code>/cartId</code> (carts)</td><td>Flexible product attributes, millisecond reads, keeps working if one region fails.</td></tr>
+                <tr><td>PCI DSS and data protection</td><td>Card numbers <strong>never stored</strong> (payment-provider tokens only); <strong>TDE with customer-managed keys</strong> in Key Vault; <strong>Always Encrypted</strong> on customer phone and address columns; <strong>dynamic data masking</strong> for support staff; <strong>Entra-only authentication</strong> with managed identities (Module 03); private endpoints; <strong>Defender for SQL</strong>; auditing to <code>law-central-ind</code> (Module 04)</td><td>Shrinks PCI scope and protects data at rest, in transit and in use.</td></tr>
+                <tr><td>Recover from mistakes and meet audit retention</td><td>Point-in-time restore set to <strong>35 days</strong> on orders; <strong>long-term retention</strong> of yearly backups for 7 years</td><td>Replicas copy mistakes; backups undo them. Matches the 7-year audit rule.</td></tr>
+                <tr><td>EU data stays in the EU</td><td>Separate Azure SQL Database and Cosmos DB accounts in Germany West Central; failover partner in another EU region</td><td>Residency holds even during a disaster.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">06.11</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's database checklist</h3>
+      <ul class="checklist">
+        <li>Engine chosen by data shape and access pattern; more than one engine where it helps.</li>
+        <li>Deployment option justified: VM only for OS needs, Managed Instance for instance features, SQL Database otherwise.</li>
+        <li>Tier sized for today with a scaling path: scale up, read scale-out, elastic pool or sharding.</li>
+        <li>RPO and RTO written down; zone redundancy and a failover group (or geo-replication) to match.</li>
+        <li>Backup retention set for mistakes (point-in-time) and compliance (long-term).</li>
+        <li>Data protected at rest (TDE, keys), in transit (TLS, private endpoints) and in use (Always Encrypted, masking, RLS).</li>
+        <li>Entra authentication with managed identities; auditing and Defender switched on.</li>
+        <li>For Cosmos DB: partition key, consistency level, throughput model and regions decided deliberately.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. An on-prem SQL Server app uses SQL Agent jobs and cross-database queries. The company wants PaaS with minimal changes. Which option?</summary>
+          <div><p><strong>Azure SQL Managed Instance.</strong> It supports instance-level features such as SQL Agent and cross-database queries, which Azure SQL Database doesn't.</p></div>
+        </details>
+        <details>
+          <summary>2. Twenty databases must fail over to another region together, and the application's connection strings must not change. What do you use?</summary>
+          <div><p>A <strong>failover group</strong>. It fails over a group of databases together, and the read-write and read-only <strong>listener</strong> names stay the same after failover.</p></div>
+        </details>
+        <details>
+          <summary>3. A dev/test database is used only a few hours a week. How do you minimise cost?</summary>
+          <div><p>Azure SQL Database <strong>serverless</strong> (General Purpose) with <strong>auto-pause</strong>. You pay for compute only while it runs, plus storage.</p></div>
+        </details>
+        <details>
+          <summary>4. Support staff must see only the last four digits of customer phone numbers, while DBAs must not be able to read customers' national ID numbers at all. Which two features?</summary>
+          <div><p><strong>Dynamic data masking</strong> for the phone numbers (a presentation control), and <strong>Always Encrypted</strong> for the national IDs, because keys held outside the database mean even DBAs see only ciphertext.</p></div>
+        </details>
+        <details>
+          <summary>5. A global app on Cosmos DB must let users always see their own changes straight away, with the best possible performance otherwise. Which consistency level?</summary>
+          <div><p><strong>Session</strong>, the default. It guarantees read-your-own-writes within a session while keeping latency low.</p></div>
+        </details>
+        <details>
+          <summary>6. A database will grow to 60 TB and needs fast backups and restores. Which tier?</summary>
+          <div><p><strong>Hyperscale.</strong> It supports up to 128 TB, with snapshot-based backups and fast restores regardless of size.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 07</div>
+        <p>Operational databases run the business <strong>today</strong>. But leadership's questions ("Which stores are losing money? What will sell next Diwali?") need years of data from many systems, joined and cleaned. That's a different job, with different tools: data integration and analytics.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="05-storage.html"><small>Previous module</small><span>← 05 · Data Storage</span></a>
+        <a class="next" href="07-data-analytics.html"><small>Next module</small><span>07 · Data Integration &amp; Analytics →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>
