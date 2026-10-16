@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compute in Azure</title>
+<meta name="description" content="Module 09 of the AZ-305 Architect Handbook: choosing where code runs. Virtual machines and their cost levers, scale sets, App Service, Container Instances, Container Apps, AKS, Azure Functions and Azure Batch, with a decision path for picking between them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part III · Resilience</div>
+    <span class="eyebrow">Module 09</span>
+    <h1>Compute: Choosing Where Your Code Runs</h1>
+    <p class="lead">Give five developers the same app and you'll get five hosting answers: "a VM, obviously", "Kubernetes, obviously", "serverless, obviously"… Each one is right for some app and expensive for the rest. This module gives you a way to choose that you can explain to a CFO and defend in an exam: start from how much you want to manage, then let the workload's shape decide.</p>
+    <div class="hero-meta">
+      <span class="chip">IaaS / PaaS / serverless</span><span class="chip">Virtual machines</span><span class="chip">Scale sets</span><span class="chip">App Service</span><span class="chip">Container Apps</span><span class="chip">AKS</span><span class="chip">Functions</span><span class="chip">Batch</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">How much do you want to manage?</a></li>
+        <li><a href="#vm">Virtual machines</a></li>
+        <li><a href="#vmss">Virtual Machine Scale Sets</a></li>
+        <li><a href="#appservice">Azure App Service</a></li>
+        <li><a href="#containers">Containers without Kubernetes</a></li>
+        <li><a href="#aks">Azure Kubernetes Service</a></li>
+        <li><a href="#functions">Azure Functions</a></li>
+        <li><a href="#batch">Azure Batch</a></li>
+        <li><a href="#choose">Choosing the right compute</a></li>
+        <li><a href="#case">Meridian: the compute design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">09.0</span>
+      <h2>The mental map</h2>
+      <p>Every Azure compute service sits on one slope. At the top left you control everything and manage everything. At the bottom right you write a function and Azure does the rest. Moving right buys you less work and faster scaling, and costs you control. The architect's job is to stop as far right as the workload allows.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 400" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">The compute spectrum</title>
+            <desc id="m0d">A staircase from left to right. Infrastructure as a service: Virtual Machines and Virtual Machine Scale Sets; you manage the OS, patches and runtime. Containers: Azure Kubernetes Service, where you manage the cluster and workloads; Azure Container Apps and Azure Container Instances, where you manage only the containers. Platform as a service: App Service, where you manage only the code and settings. Serverless: Azure Functions, where you manage only the function code and pay per execution. Azure Batch sits to the side for large parallel jobs. Arrows show that control falls and management effort falls from left to right, while scaling speed and the pay-per-use share rise.</desc>
+
+            <rect x="20" y="40" width="220" height="250" rx="14" class="s-blue"/>
+            <text x="130" y="72" class="t-m mid t-blue">IAAS</text>
+            <text x="130" y="104" class="t-h mid">Virtual Machines</text>
+            <text x="130" y="128" class="t-s mid">and Scale Sets</text>
+            <text x="130" y="170" class="t-s mid">you manage: OS, patches,</text>
+            <text x="130" y="188" class="t-s mid">runtime, app, scaling rules</text>
+            <text x="130" y="240" class="t-b mid">"lift and shift",</text>
+            <text x="130" y="260" class="t-b mid">full control</text>
+
+            <rect x="260" y="80" width="230" height="210" rx="14" class="s-violet"/>
+            <text x="375" y="112" class="t-m mid t-violet">CONTAINERS</text>
+            <text x="375" y="142" class="t-b mid">AKS</text>
+            <text x="375" y="160" class="t-s mid">you run the cluster</text>
+            <text x="375" y="194" class="t-b mid">Container Apps</text>
+            <text x="375" y="212" class="t-s mid">serverless containers</text>
+            <text x="375" y="246" class="t-b mid">Container Instances</text>
+            <text x="375" y="264" class="t-s mid">one container, on demand</text>
+
+            <rect x="510" y="120" width="220" height="170" rx="14" class="s-teal"/>
+            <text x="620" y="152" class="t-m mid t-teal">PAAS</text>
+            <text x="620" y="184" class="t-h mid">App Service</text>
+            <text x="620" y="214" class="t-s mid">you manage: code,</text>
+            <text x="620" y="232" class="t-s mid">settings, plan size</text>
+            <text x="620" y="266" class="t-b mid">web apps and APIs</text>
+
+            <rect x="750" y="160" width="230" height="130" rx="14" class="s-green"/>
+            <text x="865" y="192" class="t-m mid t-green">SERVERLESS</text>
+            <text x="865" y="222" class="t-h mid">Functions</text>
+            <text x="865" y="248" class="t-s mid">you manage: the function</text>
+            <text x="865" y="270" class="t-b mid">pay per execution</text>
+
+            <path d="M40 318 H960" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="40" y="340" class="t-s">more control, more to manage</text>
+            <text x="960" y="340" class="t-s end">less to manage, faster scaling, pay per use</text>
+
+            <rect x="20" y="356" width="960" height="34" rx="10" class="s-surface2"/>
+            <text x="500" y="378" class="t-s mid">Off to the side: Azure Batch for large parallel and HPC jobs · Azure VMware Solution for VMware estates (Module 12)</text>
+          </svg>
+        </div>
+        <figcaption><b>Go as far right as the workload allows.</b> Every step right removes a category of work (patching, cluster upgrades, capacity planning) from your team's backlog. Step left only when a requirement forces you to.</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>The <a href="resilience-map.html#t-run">Resilience &amp; Compute Map</a> lays out every compute option of this module next to the continuity and application services of Modules 08 and 10, as one expandable tree with the exam words for each.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 8 quick portal walkthroughs · about 33 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos walk the compute slope from left to right. You look at the VM's cost levers and a scale set's autoscale rules, deploy a web app and swap a slot, run a public container image twice (once on Container Instances, once on Container Apps with scale to zero), walk the AKS form, write a function in the portal, and see where Batch pools are defined. Only cheap things are created; AKS and Batch are forms you cancel.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are <b>Contributor</b>.</li><li>Names below: resource group <code>rg-az305-m09-demo</code>, plan <code>asp-az305-m09</code>, web app <code>app-az305-m09</code> plus initials, container app <code>ca-az305-m09</code>, function app <code>func-az305-m09</code> plus initials, region Central India.</li><li>The public sample image <code>mcr.microsoft.com/azuredocs/aci-helloworld</code> (ACI) and the Container Apps quickstart image offered on the create form. No registry or Docker needed.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li>Create the App Service plan in <b>Standard (S1)</b> early: slots need it, and you'll scale it down or delete it right after the slot demo.</li><li>Start the Container Apps environment creation (it takes a few minutes) before you talk about AKS.</li><li>VM, scale set, AKS and Batch are <b>create forms only</b>: walk the settings, then cancel. Module 08's VM can stand in if you need a running one.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m09-vm">Find the cost levers on the VM create form</a><span>~4m</span></li><li><a href="#demo-m09-vmss">Write autoscale rules for a scale set, then cancel</a><span>~3m</span></li><li><a href="#demo-m09-app">Deploy a web app and swap a staging slot into production</a><span>~6m</span></li><li><a href="#demo-m09-aci">Run a container in one minute with Container Instances</a><span>~3m</span></li><li><a href="#demo-m09-aca">Deploy to Container Apps, then watch it scale to zero</a><span>~5m</span></li><li><a href="#demo-m09-aks">Walk the AKS create form: tiers, node pools and networking</a><span>~4m</span></li><li><a href="#demo-m09-func">Pick a Functions hosting plan and write an HTTP function in the portal</a><span>~5m</span></li><li><a href="#demo-m09-batch">See pools, jobs and tasks in a Batch account</a><span>~3m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m09-demo</code>. Container Apps creates a Log Analytics workspace in the same group unless you picked one; it goes with the group.</li><li>If a Container Apps environment created a managed resource group (<code>ME_…</code> or <code>MC_…</code>), confirm it's gone.</li><li>A Standard App Service plan bills per hour even with no apps: don't leave it running.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">09.1</span>
+      <h2>How much do you want to manage?</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Getting lunch for your team. You can <strong>buy a plot and build a kitchen</strong> (on-premises), <strong>rent a flat with a kitchen</strong> and cook yourself (a VM: you buy the vegetables, clean the gas stove, fix the tap), <strong>hire a caterer who cooks in a shared kitchen</strong> to your menu (App Service, containers), or <strong>order from Swiggy</strong> and pay per plate (Functions). Nobody is "right". A wedding needs a caterer; a Tuesday lunch for three needs Swiggy; a restaurant with a secret recipe needs its own kitchen.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="srt srd">
+            <title id="srt">Shared responsibility across compute models</title>
+            <desc id="srd">Five layers from bottom to top: physical datacentre, operating system, runtime and middleware, scaling and capacity, application code and data. On-premises: you manage all five. Virtual machines: Microsoft manages the datacentre; you manage the OS, runtime, scaling and code. Containers on AKS: Microsoft also manages the control plane; you manage nodes and workloads. App Service: Microsoft manages OS, runtime and much of scaling; you manage code and settings. Functions: Microsoft manages everything except your code.</desc>
+            <text x="20" y="58" class="t-s">Code and data</text>
+            <text x="20" y="104" class="t-s">Scaling, capacity</text>
+            <text x="20" y="150" class="t-s">Runtime, middleware</text>
+            <text x="20" y="196" class="t-s">Operating system</text>
+            <text x="20" y="242" class="t-s">Datacentre, hardware</text>
+
+            <text x="225" y="28" class="t-b mid">On-premises</text>
+            <rect x="160" y="38" width="130" height="38" rx="6" class="s-amber"/><rect x="160" y="84" width="130" height="38" rx="6" class="s-amber"/><rect x="160" y="130" width="130" height="38" rx="6" class="s-amber"/><rect x="160" y="176" width="130" height="38" rx="6" class="s-amber"/><rect x="160" y="222" width="130" height="38" rx="6" class="s-amber"/>
+
+            <text x="385" y="28" class="t-b mid">VMs</text>
+            <rect x="320" y="38" width="130" height="38" rx="6" class="s-amber"/><rect x="320" y="84" width="130" height="38" rx="6" class="s-amber"/><rect x="320" y="130" width="130" height="38" rx="6" class="s-amber"/><rect x="320" y="176" width="130" height="38" rx="6" class="s-amber"/><rect x="320" y="222" width="130" height="38" rx="6" class="s-blue"/>
+
+            <text x="545" y="28" class="t-b mid">AKS</text>
+            <rect x="480" y="38" width="130" height="38" rx="6" class="s-amber"/><rect x="480" y="84" width="130" height="38" rx="6" class="s-amber"/><rect x="480" y="130" width="130" height="38" rx="6" class="s-amber"/><rect x="480" y="176" width="130" height="38" rx="6" class="s-blue"/><rect x="480" y="222" width="130" height="38" rx="6" class="s-blue"/>
+            <text x="545" y="200" class="t-s mid">node images patched</text>
+
+            <text x="705" y="28" class="t-b mid">App Service</text>
+            <rect x="640" y="38" width="130" height="38" rx="6" class="s-amber"/><rect x="640" y="84" width="130" height="38" rx="6" class="s-surface2"/><rect x="640" y="130" width="130" height="38" rx="6" class="s-blue"/><rect x="640" y="176" width="130" height="38" rx="6" class="s-blue"/><rect x="640" y="222" width="130" height="38" rx="6" class="s-blue"/>
+            <text x="705" y="108" class="t-s mid">rules you set</text>
+
+            <text x="865" y="28" class="t-b mid">Functions</text>
+            <rect x="800" y="38" width="130" height="38" rx="6" class="s-amber"/><rect x="800" y="84" width="130" height="38" rx="6" class="s-blue"/><rect x="800" y="130" width="130" height="38" rx="6" class="s-blue"/><rect x="800" y="176" width="130" height="38" rx="6" class="s-blue"/><rect x="800" y="222" width="130" height="38" rx="6" class="s-blue"/>
+
+            <rect x="300" y="276" width="18" height="14" rx="3" class="s-amber"/><text x="326" y="288" class="t-s">you manage</text>
+            <rect x="440" y="276" width="18" height="14" rx="3" class="s-blue"/><text x="466" y="288" class="t-s">Microsoft manages</text>
+            <rect x="620" y="276" width="18" height="14" rx="3" class="s-surface2"/><text x="646" y="288" class="t-s">shared</text>
+          </svg>
+        </div>
+        <figcaption><b>Your code and data are always yours.</b> Everything below them is a choice: each amber box you keep is a patch cycle, an on-call rota and a capacity plan.</figcaption>
+      </figure>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Kubernetes is what modern teams use. Let's put everything on AKS."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Kubernetes is a platform to <strong>run</strong>, with upgrades, node pools, networking and security of its own. For twelve stateless APIs, Container Apps or App Service gives the same outcome without a platform team. I pick AKS when we <strong>need</strong> what only Kubernetes gives."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>The first compute question is never "which service is best?" It is "<strong>what is the least we can manage</strong> and still meet the requirements?" Every requirement that pushes you left (an OS-level agent, a custom kernel, a licence tied to a host) should be named out loud.</p>
+      </div>
+    </section>
+
+    <!-- ======================= VM ======================= -->
+    <section id="vm">
+      <span class="sec-num">09.2</span>
+      <h2>Virtual machines</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span>
+        <h3>Full control, full responsibility</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Virtual Machines provide on-demand, scalable computing resources with full control of the operating system. You choose the image (Windows or Linux), the size (vCPU, memory, storage and network capacity), managed disks and the network, and you are responsible for configuring, patching and maintaining the software that runs on the VM.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A VM is a <strong>server you rent by the second</strong>. It behaves like the server in your datacentre: you log in, install what you want, and own the patching. Pick it when something needs the OS itself: a legacy app, an agent, a specific Windows feature, or software whose licence is tied to a server.</p>
+      </div>
+
+      <h4>Sizes, in one table</h4>
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Family</th><th>Built for</th><th>Typical use</th></tr></thead>
+          <tbody>
+            <tr><td><strong>B</strong> (burstable)</td><td>Low baseline CPU, bursts when needed</td><td>Dev/test, small web servers, jump boxes</td></tr>
+            <tr><td><strong>D</strong> (general purpose)</td><td>Balanced CPU and memory</td><td>Most production apps, app servers</td></tr>
+            <tr><td><strong>E</strong> / <strong>M</strong> (memory)</td><td>High memory per vCPU (M is very large)</td><td>Databases, SAP HANA, in-memory caches</td></tr>
+            <tr><td><strong>F</strong> (compute)</td><td>High CPU per GB of memory</td><td>Batch, gaming servers, analytics workers</td></tr>
+            <tr><td><strong>L</strong> (storage)</td><td>Fast local NVMe storage</td><td>NoSQL databases, data warehousing</td></tr>
+            <tr><td><strong>N</strong> (GPU) / <strong>H</strong> (HPC)</td><td>GPUs, or fast interconnect for HPC</td><td>AI training and inference, rendering, simulations</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The cost levers every architect should pull</h4>
+      <div class="terms">
+        <div class="term"><b>Reservations</b><span>Commit to a specific VM size and region for <strong>1 or 3 years</strong> for a large discount (up to about 70%). Best for steady 24x7 workloads.</span></div>
+        <div class="term"><b>Azure savings plan for compute</b><span>Commit to a <strong>hourly spend</strong> for 1 or 3 years, usable across sizes, regions and services (VMs, App Service, Functions Premium, Container Apps). Less discount, more flexibility.</span></div>
+        <div class="term"><b>Azure Hybrid Benefit</b><span>Bring your existing <strong>Windows Server and SQL Server licences</strong> (with Software Assurance) and pay only for the base compute. A big saving in migrations.</span></div>
+        <div class="term"><b>Spot VMs</b><span>Spare capacity at up to 90% off, but Azure can <strong>evict</strong> the VM with 30 seconds' notice. For interruptible work: batch, render, CI agents, test.</span></div>
+        <div class="term"><b>Right-size and shut down</b><span>Azure Advisor recommends smaller sizes; <strong>auto-shutdown</strong> for dev VMs at 8 p.m. saves more than half the bill.</span></div>
+        <div class="term"><b>Dedicated Host</b><span>A whole physical server just for you. Not a cost saver: it's for <strong>compliance</strong> or licences that require physical isolation.</span></div>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Good practice: security defaults</div>
+        <p>New VMs use <strong>Trusted Launch</strong> (Secure Boot and vTPM) by default. Add <strong>encryption at host</strong>, no public IP (reach it through <strong>Azure Bastion</strong>, Module 11), <strong>Update Manager</strong> for patching, and <strong>Defender for Servers</strong>. A VM is your OS to defend.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll pick a big VM so it never runs out of capacity."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Size for the measured load, scale <strong>out</strong> with a scale set for peaks, and cover the steady baseline with a <strong>reservation or savings plan</strong>. A D16 running at 6% CPU is a donation to Microsoft."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Full control</strong> of the OS", "install a <strong>custom agent</strong>", "<strong>legacy</strong> app", "lift and shift" → <strong>VMs</strong>. "Workload can be <strong>interrupted</strong>, minimise cost" → <strong>Spot VMs</strong>. "Runs <strong>24x7 for 3 years</strong>" → <strong>reserved instances</strong> (or savings plan if sizes and regions change). "Existing <strong>Windows Server / SQL licences</strong>" → <strong>Azure Hybrid Benefit</strong>. "<strong>Physical isolation</strong> for compliance" → <strong>Dedicated Host</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m09-vm">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Find the cost levers on the VM create form</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that Spot, Hybrid Benefit, sizing and auto-shutdown are all one form away.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Virtual machines</span> › <span class="ui">+ Create</span> › <span class="ui">Azure virtual machine</span>: resource group <code>rg-az305-m09-demo</code>, Central India, image <b>Windows Server 2022</b>.</li>
+            <li>Tick <b>Run with Azure Spot discount</b>: show the eviction type and policy, and the price on the size picker drop. Untick it.</li>
+            <li><span class="ui">See all sizes</span>: filter by family (B, D, E, F) and show the monthly cost column. Pick a <b>B2s</b>.</li>
+            <li>Further down: <b>Licensing</b> › tick <b>Would you like to use an existing Windows Server license?</b> That's Azure Hybrid Benefit. Point at <b>Security type: Trusted launch</b>.</li>
+            <li><span class="ui">Management</span> tab: <b>Enable auto-shutdown</b> with a time and a notification. <span class="ui">Monitoring</span> and <span class="ui">Advanced</span>: skim. Cancel the form.</li>
+            <li>Search <span class="ui">Reservations</span> › <span class="ui">+ Add</span> › <b>Virtual machine</b>: show 1-year vs 3-year and the discount. Then search <span class="ui">Savings plans</span> to show the hourly-commitment alternative. Buy nothing.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Every amber box on the responsibility chart is yours, and so is every rupee on this form.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= VMSS ======================= -->
+    <section id="vmss">
+      <span class="sec-num">09.3</span>
+      <h2>Virtual Machine Scale Sets</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="6" height="9" rx="1.2"/><rect x="9" y="6" width="6" height="12" rx="1.2"/><rect x="16" y="3" width="6" height="15" rx="1.2"/><path d="M2 21h20"/></svg></span>
+        <h3>Identical VMs that grow and shrink with demand</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Virtual Machine Scale Sets let you create and manage a group of load-balanced VMs. The number of instances can automatically increase or decrease in response to demand or a schedule. <strong>Flexible orchestration</strong> (the recommended mode) spreads instances across availability zones and fault domains and lets you mix VM sizes and Spot with regular capacity.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Billing counters at a supermarket during the Diwali sale. The manager opens more counters when the queue gets long and closes them when it's quiet. Every counter works the same way. A scale set is that manager, watching CPU (the queue length) and opening identical VMs (counters).</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 230" role="img" aria-labelledby="sst ssd">
+            <title id="sst">Autoscale with a scale set</title>
+            <desc id="ssd">Users reach a load balancer that spreads traffic across scale set instances in zones 1, 2 and 3. An autoscale rule watches average CPU: above 70 percent for 10 minutes, add two instances; below 30 percent, remove one. Minimum 2, maximum 10 instances. A schedule can add capacity before known peaks.</desc>
+            <rect x="20" y="70" width="130" height="70" rx="12" class="s-surface"/>
+            <text x="85" y="110" class="t-b mid">Users</text>
+            <path d="M150 105 H196" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="200" y="70" width="150" height="70" rx="12" class="s-teal"/>
+            <text x="275" y="100" class="t-b mid">Load balancer</text>
+            <text x="275" y="120" class="t-s mid">or App Gateway</text>
+            <path d="M350 105 H396" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="400" y="20" width="340" height="170" rx="14" class="s-surface2"/>
+            <text x="570" y="44" class="t-b mid">Scale set (flexible)</text>
+            <rect x="420" y="60" width="95" height="110" rx="8" class="s-blue"/><text x="467" y="80" class="t-m mid">Zone 1</text>
+            <rect x="523" y="60" width="95" height="110" rx="8" class="s-blue"/><text x="570" y="80" class="t-m mid">Zone 2</text>
+            <rect x="626" y="60" width="95" height="110" rx="8" class="s-blue"/><text x="673" y="80" class="t-m mid">Zone 3</text>
+            <rect x="435" y="94" width="65" height="26" rx="5" class="s-surface"/><text x="467" y="112" class="t-s mid">VM</text>
+            <rect x="538" y="94" width="65" height="26" rx="5" class="s-surface"/><text x="570" y="112" class="t-s mid">VM</text>
+            <rect x="641" y="94" width="65" height="26" rx="5" class="s-surface"/><text x="673" y="112" class="t-s mid">VM</text>
+            <rect x="435" y="128" width="65" height="26" rx="5" class="s-surface"/><text x="467" y="146" class="t-s mid">+ VM</text>
+            <rect x="760" y="20" width="220" height="170" rx="14" class="s-amber"/>
+            <text x="870" y="48" class="t-b mid">Autoscale rules</text>
+            <text x="870" y="78" class="t-s mid">CPU &gt; 70% for 10 min: +2</text>
+            <text x="870" y="100" class="t-s mid">CPU &lt; 30% for 10 min: −1</text>
+            <text x="870" y="122" class="t-s mid">min 2 · max 10</text>
+            <text x="870" y="152" class="t-s mid">schedule: +4 on sale days</text>
+            <path d="M760 105 H744" class="s-arrow" marker-end="url(#ah)"/>
+          </svg>
+        </div>
+        <figcaption><b>Scale out, not up.</b> Many small identical instances across zones beat one big VM: they survive a zone failure, and you pay only for what the queue needs.</figcaption>
+      </figure>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Autoscaling a VM that keeps <strong>state on its local disk</strong> (sessions, uploaded files). The new instances don't have it and scale-in deletes it. Make instances stateless first: sessions in Redis (Module 10), files in Blob or Azure Files.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Automatically scale</strong> identical VMs", "hundreds of VMs from <strong>one image</strong>", "IaaS with <strong>autoscale</strong>" → <strong>Virtual Machine Scale Sets</strong>. "Mix <strong>Spot and regular</strong> VMs", "spread across zones" → <strong>flexible orchestration</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m09-vmss">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Write autoscale rules for a scale set, then cancel</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show flexible orchestration, zones and an autoscale rule in one form.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Virtual machine scale sets</span> › <span class="ui">+ Create</span>: Central India, <b>Availability zone</b> 1, 2, 3; orchestration mode <b>Flexible</b>.</li>
+            <li>Point at <b>Scale set Spot/standard mix</b> (run part of the capacity on Spot), if shown in your region.</li>
+            <li><span class="ui">Scaling</span> tab: scaling policy <b>Autoscaling</b> › <span class="ui">Configure</span>: default min 2, max 10; add a rule <i>CPU &gt; 70% for 10 minutes → +2</i>, and a scale-in rule. Point at the <b>schedule</b> option for sale days.</li>
+            <li><span class="ui">Networking</span> tab: show the option to put a load balancer in front. Cancel.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “The supermarket manager opening counters when the queue grows.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= APP SERVICE ======================= -->
+    <section id="appservice">
+      <span class="sec-num">09.4</span>
+      <h2>Azure App Service</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+        <h3>Bring your code, get a website</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure App Service is a fully managed HTTP-based platform for hosting web applications, REST APIs and mobile back ends in .NET, Java, Node.js, Python and PHP, or as custom containers, on Windows or Linux. Apps run in an <strong>App Service plan</strong>, which defines the region, the instance size and count, and the features available, and provides built-in autoscale, deployment slots, authentication and patching.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>You push code from GitHub; Azure gives you a URL with HTTPS, patched servers, autoscale and a staging slot. The <strong>plan</strong> is the hardware you pay for; the <strong>apps</strong> are tenants living on it. Several small apps can share one plan, and therefore one bill.</p>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Plan tier</th><th>What you get</th><th>Use it for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Free / Shared</strong></td><td>Shared hardware, no SLA, no custom scale</td><td>Learning and quick prototypes</td></tr>
+            <tr><td><strong>Basic</strong></td><td>Dedicated instances, manual scale, custom domains and TLS</td><td>Dev/test, low-traffic sites</td></tr>
+            <tr><td><strong>Standard</strong></td><td>Autoscale, <strong>deployment slots</strong>, daily backups</td><td>Production web apps</td></tr>
+            <tr><td><strong>Premium (v3 and newer)</strong></td><td>Faster hardware, more slots and instances, <strong>zone redundancy</strong></td><td>Busy or business-critical production</td></tr>
+            <tr><td><strong>Isolated v2</strong> (App Service Environment v3)</td><td>A <strong>single-tenant</strong> deployment inside your VNet, very high scale</td><td>Strict isolation and compliance, internal-only apps at scale</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 220" role="img" aria-labelledby="slt sld">
+            <title id="slt">Deployment slots and swap</title>
+            <desc id="sld">Production slot serves users with version 1. A new version 2 is deployed to the staging slot, warmed up and tested at its own URL. A swap switches the routing so production now runs version 2 with no downtime; if something is wrong, swap back and version 1 returns.</desc>
+            <rect x="20" y="40" width="140" height="80" rx="12" class="s-surface"/>
+            <text x="90" y="86" class="t-b mid">Users</text>
+            <path d="M160 80 H246" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="250" y="30" width="230" height="100" rx="14" class="s-green"/>
+            <text x="365" y="66" class="t-b mid">Production slot</text>
+            <text x="365" y="90" class="t-s mid">shop.meridian.in</text>
+            <text x="365" y="110" class="t-m mid">v1</text>
+            <rect x="560" y="30" width="230" height="100" rx="14" class="s-amber"/>
+            <text x="675" y="66" class="t-b mid">Staging slot</text>
+            <text x="675" y="90" class="t-s mid">…-staging.azurewebsites.net</text>
+            <text x="675" y="110" class="t-m mid">v2 · warmed, tested</text>
+            <path d="M560 70 H484" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <path d="M484 100 H556" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <text x="522" y="58" class="t-b mid t-accent">swap</text>
+            <rect x="810" y="30" width="170" height="100" rx="14" class="s-surface2"/>
+            <text x="895" y="66" class="t-b mid">Bad release?</text>
+            <text x="895" y="90" class="t-s mid">swap back:</text>
+            <text x="895" y="110" class="t-s mid">v1 in seconds</text>
+            <text x="500" y="176" class="t-s mid">Slots share the plan's instances. Settings can be "slot sticky", such as the connection string to the staging database.</text>
+          </svg>
+        </div>
+        <figcaption><b>Deploy to staging, warm up, swap.</b> Zero-downtime releases and a one-click rollback, available from the Standard tier.</figcaption>
+      </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li><strong>Scale up</strong> = a bigger plan tier or size. <strong>Scale out</strong> = more instances (manual, autoscale rules, or automatic scaling on Premium).</li>
+        <li><strong>VNet integration</strong> lets the app call private resources (outbound). <strong>Private endpoints</strong> make the app itself private (inbound). Both are Module 11 ideas.</li>
+        <li><strong>Built-in authentication</strong> ("Easy Auth") signs users in with Entra ID or other providers without code.</li>
+        <li>Managed identity to reach SQL, Storage and Key Vault without secrets (Module 03).</li>
+        <li><strong>WebJobs</strong> run background scripts on the same plan; for anything serious, consider Functions.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Web app</strong> or <strong>API</strong>, minimise management", ".NET / Java / Node / Python", "<strong>deployment slots</strong>", "<strong>zero-downtime</strong> deployment" → <strong>App Service</strong> (Standard or higher for slots and autoscale). "<strong>Single-tenant</strong>, fully isolated in a VNet", "internal-only, high scale" → <strong>App Service Environment v3</strong> (Isolated v2).</p>
+      </div>
+      <details class="demo" id="demo-m09-app">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Deploy a web app and swap a staging slot into production</span><span class="demo-time">~6 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show plan vs app, and a zero-downtime release with a one-click rollback.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">App Services</span> › <span class="ui">+ Create</span> › <span class="ui">Web App</span>: name <code>app-az305-m09</code> + initials, publish <b>Code</b>, runtime <b>.NET 8</b> (or Node), Linux, Central India. New plan <code>asp-az305-m09</code>, pricing plan <b>Standard S1</b>. Point at <b>Zone redundancy</b> (needs Premium) › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the app › <span class="ui">Browse</span>: the default page, with HTTPS already working.</li>
+            <li><span class="ui">Deployment slots</span> › <span class="ui">+ Add slot</span>: name <code>staging</code>, clone settings from production. Open the staging slot's URL: a separate site.</li>
+            <li>In the staging slot › <span class="ui">Configuration</span> (or <span class="ui">Environment variables</span>): add <code>RELEASE=v2</code> as a normal setting, and a second one with <b>Deployment slot setting</b> ticked to show “sticky” settings.</li>
+            <li>Back on <span class="ui">Deployment slots</span> › <span class="ui">Swap</span>: source staging, target production. Show the preview of setting changes › <span class="ui">Swap</span>. Then point at <span class="ui">Scale out (App Service plan)</span> with its <b>Custom autoscale</b> option.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The plan is the hardware you pay for; you could put five more apps on it for no extra cost.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Deploy to staging, warm up, swap. And if it's wrong, swap back.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Delete the app and the S1 plan (or scale the plan to B1) straight after the demo.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CONTAINERS ======================= -->
+    <section id="containers">
+      <span class="sec-num">09.5</span>
+      <h2>Containers without Kubernetes</h2>
+      <p>A <strong>container</strong> packages an app with everything it needs (runtime, libraries, config) into one image that runs the same on a laptop and in the cloud. Images live in a registry: <strong>Azure Container Registry</strong> (ACR). The question is what runs them. Two Azure services do it without asking you to operate a cluster.</p>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A container is a <strong>tiffin box</strong>: the whole meal, sealed, same taste whichever office it's opened in. <strong>Container Instances</strong> is handing one tiffin to one person for one lunch. <strong>Container Apps</strong> is a canteen that serves as many identical tiffins as there are people in the queue, and closes the counter when nobody is there.</p>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span>
+          <h3>Azure Container Instances (ACI)</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Azure Container Instances runs containers on demand in a managed, serverless environment, without virtual machines or orchestration. A <strong>container group</strong> (one or more containers sharing a lifecycle, network and storage) starts in seconds and is billed per second for the vCPU and memory it uses.</p>
+        </div>
+        <div class="callout plain">
+          <div class="c-label">In plain words</div>
+          <p>"Run this one container, now." No scaling rules, no load balancing, no rolling upgrades. Great for short tasks, build agents, a quick test, or as burst capacity behind AKS (virtual nodes).</p>
+        </div>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg></span>
+          <h3>Azure Container Apps</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Azure Container Apps is a serverless platform for running containerised applications and microservices. It is built on Kubernetes and open-source projects (KEDA for event-driven autoscaling, Dapr for service-to-service building blocks, Envoy for ingress) but does not expose the Kubernetes API. Apps scale on HTTP traffic, CPU, memory or events, including <strong>scale to zero</strong>, and support revisions for traffic splitting and container <strong>jobs</strong> for scheduled or event-triggered tasks.</p>
+        </div>
+        <div class="callout plain">
+          <div class="c-label">In plain words</div>
+          <p>Most of what teams actually want from Kubernetes (autoscale, microservices talking to each other, blue-green releases, background workers scaling on a queue) <strong>without running Kubernetes</strong>. Apps share an <strong>environment</strong> (a secure boundary with its own VNet and logs). Pay per use on the Consumption profile, or reserve dedicated workload profiles (including GPUs) for steady loads.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Container Instances</th><th>Container Apps</th><th>AKS</th></tr></thead>
+          <tbody>
+            <tr><td><strong>You manage</strong></td><td>One container group</td><td>Apps and their scale rules</td><td>The cluster, node pools, upgrades, add-ons</td></tr>
+            <tr><td><strong>Autoscale</strong></td><td>No</td><td>Yes, incl. scale to zero on events (KEDA)</td><td>Yes (HPA, KEDA, cluster autoscaler)</td></tr>
+            <tr><td><strong>Kubernetes API</strong></td><td>No</td><td>No</td><td>Yes, full</td></tr>
+            <tr><td><strong>Best for</strong></td><td>Simple, short-lived or one-off tasks</td><td>Microservices, APIs, event-driven workers</td><td>Complex platforms, full control, existing K8s skills</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Run a container <strong>quickly</strong>, no orchestration", "<strong>simple</strong>, short-lived", "billed <strong>per second</strong>" → <strong>Container Instances</strong>. "<strong>Microservices</strong>, <strong>serverless containers</strong>, <strong>scale to zero</strong>", "event-driven scaling with <strong>KEDA</strong>", "<strong>Dapr</strong>", "no need to manage Kubernetes" → <strong>Container Apps</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m09-aci">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Run a container in one minute with Container Instances</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the simplest way to run a container: no cluster, no plan, per-second billing.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Container instances</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m09-demo</code>, name <code>aci-az305-m09</code>, Central India, image source <b>Other registry</b> (or <b>Quickstart images</b>), image <code>mcr.microsoft.com/azuredocs/aci-helloworld</code>, Linux, 1 vCPU, 1.5 GB.</li>
+            <li><span class="ui">Networking</span>: public, DNS name label <code>aci-az305-m09</code> + initials, port 80 › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open it › copy the <b>FQDN</b> into a browser: the hello-world page. Show <span class="ui">Containers</span> › <span class="ui">Logs</span> with the request just made.</li>
+            <li>Point at what's <b>missing</b>: no scale rules, no revisions, no load balancer.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “One tiffin, one person, one lunch.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Delete the container group (or leave it for the resource group delete).</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m09-aca">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Deploy to Container Apps, then watch it scale to zero</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show serverless containers: an environment, ingress, revisions and scale rules.</p>
+          <p class="demo-note"><b>Before you start:</b> Creating the environment takes a few minutes. Start it before the AKS discussion.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Container Apps</span> › <span class="ui">+ Create</span> › <b>Container App</b>: name <code>ca-az305-m09</code>, Central India, new <b>Container Apps environment</b> (point at the <b>Consumption</b> vs workload profiles option and the networking tab for VNet).</li>
+            <li><span class="ui">Container</span> tab: tick <b>Use quickstart image</b> (Simple hello world container). <span class="ui">Ingress</span>: enabled, accepting traffic from anywhere, target port 80 › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the app › click the <b>Application Url</b>: it works.</li>
+            <li><span class="ui">Scale</span> (or <span class="ui">Scale and replicas</span>): show min replicas <b>0</b>, max 10, and <span class="ui">+ Add</span> a scale rule: HTTP concurrency, or <b>Azure Service Bus</b> / <b>Azure Queue</b> (KEDA) for event-driven workers. Cancel or save.</li>
+            <li><span class="ui">Revisions and replicas</span>: revision mode <b>Multiple</b> lets you split traffic 90/10 between versions. Leave the app idle for a few minutes and the replica count drops to 0.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Same idea as Kubernetes, with no Kubernetes to run. That's the whole pitch.</li></ul>
+          <p class="demo-say"><b>Say:</b> “A canteen that opens as many counters as the queue needs, and closes them all when the office is empty.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= AKS ======================= -->
+    <section id="aks">
+      <span class="sec-num">09.6</span>
+      <h2>Azure Kubernetes Service</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8.5 4.5v9L12 22l-8.5-6.5v-9z"/><circle cx="12" cy="12" r="3"/><path d="M12 5v4M12 15v4M5.5 8.5l3.8 2M14.7 13.5l3.8 2M5.5 15.5l3.8-2M14.7 10.5l3.8-2"/></svg></span>
+        <h3>Kubernetes, with the control plane managed for you</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Kubernetes Service (AKS) is a managed Kubernetes service. Azure operates the Kubernetes <strong>control plane</strong> (API server, scheduler, etcd); you manage the <strong>node pools</strong> (VMs that run your pods) and the workloads. AKS integrates with Entra ID, Azure networking, Azure Monitor, Azure Policy and Container Registry.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Kubernetes is an operating system for a fleet of servers: you tell it "I want 6 copies of this container, always", and it places them, restarts them and spreads them out. AKS runs the brain of Kubernetes for you. The body (the nodes) is still yours to size, upgrade and secure. <strong>AKS Automatic</strong> goes further and manages node pools, scaling and many settings for you.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 270" role="img" aria-labelledby="akt akd">
+            <title id="akt">AKS architecture</title>
+            <desc id="akd">The control plane, managed by Azure, contains the API server, scheduler and etcd. Your subscription holds node pools: a system node pool for core add-ons, and user node pools for your workloads, for example a general pool and a GPU or Spot pool. Pods run on the nodes. Around it: Azure Container Registry for images, Entra ID for access, Azure CNI networking in your VNet, Azure Monitor Container insights, and the cluster autoscaler adding or removing nodes.</desc>
+            <rect x="20" y="20" width="260" height="200" rx="14" class="s-blue"/>
+            <text x="150" y="50" class="t-m mid t-blue">AZURE MANAGES</text>
+            <text x="150" y="80" class="t-h mid">Control plane</text>
+            <text x="150" y="112" class="t-s mid">API server</text>
+            <text x="150" y="132" class="t-s mid">scheduler</text>
+            <text x="150" y="152" class="t-s mid">etcd</text>
+            <text x="150" y="192" class="t-s mid">uptime SLA on Standard tier</text>
+            <path d="M280 120 H316" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <rect x="320" y="20" width="460" height="200" rx="14" class="s-surface2"/>
+            <text x="550" y="50" class="t-m mid">YOUR SUBSCRIPTION · YOUR VNET</text>
+            <rect x="340" y="66" width="130" height="134" rx="10" class="s-surface"/>
+            <text x="405" y="90" class="t-b mid">System pool</text>
+            <text x="405" y="112" class="t-s mid">CoreDNS,</text>
+            <text x="405" y="130" class="t-s mid">metrics, add-ons</text>
+            <rect x="485" y="66" width="135" height="134" rx="10" class="s-violet"/>
+            <text x="552" y="90" class="t-b mid">User pool</text>
+            <rect x="500" y="104" width="50" height="24" rx="5" class="s-surface"/><text x="525" y="121" class="t-s mid">pod</text>
+            <rect x="557" y="104" width="50" height="24" rx="5" class="s-surface"/><text x="582" y="121" class="t-s mid">pod</text>
+            <rect x="500" y="136" width="50" height="24" rx="5" class="s-surface"/><text x="525" y="153" class="t-s mid">pod</text>
+            <text x="552" y="186" class="t-s mid">general workloads</text>
+            <rect x="635" y="66" width="130" height="134" rx="10" class="s-violet"/>
+            <text x="700" y="90" class="t-b mid">Spot / GPU pool</text>
+            <text x="700" y="112" class="t-s mid">batch, ML,</text>
+            <text x="700" y="130" class="t-s mid">interruptible</text>
+            <rect x="800" y="20" width="180" height="200" rx="14" class="s-surface"/>
+            <text x="890" y="50" class="t-b mid">Around it</text>
+            <text x="890" y="80" class="t-s mid">Container Registry</text>
+            <text x="890" y="102" class="t-s mid">Entra ID + RBAC</text>
+            <text x="890" y="124" class="t-s mid">workload identity</text>
+            <text x="890" y="146" class="t-s mid">Azure CNI</text>
+            <text x="890" y="168" class="t-s mid">Container insights</text>
+            <text x="890" y="190" class="t-s mid">Azure Policy</text>
+            <text x="500" y="254" class="t-s mid">Cluster autoscaler adds or removes nodes · HPA or KEDA adds or removes pods · nodes spread across zones</text>
+          </svg>
+        </div>
+        <figcaption><b>Azure runs the brain, you run the body.</b> Separate system and user node pools, put interruptible work on a Spot pool, and let two autoscalers work together: pods first, then nodes.</figcaption>
+      </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Pricing tiers for the control plane: <strong>Free</strong> (no SLA, for dev/test), <strong>Standard</strong> (financially backed uptime SLA, for production) and <strong>Premium</strong> (adds long-term support for Kubernetes versions).</li>
+        <li><strong>Workload identity</strong> lets a pod use an Entra identity to reach Key Vault or Storage, with no secrets in the cluster.</li>
+        <li>Networking: <strong>Azure CNI Overlay</strong> is the common default (pods get IPs from a private overlay range, saving VNet addresses).</li>
+        <li>You must <strong>upgrade Kubernetes versions</strong> regularly; each version is supported for about a year. Plan for it like patching.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Choosing AKS for a handful of web apps because "it's the standard". The team then spends its time on upgrades, ingress controllers and node patching instead of features. If the requirement list doesn't mention <strong>Kubernetes-specific</strong> needs (custom operators, service mesh, portability across clouds, existing Helm charts and K8s skills), check Container Apps first.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Kubernetes</strong>", "<strong>orchestrate</strong> containers with full control", "<strong>Helm</strong>", "existing K8s manifests", "custom <strong>operators</strong>", "<strong>portability</strong>" → <strong>AKS</strong>. "Reduce node cost for <strong>interruptible</strong> pods" → a <strong>Spot node pool</strong>. "Pods access Key Vault <strong>without secrets</strong>" → <strong>workload identity</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m09-aks">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the AKS create form: tiers, node pools and networking</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> See the decisions an AKS cluster asks you to own, without paying for a cluster.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Kubernetes services</span> › <span class="ui">+ Create</span>: point at the two choices, <b>Automatic Kubernetes cluster</b> and <b>Kubernetes cluster</b> (standard). Open the standard one.</li>
+            <li><span class="ui">Basics</span>: <b>Cluster preset configuration</b> (Production, Dev/Test), <b>AKS pricing tier</b> (Free, Standard, Premium), availability zones, Kubernetes version, automatic upgrade channel.</li>
+            <li><span class="ui">Node pools</span>: the <b>system</b> pool (agentpool); <span class="ui">+ Add node pool</span>: a <b>user</b> pool, and tick <b>Enable Azure Spot instances</b> to show a Spot pool. Point at min/max for the <b>cluster autoscaler</b>.</li>
+            <li><span class="ui">Networking</span>: <b>Azure CNI Overlay</b> vs other options, private cluster. <span class="ui">Integrations</span>: Container Registry, Azure Monitor, Azure Policy. Cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Count the decisions on this form. Every one of them is a reason to ask whether Container Apps would do.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Azure runs the brain; you still run the body.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= FUNCTIONS ======================= -->
+    <section id="functions">
+      <span class="sec-num">09.7</span>
+      <h2>Azure Functions</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>
+        <h3>Code that runs when something happens</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Functions is a serverless, event-driven compute service. A function runs in response to a <strong>trigger</strong> (HTTP request, timer, queue or Service Bus message, blob created, Event Grid or Event Hubs event, Cosmos DB change) and uses <strong>bindings</strong> to read from and write to other services with little code. Hosting plans determine scaling, limits and billing; <strong>Durable Functions</strong> adds stateful workflows.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>"When a photo lands in this container, make a thumbnail." "Every night at 2 a.m., close yesterday's tills." You write just that piece of code. Azure starts it when the event happens, runs as many copies as there are events, and (on the right plan) charges you only while it runs.</p>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Hosting plan</th><th>Scaling and billing</th><th>Pick it when</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Flex Consumption</strong></td><td>Scale to zero, fast scale out, pay per execution and memory; optional always-ready instances; <strong>VNet integration</strong></td><td>The default for new serverless apps, especially on Linux</td></tr>
+            <tr><td><strong>Consumption</strong> (classic)</td><td>Scale to zero, pay per execution; default timeout 5 min, max 10 min; cold starts</td><td>Existing apps, light and spiky workloads</td></tr>
+            <tr><td><strong>Premium</strong> (Elastic Premium)</td><td>Pre-warmed instances (no cold start), VNet integration, longer runs; billed per instance-hour</td><td>Steady traffic, latency-sensitive, long-running functions</td></tr>
+            <tr><td><strong>Dedicated</strong> (App Service plan)</td><td>Runs on an App Service plan you already pay for</td><td>Spare capacity on an existing plan, predictable cost</td></tr>
+            <tr><td><strong>Container Apps</strong></td><td>Functions packaged as containers in a Container Apps environment</td><td>Functions alongside other microservices</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p>Microsoft now points new Linux serverless apps to <strong>Flex Consumption</strong>; the classic Linux Consumption plan is on a retirement path. On the exam, "<strong>Consumption</strong>" still means "pay only when it runs, scales to zero, short executions", and "<strong>Premium</strong>" still means "no cold start, VNet, longer runs".</p>
+      </div>
+
+      <h4>Durable Functions in one picture</h4>
+      <div class="www">
+        <div><b>What</b>Stateful workflows written as code: an orchestrator function calls activity functions and remembers where it got to, even across restarts.</div>
+        <div><b>Why</b>Plain functions are stateless and short. Real processes ("charge card, reserve stock, wait for courier, send invoice") are long and multi-step.</div>
+        <div><b>When</b>Function chaining, fan-out/fan-in, waiting for a human approval, or a long-running process with retries and compensation.</div>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Serverless is always cheapest, because you only pay when it runs."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Per-execution billing wins for <strong>spiky or idle</strong> workloads. A function running flat out 24x7 can cost more than a small App Service plan. I look at the traffic shape, the <strong>cold-start tolerance</strong> and the execution time before I pick the plan."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Event-driven</strong>", "runs when a <strong>file is uploaded</strong> / <strong>message arrives</strong> / on a <strong>schedule</strong>", "<strong>pay only when code runs</strong>", "minimise cost for <strong>sporadic</strong> workloads" → <strong>Functions (Consumption / Flex Consumption)</strong>. "Avoid <strong>cold starts</strong>", "connect to a <strong>VNet</strong>", "run longer than 10 minutes" → <strong>Premium</strong> (or Flex). "<strong>Stateful</strong> workflow, <strong>fan-out/fan-in</strong>, wait for <strong>human approval</strong>" → <strong>Durable Functions</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m09-func">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Pick a Functions hosting plan and write an HTTP function in the portal</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the plan choice that decides cost and limits, then a trigger in action.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Function App</span> › <span class="ui">+ Create</span>: the first screen asks for the <b>hosting option</b>: Flex Consumption, Consumption, Functions Premium, App Service, Container Apps environment. Read the one-line description of each aloud.</li>
+            <li>Pick <b>Consumption</b>, Windows, runtime <b>Node.js</b> (portal editing works on Windows Consumption), name <code>func-az305-m09</code> + initials, Central India › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the function app › <span class="ui">Create function</span> (or <span class="ui">+ Create</span> on the Overview) › template <b>HTTP trigger</b>, authorization level <b>Function</b> › create.</li>
+            <li><span class="ui">Code + Test</span> › <span class="ui">Test/Run</span> with a query parameter <code>name=Meridian</code>. Then <span class="ui">Get function URL</span> and open it in a browser.</li>
+            <li>Back on <span class="ui">Create function</span>: scroll the template list (Timer, Blob, Queue, Service Bus, Event Grid, Event Hubs, Cosmos DB, Durable Functions orchestrator) to show the triggers.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “You wrote six lines. Azure did the servers, the scaling and the bill, and the bill is zero when nobody calls it.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= BATCH ======================= -->
+    <section id="batch">
+      <span class="sec-num">09.8</span>
+      <h2>Azure Batch</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="4" height="5" rx="1"/><rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1"/><rect x="17" y="10" width="4" height="5" rx="1"/><path d="M3 20h18"/></svg></span>
+        <h3>A thousand VMs for an afternoon</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Batch runs large-scale parallel and high-performance computing (HPC) jobs efficiently in Azure. It creates and manages a <strong>pool</strong> of compute nodes (VMs), installs the applications, and schedules <strong>jobs</strong> made of many <strong>tasks</strong> onto those nodes. There's no extra charge for Batch itself; you pay for the VMs, storage and networking used.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Board exam results. Two million answer sheets, each marked independently. You don't hire one superhuman examiner: you hire 2,000 examiners for a week, give each a bundle, and let them go home when the bundles are done. Batch is the exam controller who hires, hands out bundles, re-assigns a bundle if an examiner falls ill, and lets everyone go at the end.</p>
+      </div>
+
+      <ul>
+        <li>Fits <strong>embarrassingly parallel</strong> work: rendering frames, Monte Carlo risk models, genome analysis, transcoding video, processing millions of images.</li>
+        <li>Pools can autoscale with a formula, and mix dedicated nodes with <strong>Spot</strong> nodes for big savings.</li>
+        <li>Tightly coupled HPC (nodes talking constantly, MPI) uses <strong>H-series</strong> VMs with InfiniBand.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Large-scale parallel</strong>", "<strong>HPC</strong>", "<strong>rendering</strong>", "thousands of tasks", "schedule jobs on a pool of VMs", "<strong>no infrastructure</strong> to manage for the scheduler" → <strong>Azure Batch</strong>. Add "<strong>lowest cost</strong>, can be interrupted" → Batch with <strong>Spot</strong> nodes.</p>
+      </div>
+      <details class="demo" id="demo-m09-batch">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">See pools, jobs and tasks in a Batch account</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Connect the exam-controller analogy to Batch's three objects.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Batch accounts</span> › <span class="ui">+ Create</span>: name, Central India, optional storage account, pool allocation mode <b>Batch service</b>. Create it if time allows (Batch itself is free; you pay for nodes).</li>
+            <li>Open it › <span class="ui">Pools</span> › <span class="ui">+ Add</span>: image, VM size, <b>Target dedicated nodes</b> and <b>Target Spot/low-priority nodes</b>, and <b>Auto scale</b> with a formula. Cancel: don't create a pool.</li>
+            <li>Point at <span class="ui">Jobs</span> and, inside a job, <b>Tasks</b>: a job is the stack of answer sheets, tasks are the bundles.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Hire 2,000 examiners for a weekend, then send everyone home.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CHOOSE ======================= -->
+    <section id="choose">
+      <span class="sec-num">09.9</span>
+      <h2>Choosing the right compute</h2>
+      <p>Walk the questions top to bottom and stop at the first "yes". It mirrors Microsoft's own compute decision tree, simplified to what the exam asks.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 400" role="img" aria-labelledby="cht chd">
+            <title id="cht">Compute decision path</title>
+            <desc id="chd">Question 1: do you need control of the operating system, or is this a lift-and-shift? If yes, Virtual Machines, or Scale Sets if it must autoscale. Question 2: is it large-scale parallel or HPC work? If yes, Azure Batch. Question 3: is it short code triggered by events? If yes, Azure Functions. Question 4: is it a web app or API without a container requirement? If yes, App Service. Question 5: is it containerised? If you need the Kubernetes API or full control, AKS; for microservices and event-driven apps without managing Kubernetes, Container Apps; for a single simple container, Container Instances.</desc>
+            <rect x="20" y="20" width="560" height="54" rx="12" class="s-surface"/>
+            <text x="40" y="53" class="t-b">1 · Need the OS itself, or lifting and shifting as-is?</text>
+            <path d="M580 47 H636" class="s-arrow-accent" marker-end="url(#ah-a)"/><text x="608" y="40" class="t-s mid t-accent">yes</text>
+            <rect x="640" y="20" width="340" height="54" rx="12" class="s-blue"/>
+            <text x="810" y="53" class="t-b mid">VMs · Scale Sets if it must scale</text>
+            <path d="M80 74 V92" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="20" y="96" width="560" height="54" rx="12" class="s-surface"/>
+            <text x="40" y="129" class="t-b">2 · Huge parallel job, rendering or HPC?</text>
+            <path d="M580 123 H636" class="s-arrow-accent" marker-end="url(#ah-a)"/><text x="608" y="116" class="t-s mid t-accent">yes</text>
+            <rect x="640" y="96" width="340" height="54" rx="12" class="s-amber"/>
+            <text x="810" y="129" class="t-b mid">Azure Batch</text>
+            <path d="M80 150 V168" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="20" y="172" width="560" height="54" rx="12" class="s-surface"/>
+            <text x="40" y="205" class="t-b">3 · Short pieces of code triggered by events?</text>
+            <path d="M580 199 H636" class="s-arrow-accent" marker-end="url(#ah-a)"/><text x="608" y="192" class="t-s mid t-accent">yes</text>
+            <rect x="640" y="172" width="340" height="54" rx="12" class="s-green"/>
+            <text x="810" y="205" class="t-b mid">Azure Functions</text>
+            <path d="M80 226 V244" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="20" y="248" width="560" height="54" rx="12" class="s-surface"/>
+            <text x="40" y="281" class="t-b">4 · Web app or API, no container requirement?</text>
+            <path d="M580 275 H636" class="s-arrow-accent" marker-end="url(#ah-a)"/><text x="608" y="268" class="t-s mid t-accent">yes</text>
+            <rect x="640" y="248" width="340" height="54" rx="12" class="s-teal"/>
+            <text x="810" y="281" class="t-b mid">App Service</text>
+            <path d="M80 302 V320" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="20" y="324" width="560" height="62" rx="12" class="s-surface"/>
+            <text x="40" y="350" class="t-b">5 · Containers: need the Kubernetes API?</text>
+            <text x="40" y="372" class="t-s">full control → AKS · microservices, no K8s ops → Container Apps · one container → ACI</text>
+            <path d="M580 355 H636" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <rect x="640" y="324" width="340" height="62" rx="12" class="s-violet"/>
+            <text x="810" y="350" class="t-b mid">AKS · Container Apps · ACI</text>
+            <text x="810" y="372" class="t-s mid">in that order of control</text>
+          </svg>
+        </div>
+        <figcaption><b>Stop at the first yes.</b> Then sanity-check the answer against cost, team skills and the continuity design from Module 08.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Service</th><th>Unit you deploy</th><th>Scales to zero?</th><th>Pick it when the question says…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Virtual Machines</strong></td><td>A server</td><td>No</td><td>"full control", "custom OS", "lift and shift", "legacy"</td></tr>
+            <tr><td><strong>Scale Sets</strong></td><td>Identical servers</td><td>Can scale to a minimum you set</td><td>"autoscale VMs", "hundreds of identical VMs"</td></tr>
+            <tr><td><strong>App Service</strong></td><td>Code or a container</td><td>No (plan always on)</td><td>"web app", "API", "deployment slots", "minimal management"</td></tr>
+            <tr><td><strong>Container Instances</strong></td><td>A container group</td><td>Runs only when started</td><td>"simple container", "no orchestration", "quick task"</td></tr>
+            <tr><td><strong>Container Apps</strong></td><td>Containers + scale rules</td><td>Yes</td><td>"microservices", "serverless containers", "KEDA", "Dapr"</td></tr>
+            <tr><td><strong>AKS</strong></td><td>Pods on a cluster</td><td>Nodes to a minimum; pods with KEDA</td><td>"Kubernetes", "Helm", "full orchestration control"</td></tr>
+            <tr><td><strong>Functions</strong></td><td>A function</td><td>Yes (Consumption, Flex)</td><td>"event-driven", "pay per execution", "timer / blob / queue trigger"</td></tr>
+            <tr><td><strong>Batch</strong></td><td>Jobs and tasks on a pool</td><td>Pool can scale to zero</td><td>"HPC", "parallel", "render", "thousands of tasks"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Most real designs use <strong>three or four</strong> of these at once: App Service for the website, Functions for the glue, Container Apps for the workers, a VM for the one vendor product that insists on Windows Server. Mixing is normal. Choosing <strong>per workload</strong> is the skill.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">09.10</span>
+      <h2>Meridian: the compute design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 09</span></div>
+        <div class="case-body">
+          <p>The online team wants "Kubernetes for everything". Finance wants a predictable bill per business unit. Operations has six people and no Kubernetes experience. The Diwali sale brings ten times normal traffic for a week, and checkout must survive a regional outage (Module 08).</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Online storefront and checkout API</td><td><strong>App Service</strong> Premium v3, <strong>zone redundant</strong>, in Central India; a smaller warm copy in South India; <strong>deployment slots</strong> for zero-downtime releases; autoscale with a <strong>schedule</strong> for sale days</td><td>A web app with no OS needs; slots and autoscale come built in; fits the warm-standby pattern.</td></tr>
+                <tr><td>Order, stock and loyalty microservices</td><td><strong>Azure Container Apps</strong> in a VNet-integrated environment; scale on Service Bus queue length (Module 10) and to zero for low-traffic services; images in <strong>Container Registry</strong></td><td>Microservice features without a Kubernetes platform team. AKS was reviewed and <strong>rejected for now</strong>: no K8s skills, no K8s-only requirement. Recorded in an ADR.</td></tr>
+                <tr><td>Product image thumbnails and supplier file checks</td><td><strong>Azure Functions</strong> on <strong>Flex Consumption</strong>, triggered by blob-created events through Event Grid</td><td>Spiky, short, event-driven work: pay only when suppliers upload.</td></tr>
+                <tr><td>Merchandising ERP app tier and the vendor SQL VM</td><td><strong>VMs</strong> (D-series) across zones; <strong>Azure Hybrid Benefit</strong> for Windows and SQL licences; <strong>3-year reservations</strong> for the steady baseline; protected by Backup and ASR (Module 08)</td><td>The vendor supports only Windows Server VMs; licences already owned.</td></tr>
+                <tr><td>Monthly invoice PDFs and price recalculation for 180 stores</td><td><strong>Azure Batch</strong> pool with mostly <strong>Spot</strong> nodes, scaling to zero between runs</td><td>A few hours of heavy parallel work a month; Spot cuts the cost, retries cover evictions.</td></tr>
+                <tr><td>Dev and test</td><td>B-series VMs with <strong>auto-shutdown</strong> at 8 p.m.; Basic App Service plans; Container Apps on Consumption</td><td>Dev costs a fraction of prod; nothing runs overnight.</td></tr>
+                <tr><td>Predictable cost per business unit</td><td>An <strong>Azure savings plan</strong> bought centrally for the flexible part; reservations scoped to each BU's subscription; tags (Module 02) for showback</td><td>Discounts without locking teams into a single size or region.</td></tr>
+                <tr><td>Security</td><td>No public IPs on VMs (Bastion, Module 11); managed identities everywhere; Defender for Servers and Containers; Trusted Launch</td><td>Every compute choice inherits the identity and governance baseline of Part I.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Module 10 connects these pieces: how the storefront, the microservices and the functions talk to each other without falling over together.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">09.11</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's compute checklist</h3>
+      <ul class="checklist">
+        <li>Started from "the least we can manage", and named every requirement that pushed left.</li>
+        <li>Compute chosen per workload, not one platform for everything.</li>
+        <li>VMs sized from measurements, with reservations, savings plan, Hybrid Benefit and Spot considered.</li>
+        <li>Instances stateless, so scale sets, App Service and containers can scale out and in.</li>
+        <li>App Service tier chosen for the features needed: slots, autoscale, zones, isolation.</li>
+        <li>Containers placed on ACI, Container Apps or AKS based on the control actually needed.</li>
+        <li>Functions plan chosen for traffic shape, cold-start tolerance, run time and networking.</li>
+        <li>Each choice has a continuity story (Module 08) and a security baseline (Part I).</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. A legacy Windows app needs a third-party monitoring agent installed on the OS and a specific registry setting. Where does it run?</summary>
+          <div><p>On <strong>Azure Virtual Machines</strong> (or a scale set if it must autoscale). PaaS options don't give OS-level control.</p></div>
+        </details>
+        <details>
+          <summary>2. A team runs twelve containerised microservices. They want autoscale on queue length, scale to zero at night, and no Kubernetes to manage. Which service?</summary>
+          <div><p><strong>Azure Container Apps</strong>: serverless containers with KEDA-based event scaling and scale to zero.</p></div>
+        </details>
+        <details>
+          <summary>3. A web app must support zero-downtime releases with an instant rollback. What do you use, and what is the minimum tier?</summary>
+          <div><p><strong>App Service deployment slots</strong> with swap. Slots need the <strong>Standard</strong> tier or higher.</p></div>
+        </details>
+        <details>
+          <summary>4. Images uploaded to Blob storage must be resized within seconds. Uploads are unpredictable, sometimes none for hours. Minimise cost.</summary>
+          <div><p><strong>Azure Functions</strong> on a <strong>Consumption</strong> or <strong>Flex Consumption</strong> plan, triggered by blob-created events (Event Grid). It scales to zero when there are no uploads.</p></div>
+        </details>
+        <details>
+          <summary>5. An engineering firm must render 50,000 frames over a weekend at the lowest cost. The job tolerates interruptions. Design?</summary>
+          <div><p><strong>Azure Batch</strong> with a pool of <strong>Spot</strong> nodes (and a few dedicated nodes if a deadline matters). Batch reschedules tasks from evicted nodes.</p></div>
+        </details>
+        <details>
+          <summary>6. A company has Windows Server licences with Software Assurance and will run 40 VMs 24x7 for three years. Which two cost levers apply?</summary>
+          <div><p><strong>Azure Hybrid Benefit</strong> for the Windows licences, and <strong>3-year reservations</strong> (or a savings plan if sizes and regions may change).</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 10</div>
+        <p>Choosing compute decides <strong>where</strong> each piece of code runs. The next question is <strong>how they talk</strong>. If the storefront calls the order service directly and the order service is slow, the storefront is slow too. Module 10 adds queues, events, an API gateway and a cache so the pieces can fail, scale and change independently.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="08-backup-recovery.html"><small>Previous module</small><span>← 08 · Backup &amp; Recovery</span></a>
+        <a class="next" href="10-app-architecture.html"><small>Next module</small><span>10 · Application Architecture →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

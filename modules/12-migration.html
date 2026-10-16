@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Migration to Azure</title>
+<meta name="description" content="Module 12 of the AZ-305 Architect Handbook: the Cloud Adoption Framework, the migration strategies (the Rs), assessing with Azure Migrate, migrating servers, databases with Database Migration Service, moving data online and offline with Data Box, and managing what stays on-premises with Azure Arc.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part IV · Connect and move</div>
+    <span class="eyebrow">Module 12</span>
+    <h1>Migration: Moving House Without Losing the Furniture</h1>
+    <p class="lead">"Move everything to Azure in 18 months" sounds like one project. It's really six hundred small decisions: which server moves as it is, which one gets rebuilt, which one should simply be switched off. Get the order wrong and you migrate a database before the app that needs it to be next door. This module is the method: understand the estate, choose a strategy per workload, then move in waves with the right tool for each piece.</p>
+    <div class="hero-meta">
+      <span class="chip">Cloud Adoption Framework</span><span class="chip">The Rs</span><span class="chip">Azure Migrate</span><span class="chip">Database Migration Service</span><span class="chip">Data Box</span><span class="chip">Storage Mover</span><span class="chip">Azure Arc</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why migrations fail</a></li>
+        <li><a href="#caf">The Cloud Adoption Framework</a></li>
+        <li><a href="#strategies">Choosing a strategy: the Rs</a></li>
+        <li><a href="#assess">Discover and assess with Azure Migrate</a></li>
+        <li><a href="#servers">Migrating servers</a></li>
+        <li><a href="#databases">Migrating databases</a></li>
+        <li><a href="#data">Moving data: online or offline</a></li>
+        <li><a href="#hybrid">What stays: Azure Arc and VMware</a></li>
+        <li><a href="#case">Meridian: the migration plan</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">12.0</span>
+      <h2>The mental map</h2>
+      <p>Every migration runs the same loop: <strong>discover</strong> what you have, <strong>assess</strong> where each piece should go and what it will cost, <strong>migrate</strong> it with the right tool, then <strong>optimise</strong> and hand it over to operations. Around the loop sit the Cloud Adoption Framework (the method) and the landing zone (the destination you built in Parts I–IV).</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 420" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">The migration map</title>
+            <desc id="m0d">On the left, the on-premises estate: VMware, Hyper-V and physical servers, SQL Server databases, web apps, and file shares. Step 1, discover and assess, uses the Azure Migrate appliance, dependency analysis, assessments and a business case. Step 2, choose a strategy per workload: retire, rehost, replatform, refactor, rearchitect, rebuild or replace, or retain. Step 3, migrate with the right tool: Azure Migrate server migration for VMs, Database Migration Service for databases, App Service migration for web apps, and AzCopy, Storage Mover, File Sync or Data Box for files and bulk data. Step 4, optimise and manage. Everything lands in the Azure landing zone built in earlier modules; Azure Arc manages anything that stays on-premises. The Cloud Adoption Framework wraps the whole process.</desc>
+
+            <rect x="20" y="20" width="960" height="34" rx="10" class="s-surface2"/>
+            <text x="500" y="42" class="t-s mid">Cloud Adoption Framework: Strategy · Plan · Ready · Adopt (migrate, modernise) · Govern · Secure · Manage</text>
+
+            <rect x="20" y="70" width="170" height="250" rx="14" class="s-surface"/>
+            <text x="105" y="98" class="t-b mid">On-premises</text>
+            <text x="105" y="130" class="t-s mid">VMware, Hyper-V,</text>
+            <text x="105" y="148" class="t-s mid">physical servers</text>
+            <text x="105" y="180" class="t-s mid">SQL Server</text>
+            <text x="105" y="212" class="t-s mid">web apps</text>
+            <text x="105" y="244" class="t-s mid">file shares</text>
+            <text x="105" y="276" class="t-s mid">archives</text>
+            <path d="M190 195 H216" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="220" y="70" width="180" height="250" rx="14" class="s-teal"/>
+            <text x="310" y="96" class="t-m mid t-teal">1 · DISCOVER, ASSESS</text>
+            <text x="310" y="132" class="t-b mid">Azure Migrate</text>
+            <text x="310" y="160" class="t-s mid">appliance inventory</text>
+            <text x="310" y="182" class="t-s mid">dependency analysis</text>
+            <text x="310" y="204" class="t-s mid">right-sized targets</text>
+            <text x="310" y="226" class="t-s mid">cost estimates</text>
+            <text x="310" y="248" class="t-s mid">business case</text>
+            <path d="M400 195 H426" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="430" y="70" width="170" height="250" rx="14" class="s-amber"/>
+            <text x="515" y="96" class="t-m mid t-amber">2 · DECIDE</text>
+            <text x="515" y="132" class="t-b mid">The Rs</text>
+            <text x="515" y="160" class="t-s mid">retire</text>
+            <text x="515" y="182" class="t-s mid">rehost</text>
+            <text x="515" y="204" class="t-s mid">replatform</text>
+            <text x="515" y="226" class="t-s mid">refactor / rearchitect</text>
+            <text x="515" y="248" class="t-s mid">rebuild / replace</text>
+            <text x="515" y="270" class="t-s mid">retain</text>
+            <path d="M600 195 H626" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="630" y="70" width="190" height="250" rx="14" class="s-blue"/>
+            <text x="725" y="96" class="t-m mid t-blue">3 · MIGRATE</text>
+            <text x="725" y="130" class="t-b mid">Servers</text>
+            <text x="725" y="148" class="t-s mid">Azure Migrate</text>
+            <text x="725" y="180" class="t-b mid">Databases</text>
+            <text x="725" y="198" class="t-s mid">Database Migration Svc</text>
+            <text x="725" y="230" class="t-b mid">Files and bulk data</text>
+            <text x="725" y="248" class="t-s mid">AzCopy, Storage Mover,</text>
+            <text x="725" y="266" class="t-s mid">File Sync, Data Box</text>
+            <path d="M820 195 H846" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="850" y="70" width="130" height="250" rx="14" class="s-green"/>
+            <text x="915" y="96" class="t-m mid t-green">4 · RUN</text>
+            <text x="915" y="132" class="t-b mid">Optimise</text>
+            <text x="915" y="160" class="t-s mid">right-size</text>
+            <text x="915" y="182" class="t-s mid">reservations</text>
+            <text x="915" y="214" class="t-b mid">Manage</text>
+            <text x="915" y="242" class="t-s mid">monitor, back up,</text>
+            <text x="915" y="260" class="t-s mid">govern</text>
+
+            <rect x="20" y="340" width="960" height="34" rx="10" class="s-violet"/>
+            <text x="500" y="362" class="t-b mid">Destination: the landing zone from Modules 02–11 (governance, identity, monitoring, network, backup)</text>
+            <rect x="20" y="380" width="960" height="30" rx="10" class="s-surface2"/>
+            <text x="500" y="400" class="t-s mid">What stays on-premises is managed from Azure with Azure Arc</text>
+          </svg>
+        </div>
+        <figcaption><b>Discover, decide, migrate, run, in waves.</b> The loop repeats for every wave of applications. Early waves are small and low-risk; they train the team for the big ones.</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>The <a href="connect-map.html#t-plan">Network &amp; Migration Map</a> shows every migration tool of this module next to the networking services of Module 11, as one expandable tree with when to use each and the exam words.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 9 quick portal walkthroughs · about 29 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>Without a datacentre in the classroom, these demos still walk the whole migration loop: create an Azure Migrate project, import a handful of servers from a CSV and get a right-sized, costed assessment, look at the business case and the replication wizard, then the database, data transfer and Arc screens. Only the project and the assessment are created; Data Box and DMS are forms you cancel.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are <b>Contributor</b> (Owner for some Azure Migrate role prompts).</li><li>A small CSV on your laptop to import. Download the official template from the import screen (demo 2) and paste rows like these into its matching columns:<pre class="kql"><code>Server name,Cores,Memory (In MB),OS name,Number of disks,Disk 1 size (In GB),CPU utilization percentage,Memory utilization percentage
+erp-app-01,8,32768,Windows Server 2019 Datacenter,2,256,35,60
+erp-app-02,8,32768,Windows Server 2019 Datacenter,2,256,30,55
+pos-sync-01,16,65536,Red Hat Enterprise Linux 8,1,512,6,20
+hr-portal-01,4,8192,Windows Server 2016 Datacenter,1,128,12,40</code></pre></li><li>Names below: resource group <code>rg-az305-m12-demo</code>, Azure Migrate project <code>migrate-az305-m12</code>, geography <b>India</b>.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li>Create the project and <b>import the CSV first</b>: imported servers take a few minutes to appear before you can assess them.</li><li>Run the assessment while you talk through the Rs; open its results in the Assess section.</li><li>Data Box and Database Migration Service are <b>forms only</b>: never place a Data Box order in class (it ships real hardware and bills).</li><li>The Arc demo generates a script; don't run it on your laptop unless you mean to onboard it.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m12-caf">Find the CAF tools: the strategy and readiness assessments</a><span>~2m</span></li><li><a href="#demo-m12-project">Create an Azure Migrate project and see the discovery options</a><span>~3m</span></li><li><a href="#demo-m12-assess">Import four servers and get a right-sized, costed assessment</a><span>~6m</span></li><li><a href="#demo-m12-business-case">Build a business case: on-premises vs Azure cost</a><span>~3m</span></li><li><a href="#demo-m12-replicate">Walk the replicate wizard and find test migration</a><span>~3m</span></li><li><a href="#demo-m12-dms">See online vs offline on the Database Migration Service screens</a><span>~3m</span></li><li><a href="#demo-m12-databox">Size a Data Box order, then cancel before it ships</a><span>~3m</span></li><li><a href="#demo-m12-mover">Compare Storage Mover and AzCopy for online transfers</a><span>~3m</span></li><li><a href="#demo-m12-arc">Onboard a server to Azure Arc (generate the script)</a><span>~3m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m12-demo</code>. The Azure Migrate project's supporting resources (a Key Vault and storage for some scenarios) are created in the same group.</li><li>Key Vaults created by Azure Migrate are soft-deleted: purge them if you want the names back.</li><li>If you onboarded a machine to Arc, remove it from <b>Azure Arc › Machines</b> and uninstall the Connected Machine agent.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">12.1</span>
+      <h2>Why migrations fail</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p><strong>Moving house</strong> from Bengaluru to Hyderabad. If you throw everything into a truck the night before, you pay to move the broken cooler, the kitchen arrives three days after the family, and the new flat has no gas connection. Good movers do it differently: walk the house and make a list, decide what to sell, what to carry and what to buy new, book the new flat's connections first, then move room by room. That's a migration plan.</p>
+      </div>
+
+      <div class="terms">
+        <div class="term"><b>No inventory</b><span>"We think there are about 400 servers." There are 600, and 40 nobody owns.</span></div>
+        <div class="term"><b>Hidden dependencies</b><span>The app moves to Azure; its database stays behind; every query now crosses a WAN link and the app crawls.</span></div>
+        <div class="term"><b>No landing zone</b><span>VMs arrive in a subscription with no network plan, no policies and no backup. Fixing it later is a second migration.</span></div>
+        <div class="term"><b>Lift-and-shift of oversized VMs</b><span>A 16-core server at 5% CPU, moved as-is, costs more in Azure than it did on-premises.</span></div>
+        <div class="term"><b>Big bang</b><span>Everything over one weekend, no rehearsal, no rollback plan.</span></div>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Let's just replicate all the VMs and switch over. We can modernise later."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Rehosting is often right, to hit a datacentre exit date. But it's a <strong>decision per workload</strong>, made with data: dependencies, right-sizing, licences, cost. And we decide what we'll <strong>never</strong> move: 10–20% of most estates can be retired."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>A migration is a <strong>business project with a technical part</strong>. Start from the motivation (datacentre lease ending, cost, agility, security) and let it decide speed versus modernisation for each workload.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CAF ======================= -->
+    <section id="caf">
+      <span class="sec-num">12.2</span>
+      <h2>The Cloud Adoption Framework</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11"/></svg></span>
+        <h3>The method behind the move</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>The Microsoft <strong>Cloud Adoption Framework for Azure</strong> (CAF) is a collection of documentation, guidance, best practices and tools to help organisations adopt the cloud. It is organised into methodologies: <strong>Strategy</strong>, <strong>Plan</strong>, <strong>Ready</strong>, <strong>Adopt</strong> (migrate, modernise, innovate), <strong>Govern</strong>, <strong>Secure</strong> and <strong>Manage</strong>.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 220" role="img" aria-labelledby="cft cfd">
+            <title id="cft">Cloud Adoption Framework methodologies</title>
+            <desc id="cfd">A left-to-right flow: Strategy (why are we moving: motivations and outcomes), Plan (what do we have: digital estate, skills, adoption plan), Ready (where will it land: the landing zone), Adopt (do it: migrate and modernise). Running underneath all of them: Govern, Secure and Manage.</desc>
+            <rect x="20" y="20" width="220" height="100" rx="14" class="s-amber"/>
+            <text x="130" y="54" class="t-h mid">Strategy</text>
+            <text x="130" y="80" class="t-s mid">why are we moving?</text>
+            <text x="130" y="100" class="t-s mid">motivations, outcomes</text>
+            <path d="M240 70 H266" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="270" y="20" width="220" height="100" rx="14" class="s-teal"/>
+            <text x="380" y="54" class="t-h mid">Plan</text>
+            <text x="380" y="80" class="t-s mid">what do we have?</text>
+            <text x="380" y="100" class="t-s mid">estate, skills, plan</text>
+            <path d="M490 70 H516" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="520" y="20" width="220" height="100" rx="14" class="s-violet"/>
+            <text x="630" y="54" class="t-h mid">Ready</text>
+            <text x="630" y="80" class="t-s mid">where will it land?</text>
+            <text x="630" y="100" class="t-s mid">landing zone (Module 02)</text>
+            <path d="M740 70 H766" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="770" y="20" width="210" height="100" rx="14" class="s-blue"/>
+            <text x="875" y="54" class="t-h mid">Adopt</text>
+            <text x="875" y="80" class="t-s mid">migrate, modernise,</text>
+            <text x="875" y="100" class="t-s mid">innovate</text>
+            <rect x="20" y="140" width="960" height="60" rx="12" class="s-surface2"/>
+            <text x="500" y="166" class="t-b mid">Govern · Secure · Manage</text>
+            <text x="500" y="186" class="t-s mid">running alongside every step: policies and cost (02), identity and Zero Trust (03), operations and backup (04, 08)</text>
+          </svg>
+        </div>
+        <figcaption><b>You've already built most of CAF.</b> Modules 02–11 were the <em>Ready</em>, <em>Govern</em>, <em>Secure</em> and <em>Manage</em> parts. This module is <em>Plan</em> and <em>Adopt</em>.</figcaption>
+      </figure>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Business justification</strong>, motivations" → <strong>Strategy</strong>. "<strong>Digital estate</strong> inventory, skills plan" → <strong>Plan</strong>. "Prepare the environment, <strong>landing zone</strong>" → <strong>Ready</strong>. "Move workloads" → <strong>Adopt</strong>. "Guidance and best practices for adopting the cloud" → the <strong>Cloud Adoption Framework</strong> (not the Well-Architected Framework, which is about designing individual workloads).</p>
+      </div>
+      <details class="demo" id="demo-m12-caf">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Find the CAF tools: the strategy and readiness assessments</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that CAF is more than documents: it has assessments and templates you can use with a customer.</p>
+          <ol class="demo-steps">
+            <li>Browse to <b>learn.microsoft.com/azure/cloud-adoption-framework</b>: point at the methodology tiles (Strategy, Plan, Ready, Adopt, Govern, Secure, Manage).</li>
+            <li>Open the <b>Tools and templates</b> page: the strategy and plan templates, and the <b>Cloud Adoption Strategy Evaluator</b> and <b>Governance benchmark</b> assessments in Microsoft Assessments.</li>
+            <li>Back in the Azure portal, search <span class="ui">Azure landing zones</span> (or the landing-zone accelerator): the <b>Ready</b> step you built the pieces of in Modules 02–11.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “The framework is the moving company's checklist. You've already done Ready, Govern, Secure and Manage; this module is Plan and Adopt.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= STRATEGIES ======================= -->
+    <section id="strategies">
+      <span class="sec-num">12.3</span>
+      <h2>Choosing a strategy: the Rs</h2>
+      <p>Each workload gets one strategy. The names vary between sources (you'll see "5 Rs", "6 Rs", "7 Rs"), but the dial is always the same: <strong>how much do we change it on the way?</strong></p>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Strategy</th><th>What it means</th><th>Azure example</th><th>Pick it when</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Retire</strong></td><td>Switch it off</td><td>—</td><td>Nobody uses it, or another system already does the job</td></tr>
+            <tr><td><strong>Retain</strong></td><td>Leave it where it is, for now</td><td>Manage with Azure Arc</td><td>Mainframe, hardware ties, regulation, or no business case yet</td></tr>
+            <tr><td><strong>Rehost</strong> ("lift and shift")</td><td>Move as-is to IaaS</td><td>VMware VM → Azure VM with Azure Migrate</td><td>Deadline-driven (datacentre exit), little or no code change possible</td></tr>
+            <tr><td><strong>Replatform</strong> ("lift and optimise")</td><td>Small changes to use a managed platform</td><td>SQL Server → SQL Managed Instance; .NET app → App Service</td><td>Quick wins: less patching and better HA with minimal code change</td></tr>
+            <tr><td><strong>Refactor</strong></td><td>Change the code to fit cloud services</td><td>Move sessions to Redis, files to Blob, containerise</td><td>The app works but needs to scale or deploy faster</td></tr>
+            <tr><td><strong>Rearchitect</strong></td><td>Change the structure</td><td>Monolith → microservices on Container Apps with Service Bus</td><td>The architecture itself blocks scale, resilience or speed</td></tr>
+            <tr><td><strong>Rebuild</strong></td><td>Rewrite cloud-native from scratch</td><td>New serverless app on Functions and Cosmos DB</td><td>The old app can't be saved, and it's a business differentiator</td></tr>
+            <tr><td><strong>Replace</strong></td><td>Buy SaaS instead</td><td>On-prem Exchange → Microsoft 365; CRM → Dynamics 365</td><td>It's a commodity; no advantage in running it yourself</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Moving house again. <strong>Retire:</strong> sell the old cooler. <strong>Rehost:</strong> carry the sofa as it is. <strong>Replatform:</strong> carry the sofa but get new covers that fit the new room. <strong>Refactor/rearchitect:</strong> turn the old wardrobe into built-in shelves. <strong>Rebuild:</strong> get a carpenter to make new furniture. <strong>Replace:</strong> the new flat comes furnished, so you just use theirs.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Minimal changes</strong>", "<strong>as quickly as possible</strong>", "datacentre <strong>lease expires</strong>" → <strong>rehost</strong>. "Reduce management of SQL Server with <strong>minimal code changes</strong>" → <strong>replatform</strong> to <strong>SQL Managed Instance</strong>. "Use <strong>SaaS</strong>" → <strong>replace</strong>. "Application no longer needed" → <strong>retire</strong>.</p>
+      </div>
+    </section>
+
+    <!-- ======================= ASSESS ======================= -->
+    <section id="assess">
+      <span class="sec-num">12.4</span>
+      <h2>Discover and assess with Azure Migrate</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/><path d="M8 11h6"/></svg></span>
+        <h3>The surveyor before the movers</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>Azure Migrate</strong> is a central hub for discovering, assessing and migrating on-premises and other-cloud workloads to Azure. A lightweight <strong>appliance</strong> discovers servers (VMware, Hyper-V, physical and other clouds), installed software, SQL Server instances and web apps, collects performance data and maps <strong>dependencies</strong> (agentless or agent-based). <strong>Assessments</strong> recommend right-sized Azure targets with cost estimates, and a <strong>business case</strong> compares on-premises and Azure total cost of ownership.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>You install one small VM (the appliance) in your datacentre. For a few weeks it quietly watches every server: what's installed, how busy it really is, and who it talks to. Then Azure Migrate tells you, per server, "this one fits a D4s_v5 at ₹X a month, this SQL database fits Managed Instance, these five servers always talk to each other so move them together", and builds the cost comparison your CFO will ask for.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 230" role="img" aria-labelledby="amt amd">
+            <title id="amt">Azure Migrate discovery and assessment</title>
+            <desc id="amd">In the datacentre, the Azure Migrate appliance connects to vCenter, Hyper-V hosts and physical servers and sends metadata and performance data to the Azure Migrate project in Azure. From there: an inventory of servers, databases and web apps; dependency analysis showing which servers talk to each other, used to group servers into migration waves; assessments for Azure VMs, Azure SQL, App Service, AKS and Azure VMware Solution with sizing, readiness and monthly cost; and a business case comparing on-premises and Azure total cost of ownership.</desc>
+            <rect x="20" y="30" width="230" height="170" rx="14" class="s-surface2"/>
+            <text x="135" y="58" class="t-b mid">Datacentre</text>
+            <rect x="40" y="76" width="190" height="44" rx="10" class="s-teal"/>
+            <text x="135" y="103" class="t-b mid">Migrate appliance</text>
+            <text x="135" y="146" class="t-s mid">reads vCenter, Hyper-V,</text>
+            <text x="135" y="164" class="t-s mid">physical servers</text>
+            <text x="135" y="182" class="t-s mid">(no agents needed)</text>
+            <path d="M250 115 H306" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <text x="278" y="104" class="t-s mid t-accent">metadata</text>
+            <rect x="310" y="30" width="190" height="170" rx="14" class="s-blue"/>
+            <text x="405" y="64" class="t-b mid">Azure Migrate</text>
+            <text x="405" y="84" class="t-b mid">project</text>
+            <text x="405" y="116" class="t-s mid">inventory</text>
+            <text x="405" y="136" class="t-s mid">performance history</text>
+            <text x="405" y="156" class="t-s mid">software, SQL, web apps</text>
+            <path d="M500 70 H536" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M500 115 H536" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M500 160 H536" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="540" y="30" width="440" height="50" rx="10" class="s-surface"/>
+            <text x="560" y="52" class="t-b">Dependency analysis</text><text x="560" y="70" class="t-s">who talks to whom → group servers into waves</text>
+            <rect x="540" y="90" width="440" height="50" rx="10" class="s-surface"/>
+            <text x="560" y="112" class="t-b">Assessments</text><text x="560" y="130" class="t-s">Azure VM · Azure SQL · App Service · AKS · AVS: readiness, size, ₹/month</text>
+            <rect x="540" y="150" width="440" height="50" rx="10" class="s-amber"/>
+            <text x="560" y="172" class="t-b">Business case</text><text x="560" y="190" class="t-s">on-premises vs Azure TCO, savings over years</text>
+          </svg>
+        </div>
+        <figcaption><b>Measure before you move.</b> Performance-based sizing (not "same as on-premises") is usually the single biggest cost saving of the whole migration.</figcaption>
+      </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Two sizing modes: <strong>performance-based</strong> (uses collected utilisation; collect for at least a week, ideally a month, covering month-end peaks) and <strong>as on-premises</strong> (matches the current allocation).</li>
+        <li>No appliance yet? <strong>Import</strong> a CSV or RVTools export to get quick assessments.</li>
+        <li><strong>Agentless dependency analysis</strong> works from the appliance; agent-based uses the Azure Monitor agent and the Dependency agent.</li>
+        <li>Assessments apply <strong>Azure Hybrid Benefit</strong>, reservations and savings plans if you tell them to (Module 09).</li>
+        <li>Azure Migrate also integrates partner tools (ISVs) for discovery and migration.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Discover</strong> on-premises servers", "<strong>assess readiness</strong>", "<strong>right-size</strong>", "<strong>estimate cost</strong> of running in Azure" → <strong>Azure Migrate</strong> (discovery and assessment). "Identify <strong>dependencies</strong> between servers" → <strong>dependency analysis</strong>. "Compare <strong>TCO</strong>" → Azure Migrate <strong>business case</strong> (or the TCO Calculator for a quick estimate).</p>
+      </div>
+      <details class="demo" id="demo-m12-project">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create an Azure Migrate project and see the discovery options</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the hub every migration starts from, and how discovery normally happens.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Migrate</span> › <span class="ui">Servers, databases and web apps</span> (or <span class="ui">Create project</span>): resource group <code>rg-az305-m12-demo</code>, project <code>migrate-az305-m12</code>, geography <b>India</b> › <span class="ui">Create</span>.</li>
+            <li>In the project › <span class="ui">Discover</span>: point at the choices: <b>Using appliance</b> for <b>VMware</b>, <b>Hyper-V</b>, or <b>physical/other clouds</b>; and <b>Import using CSV</b> or RVTools. For the appliance, show the steps (generate project key, download OVA/VHD or installer). Don't download.</li>
+            <li>Point at the project's tiles: <b>Discovery and assessment</b>, <b>Migration and modernization</b>, and where partner tools appear.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “One small appliance quietly surveys the whole house before anyone touches a box.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m12-assess">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Import four servers and get a right-sized, costed assessment</span><span class="demo-time">~6 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show performance-based sizing and monthly cost without a datacentre.</p>
+          <p class="demo-note"><b>Before you start:</b> Imported servers can take a few minutes to appear. Import at the start of the module.</p>
+          <ol class="demo-steps">
+            <li>Project › <span class="ui">Discover</span> › <b>Import using CSV</b> › <span class="ui">Download</span> the template. Paste the rows from the demo kit into the matching columns, save › <span class="ui">Browse</span> › <span class="ui">Import</span>.</li>
+            <li>When the import completes, open <span class="ui">Discovered servers</span>: four servers with cores, memory and OS.</li>
+            <li><span class="ui">Assess</span> › <b>Azure VM</b>: edit the <b>assessment properties</b>: target location Central India, sizing criteria <b>Performance-based</b>, comfort factor, pricing with <b>Azure Hybrid Benefit</b> and <b>reserved instances</b> (3 years). Group the four servers as <code>wave-0</code> › <span class="ui">Create assessment</span>.</li>
+            <li>Open the assessment: <b>Azure readiness</b> per server, the <b>recommended size</b> (note <code>pos-sync-01</code>: 16 cores on-premises at 6% CPU becomes a much smaller VM) and <b>monthly compute and storage cost</b>.</li>
+            <li>Change the sizing criteria to <b>As on-premises</b> and recalculate: compare the cost.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Performance-based sizing is usually the biggest saving of the whole migration, and it needs real utilisation data.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Don't move the 16-core server. Move what it actually uses.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m12-business-case">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Build a business case: on-premises vs Azure cost</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the TCO comparison a CFO asks for.</p>
+          <ol class="demo-steps">
+            <li>Project › <span class="ui">Business case</span> (or <b>Build business case</b>) › name <code>meridian-wave-0</code>, target Central India, migration strategy <b>Azure recommended to minimise cost</b> (or <b>Migrate to all IaaS</b>), currency INR if offered.</li>
+            <li>Point at the assumptions: on-premises cost of servers, storage, network, facilities and labour; Azure discounts (Hybrid Benefit, reservations). <span class="ui">Build business case</span>.</li>
+            <li>Open it: the year-on-year cost comparison and the savings breakdown. With four imported servers the numbers are small; the shape is the point.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “The surveyor's report, translated into rupees for the person who signs the cheque.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SERVERS ======================= -->
+    <section id="servers">
+      <span class="sec-num">12.5</span>
+      <h2>Migrating servers</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="7" height="10" rx="1.5"/><rect x="15" y="7" width="7" height="10" rx="1.5"/><path d="M9 12h6M12.5 9.5L15 12l-2.5 2.5"/></svg></span>
+        <h3>Replicate, test, cut over</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>The <strong>Migration and modernization</strong> tool in Azure Migrate replicates servers to Azure and migrates them with minimal downtime. VMware and Hyper-V VMs can be migrated <strong>agentless</strong>; physical servers, other clouds and some VMware scenarios use <strong>agent-based</strong> replication through a replication appliance. Each server can be <strong>test-migrated</strong> into an isolated network before the final <strong>migration</strong> (cut-over).</p>
+      </div>
+
+      <ol class="steps">
+        <li><strong>Replicate:</strong> initial copy of the disks, then continuous delta replication. Production keeps running.</li>
+        <li><strong>Test migrate:</strong> spin up a copy in an isolated VNet; the app team tests it. Repeat as often as needed. Clean up.</li>
+        <li><strong>Migrate (cut-over):</strong> in a maintenance window, stop the source (optional, recommended), do a final sync, start the Azure VM.</li>
+        <li><strong>Post-migration:</strong> switch DNS and routes, enable backup and monitoring, decommission the source after a safe period.</li>
+      </ol>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p>You may meet the older name <strong>Azure Migrate: Server Migration</strong>. Under the hood it shares technology with <strong>Azure Site Recovery</strong> (Module 08): replication and test failover are the same idea, used once for a move instead of forever for DR.</p>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Migrating servers <strong>one at a time</strong> without using the dependency map. Group servers that talk to each other into the same <strong>wave</strong>, or the latency between Azure and the datacentre will make the first wave look like a failure.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Migrate <strong>VMware / Hyper-V VMs</strong> to Azure with <strong>minimal downtime</strong>", "<strong>agentless</strong>" → <strong>Azure Migrate: Migration and modernization</strong>. "Validate before cut-over without impacting production" → <strong>test migration</strong>. "Migrate <strong>physical servers</strong> or VMs from <strong>another cloud</strong>" → <strong>agent-based</strong> migration. "<strong>IIS / .NET web apps</strong> to PaaS" → Azure Migrate <strong>web app migration</strong> to App Service.</p>
+      </div>
+      <details class="demo" id="demo-m12-replicate">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the replicate wizard and find test migration</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show replicate, test migrate and migrate as three separate, safe steps.</p>
+          <ol class="demo-steps">
+            <li>Project › <span class="ui">Migration and modernization</span> › <span class="ui">Replicate</span>: show <b>What do you want to migrate?</b> (Servers or virtual machines), <b>Are your machines virtualised?</b> (VMware vSphere, Hyper-V, physical or other). Agentless needs a discovered VMware or Hyper-V estate; agent-based needs a replication appliance.</li>
+            <li>Read the wizard's tabs aloud: source, virtual machines, target settings (subscription, VNet, availability zone or set), compute (size, OS disk, Hybrid Benefit), disks, tags. Cancel.</li>
+            <li>Point at the <span class="ui">Replicating machines</span> list and its actions per machine: <b>Test migration</b>, <b>Clean up test migration</b>, <b>Migrate</b> (with the option to shut down the source first).</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Copy the house while you still live in it, rehearse the move, then move on a quiet weekend.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= DATABASES ======================= -->
+    <section id="databases">
+      <span class="sec-num">12.6</span>
+      <h2>Migrating databases</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="7" cy="6" rx="4" ry="2"/><path d="M3 6v8c0 1.1 1.8 2 4 2s4-.9 4-2V6"/><ellipse cx="17" cy="10" rx="4" ry="2"/><path d="M13 10v8c0 1.1 1.8 2 4 2s4-.9 4-2v-8"/></svg></span>
+        <h3>Online or offline, that's the question</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>Azure Database Migration Service</strong> (DMS) is a fully managed service for migrating databases from multiple sources to Azure data platforms with minimal downtime. For SQL Server it supports migrations to <strong>Azure SQL Database</strong>, <strong>Azure SQL Managed Instance</strong> and <strong>SQL Server on Azure VMs</strong>, in <strong>offline</strong> mode (downtime for the whole copy) or <strong>online</strong> mode (continuous sync, short cut-over), driven from the Azure portal, PowerShell or the CLI.</p>
+      </div>
+
+      <div class="two-col">
+        <div><h4>Offline migration</h4><p>Stop the app, back up, copy, restore, start the app in Azure. Downtime = the whole copy. Simple and fine for small databases or generous maintenance windows.</p></div>
+        <div><h4>Online migration</h4><p>Copy a full backup while the source keeps running, then keep applying changes (log backups or change capture). Cut over in minutes when you're ready. Needed when downtime must be short.</p></div>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>From → to</th><th>Typical tool</th></tr></thead>
+          <tbody>
+            <tr><td>SQL Server → <strong>SQL Managed Instance</strong></td><td>DMS (online or offline), <strong>Managed Instance link</strong> (near-zero downtime, uses distributed availability groups), Log Replay Service, or native backup/restore from URL</td></tr>
+            <tr><td>SQL Server → <strong>Azure SQL Database</strong></td><td>DMS (offline), or transactional replication / data sync patterns for minimal downtime</td></tr>
+            <tr><td>SQL Server → <strong>SQL Server on Azure VM</strong></td><td>DMS, backup/restore, or rehost the whole VM with Azure Migrate</td></tr>
+            <tr><td>MySQL / PostgreSQL → <strong>Azure Database for MySQL / PostgreSQL flexible server</strong></td><td>DMS or the built-in migration service in flexible server (online or offline)</td></tr>
+            <tr><td>MongoDB / Cassandra → <strong>Cosmos DB</strong></td><td>DMS or native tools; Data Factory for bulk copies</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p>Assessing SQL Server targets now happens in <strong>Azure Migrate</strong> (SQL discovery and assessment) and the DMS experience in the portal. <strong>Azure Data Studio</strong>, which hosted the Azure SQL migration extension, has been retired; older questions may still mention it or the <strong>Data Migration Assistant</strong>. The decision logic (compatibility check first, then online vs offline) hasn't changed.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Migrate SQL Server with <strong>minimal downtime</strong>" → <strong>DMS online</strong> (or MI link for Managed Instance). "<strong>Near 100% compatibility</strong>, SQL Agent, cross-database queries, minimal code change" → target <strong>SQL Managed Instance</strong> (Module 06). "Check <strong>compatibility</strong> issues before migrating" → <strong>Azure Migrate SQL assessment</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m12-dms">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">See online vs offline on the Database Migration Service screens</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show where a SQL migration is set up and the one decision that matters most: downtime.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Database Migration Services</span> › <span class="ui">+ Create</span>: source <b>SQL Server</b>, target <b>Azure SQL Managed Instance</b> (or SQL Database / SQL Server on Azure VM), migration service <b>Database Migration Service</b>. Walk the form, then cancel.</li>
+            <li>Open any SQL Managed Instance (or its create form) and point at <span class="ui">Migrations</span> / <b>Managed Instance link</b>: the near-zero-downtime option.</li>
+            <li>Search <span class="ui">Azure Migrate</span> › project › <span class="ui">Discover</span>: SQL Server instances discovered by the appliance get their own <b>Azure SQL</b> assessment with readiness and target recommendations.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Offline is closing the shop for the whole move. Online keeps it open until the last ten minutes.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= DATA ======================= -->
+    <section id="data">
+      <span class="sec-num">12.7</span>
+      <h2>Moving data: online or offline</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="11" rx="1.5"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="19" r="1.8"/><circle cx="18" cy="19" r="1.8"/></svg></span>
+        <h3>Sometimes a truck beats the internet</h3>
+      </div>
+
+      <p>Before choosing a tool, do one sum: <strong>data size ÷ usable bandwidth</strong>. 200 TB over a 1 Gbps link at 80% usage takes about <strong>23 days</strong>, if nothing else uses the link. If the answer is weeks, ship disks.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 260" role="img" aria-labelledby="dtt dtd">
+            <title id="dtt">Choosing a data transfer method</title>
+            <desc id="dtd">Two paths. Online, over the network: AzCopy and Storage Explorer for one-off copies to Blob or Files; Azure Storage Mover for managed migration of file shares (SMB and NFS) to Azure; Azure File Sync to keep on-premises file servers in sync with Azure Files with cloud tiering; Data Factory for scheduled or ongoing data pipelines. Offline, by shipping devices: Data Box Disk (SSDs, tens of terabytes), Data Box (a rugged appliance, hundreds of terabytes per device), and the Import/Export service using your own disks. The choice depends on data size, available bandwidth, and whether the transfer is one-time or ongoing.</desc>
+            <rect x="20" y="20" width="470" height="220" rx="14" class="s-teal"/>
+            <text x="255" y="50" class="t-h mid">Online (over the network)</text>
+            <text x="40" y="84" class="t-b">AzCopy / Storage Explorer</text><text x="40" y="102" class="t-s">one-off copies to Blob or Files, scripts</text>
+            <text x="40" y="132" class="t-b">Azure Storage Mover</text><text x="40" y="150" class="t-s">managed migration of SMB/NFS shares, agents on-prem</text>
+            <text x="40" y="180" class="t-b">Azure File Sync</text><text x="40" y="198" class="t-s">keep file servers in sync, cloud tiering (Module 05)</text>
+            <text x="40" y="226" class="t-s">Data Factory: scheduled, ongoing pipelines (Module 07)</text>
+            <rect x="510" y="20" width="470" height="220" rx="14" class="s-amber"/>
+            <text x="745" y="50" class="t-h mid">Offline (ship devices)</text>
+            <text x="530" y="84" class="t-b">Data Box Disk</text><text x="530" y="102" class="t-s">encrypted SSDs by courier, tens of TB per order</text>
+            <text x="530" y="132" class="t-b">Data Box</text><text x="530" y="150" class="t-s">rugged appliance, hundreds of TB per device</text>
+            <text x="530" y="180" class="t-b">Import/Export</text><text x="530" y="198" class="t-s">ship your own disks to an Azure datacentre</text>
+            <text x="530" y="226" class="t-s">when the network would take weeks, or there isn't one</text>
+          </svg>
+        </div>
+        <figcaption><b>Size, bandwidth, one-time or ongoing.</b> Those three answers pick the tool. Large one-time moves often combine both: ship the bulk on Data Box, then sync the changes online.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Scenario</th><th>Tool</th></tr></thead>
+          <tbody>
+            <tr><td>A few TB, good network, one time</td><td><strong>AzCopy</strong> (scriptable) or <strong>Storage Explorer</strong> (GUI)</td></tr>
+            <tr><td>Many file shares to Azure Files or Blob, with a managed project and agents</td><td><strong>Azure Storage Mover</strong></td></tr>
+            <tr><td>Keep file servers on-premises but backed by Azure Files</td><td><strong>Azure File Sync</strong> with cloud tiering</td></tr>
+            <tr><td>Tens of TB, slow or busy network</td><td><strong>Data Box Disk</strong></td></tr>
+            <tr><td>Hundreds of TB, or no usable network</td><td><strong>Data Box</strong></td></tr>
+            <tr><td>Ongoing transfers on a schedule, with transformation</td><td><strong>Azure Data Factory</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Limited bandwidth</strong>", "<strong>hundreds of TB</strong>", "<strong>no network</strong> connectivity", "<strong>ship</strong>" → <strong>Data Box</strong> family (Data Box Disk for smaller amounts). "Copy files with a <strong>command-line tool</strong>" → <strong>AzCopy</strong>. "Migrate <strong>file shares</strong> (SMB/NFS) as a managed project" → <strong>Storage Mover</strong>. "Keep a <strong>local cache</strong> of Azure Files on-premises" → <strong>File Sync</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m12-databox">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Size a Data Box order, then cancel before it ships</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the offline transfer family and how the portal picks a device by data size.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Data Box</span> › <span class="ui">+ Create</span>: transfer type <b>Import to Azure</b>, source country India, destination region Central India › <span class="ui">Apply</span>.</li>
+            <li>The product picker shows the options with capacity and price: <b>Data Box Disk</b>, <b>Data Box</b> (and larger models where offered), <b>Import/Export</b>. Read the capacities aloud.</li>
+            <li>Select Data Box › walk the order tabs: destination storage account, <b>encryption</b> (customer-managed key option), shipping and contact details. <b>Cancel</b> on the last tab.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Do the sum first: data size ÷ usable bandwidth. If the answer is weeks, the truck wins.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Sometimes the fastest network in the world is a courier van.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m12-mover">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Compare Storage Mover and AzCopy for online transfers</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show a managed file-share migration project next to the classic command-line copy.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Storage movers</span> › <span class="ui">+ Create</span>: a Storage Mover resource in Central India. Point at the model: <b>agents</b> (VMs you run on-premises) → <b>projects</b> → <b>job definitions</b> (source SMB/NFS share → target Azure Files or Blob container). Cancel or create.</li>
+            <li>Open any storage account › <span class="ui">Storage browser</span>: upload a file (the GUI way). Then <span class="ui">Shared access signature</span> › generate a short-lived SAS and show the AzCopy pattern: <code>azcopy copy "D:\shares\finance" "https://&lt;account&gt;.blob.core.windows.net/finance?&lt;SAS&gt;" --recursive</code>.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “AzCopy is a moving van you drive yourself. Storage Mover is a moving company with a project plan.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= HYBRID ======================= -->
+    <section id="hybrid">
+      <span class="sec-num">12.8</span>
+      <h2>What stays: Azure Arc and VMware</h2>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18a9 9 0 0 1 18 0"/><path d="M7 18a5 5 0 0 1 10 0"/><circle cx="12" cy="18" r="1.5"/></svg></span>
+          <h3>Azure Arc</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p><strong>Azure Arc</strong> extends Azure management and services to resources outside Azure. It projects on-premises and other-cloud <strong>servers</strong>, <strong>Kubernetes clusters</strong> and <strong>SQL Server instances</strong> into Azure Resource Manager, so you can apply Azure Policy, RBAC, tags, Defender for Cloud, Azure Monitor and Update Manager to them as if they were Azure resources.</p>
+        </div>
+        <div class="callout plain">
+          <div class="c-label">In plain words</div>
+          <p>Some servers will never move: the store servers, the factory controller, the mainframe neighbour. Arc gives each of them an <strong>Azure "ID card"</strong>, so the same policies, patching, monitoring and security you built in Parts I–IV reach them too. One control plane, wherever the server lives.</p>
+        </div>
+      </div>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01"/></svg></span>
+          <h3>Azure VMware Solution</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p><strong>Azure VMware Solution</strong> (AVS) provides private clouds running VMware vSphere, vSAN and NSX on dedicated bare-metal Azure hosts, managed by Microsoft. Workloads move with <strong>VMware HCX</strong> without re-platforming, and can use Azure services alongside.</p>
+        </div>
+        <p>Pick AVS when the requirement is "<strong>keep using VMware tools and skills</strong>", "move the whole VMware estate <strong>fast without converting VMs</strong>", or a datacentre exit date that leaves no time to re-platform.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Manage <strong>on-premises / multicloud</strong> servers with <strong>Azure Policy</strong>, Defender, Monitor" → <strong>Azure Arc</strong>. "Migrate VMware workloads <strong>without changing</strong> them, keep <strong>vCenter</strong>" → <strong>Azure VMware Solution</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m12-arc">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Onboard a server to Azure Arc (generate the script)</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show how a server that stays on-premises gets an Azure identity.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Arc</span> › <span class="ui">Machines</span> › <span class="ui">+ Add/Create</span> › <b>Add a machine</b> › <span class="ui">Add a single server</span> › <span class="ui">Generate script</span>.</li>
+            <li>Choose <code>rg-az305-m12-demo</code>, Central India, OS Windows or Linux, connectivity <b>Public endpoint</b> (or Private endpoint / proxy). Point at the tags page (the same required tags as Module 02).</li>
+            <li>Show the generated script: it installs the <b>Connected Machine agent</b> and registers the server. Don't run it in class unless you mean to.</li>
+            <li>Open <span class="ui">Azure Arc</span> › <span class="ui">Overview</span>: the other Arc types: <b>Kubernetes clusters</b>, <b>SQL Server instances</b>, <b>VMware vCenters</b>, <b>Azure Local</b>.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “An Azure ID card for servers that will never move house.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">12.9</span>
+      <h2>Meridian: the migration plan</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 12</span></div>
+        <div class="case-body">
+          <p>The Bengaluru datacentre lease ends in 18 months. ~600 VMs on VMware, SQL Server databases, ~40 TB of active file shares, ~200 TB of archive shares, and 180 store servers. The landing zone (Modules 02–11) is ready. Leadership wants predictable cost per business unit and no outage during the Diwali sale.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Know the estate</td><td><strong>Azure Migrate</strong> project with the VMware appliance in Bengaluru; <strong>agentless dependency analysis</strong>; performance data collected for <strong>30 days</strong> including a month-end close</td><td>Real sizing and real dependencies, not the CMDB's guesses.</td></tr>
+                <tr><td>Decide per workload</td><td>Outcome of the assessment: <strong>~15% retire</strong> (unused or duplicated), <strong>~55% rehost</strong> to Azure VMs, <strong>~20% replatform</strong> (SQL → SQL MI and SQL DB, IIS apps → App Service), <strong>~10% refactor</strong> (online store and order services → Container Apps, Module 09)</td><td>Hits the exit date while modernising where it pays back.</td></tr>
+                <tr><td>Convince finance</td><td>Azure Migrate <strong>business case</strong> with Hybrid Benefit and 3-year reservations applied; costs mapped to BU subscriptions</td><td>A TCO comparison per business unit, in rupees.</td></tr>
+                <tr><td>Move servers safely</td><td><strong>Migration waves</strong> grouped by dependency map: wave 0 (dev/test, to learn), then corporate apps, then stores back-office, then ERP; agentless replication over <strong>ExpressRoute</strong> (Module 11); <strong>test migration</strong> for every app; cut-overs on weekends; <strong>freeze</strong> during Diwali</td><td>Small early waves train the team; dependencies move together; no change during peak.</td></tr>
+                <tr><td>Databases</td><td>Merchandising ERP DB → <strong>SQL Managed Instance</strong> via <strong>MI link</strong> (near-zero downtime); orders DB → <strong>Azure SQL Database</strong> (Module 06) via DMS; the vendor DB rehosted on a SQL VM with its app</td><td>Compatibility where it's needed, PaaS where it's possible.</td></tr>
+                <tr><td>Files</td><td>~40 TB HQ shares: <strong>Azure File Sync</strong> with cloud tiering (Module 05), then retire the old file servers; departmental shares via <strong>Storage Mover</strong>; ~200 TB archive: <strong>Data Box</strong> straight into Blob Archive</td><td>Active data stays usable during the move; archive doesn't clog the ExpressRoute link for weeks.</td></tr>
+                <tr><td>Store servers that stay</td><td>Onboarded to <strong>Azure Arc</strong>: Policy, Defender for Servers, Update Manager and AMA to <code>law-central-ind</code> (Module 04)</td><td>One control plane for the 180 stores without moving their hardware.</td></tr>
+                <tr><td>After the move</td><td>Advisor right-sizing at 30 and 90 days; reservations bought only after sizes settle; backup policies and ASR enabled per tier (Module 08); source VMs kept powered off for 30 days, then decommissioned</td><td>Optimise once the data is real; keep a rollback window.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Meridian's design is complete: governed, secured and observed (Part I), with its data stored and analysed (Part II), resilient and well-built (Part III), connected and moved (Part IV).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">12.10</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's migration checklist</h3>
+      <ul class="checklist">
+        <li>Business motivation and success measures written down (CAF Strategy).</li>
+        <li>A complete inventory with performance data and dependencies (Azure Migrate).</li>
+        <li>A strategy per workload, including what to retire and what to retain.</li>
+        <li>A landing zone ready before the first wave (governance, identity, network, monitoring, backup).</li>
+        <li>Waves grouped by dependency, with test migrations and rollback plans.</li>
+        <li>Database migrations planned online or offline according to allowed downtime.</li>
+        <li>Data transfer method chosen by size, bandwidth and one-time vs ongoing.</li>
+        <li>Right-sizing and reservations after the move; Arc for what stays.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. A company must identify all on-premises VMware VMs, their dependencies and the estimated monthly cost in Azure. What do you use?</summary>
+          <div><p><strong>Azure Migrate</strong> discovery and assessment with the appliance, plus <strong>dependency analysis</strong>; a <strong>business case</strong> for the TCO comparison.</p></div>
+        </details>
+        <details>
+          <summary>2. A datacentre lease ends in four months. The apps can't be changed. Which strategy and which tool?</summary>
+          <div><p><strong>Rehost</strong> with <strong>Azure Migrate: Migration and modernization</strong> (agentless for VMware). If the team must keep VMware tooling, <strong>Azure VMware Solution</strong> is the alternative.</p></div>
+        </details>
+        <details>
+          <summary>3. A SQL Server database must move to Azure SQL Managed Instance with only a few minutes of downtime. How?</summary>
+          <div><p>An <strong>online</strong> migration with <strong>Database Migration Service</strong>, or the <strong>Managed Instance link</strong> for near-zero downtime cut-over.</p></div>
+        </details>
+        <details>
+          <summary>4. 300 TB of archive data must move to Azure. The internet link is 200 Mbps and shared. What do you recommend?</summary>
+          <div><p>An offline transfer with <strong>Azure Data Box</strong>. Over 200 Mbps it would take months.</p></div>
+        </details>
+        <details>
+          <summary>5. Servers in 50 branch offices will stay on-premises but must be governed by Azure Policy and protected by Defender for Cloud. What do you deploy?</summary>
+          <div><p><strong>Azure Arc-enabled servers</strong> (the Connected Machine agent on each server).</p></div>
+        </details>
+        <details>
+          <summary>6. Which Cloud Adoption Framework methodology covers preparing the landing zone before migration?</summary>
+          <div><p><strong>Ready</strong>.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">End of the handbook</div>
+        <p>Twelve modules, one habit: <strong>requirement → constraint → options → trade-off → decision</strong>, written down. On the exam and in the job, the service names will keep changing. The habit won't. Go back to Module 01's keyword decoder before the exam, and use the four Part maps for a last pass over every service.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="11-networking.html"><small>Previous module</small><span>← 11 · Networking</span></a>
+        <a class="next" href="connect-map.html"><small>Part IV companion</small><span>Network &amp; Migration Map →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

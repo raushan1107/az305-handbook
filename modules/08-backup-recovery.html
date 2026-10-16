@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backup and Recovery</title>
+<meta name="description" content="Module 08 of the AZ-305 Architect Handbook: RTO and RPO, high availability with sets, zones and regions, Azure Backup and its vaults, ransomware-proof backups, data protection per service, Azure Site Recovery and disaster recovery patterns.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part III · Resilience</div>
+    <span class="eyebrow">Module 08</span>
+    <h1>Backup &amp; Recovery: Designing for the Bad Day</h1>
+    <p class="lead">Nobody gets promoted for a backup. But I've watched a company lose a week of orders because "backup was enabled" and nobody had ever tried a restore. This module is about the questions you ask before the disaster: how long can we be down, how much can we lose, and have we actually proven we can come back?</p>
+    <div class="hero-meta">
+      <span class="chip">RTO / RPO</span><span class="chip">Availability zones</span><span class="chip">Region pairs</span><span class="chip">Azure Backup</span><span class="chip">Immutable vaults</span><span class="chip">Site Recovery</span><span class="chip">DR patterns</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">HA, DR and backup are three different jobs</a></li>
+        <li><a href="#ha">High availability building blocks</a></li>
+        <li><a href="#backup">Azure Backup and its vaults</a></li>
+        <li><a href="#protect">Backups that survive ransomware</a></li>
+        <li><a href="#services">Data protection, service by service</a></li>
+        <li><a href="#asr">Azure Site Recovery</a></li>
+        <li><a href="#patterns">Disaster recovery patterns</a></li>
+        <li><a href="#case">Meridian: the continuity design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">08.0</span>
+      <h2>The mental map</h2>
+      <p>Every continuity design answers three questions, at three different scales. <strong>Stay up</strong> when a server or a datacentre fails (high availability). <strong>Come back</strong> when a whole region fails (disaster recovery). <strong>Go back in time</strong> when data itself is damaged, deleted or encrypted (backup). Two numbers, RTO and RPO, decide how much you spend on each.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 430" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">The business continuity map</title>
+            <desc id="m0d">Business requirements set two numbers: RTO, how long you can be down, and RPO, how much data you can lose. They drive three layers. High availability keeps the service up through a server or datacentre failure, using availability sets, availability zones and zone-redundant services. Disaster recovery brings the service back in another region, using Azure Site Recovery, geo-replication and a paired or chosen secondary region. Backup lets you go back in time after deletion, corruption or ransomware, using Azure Backup with Recovery Services vaults and Backup vaults. Underneath, Azure Business Continuity Center gives one view, and regular restore and failover tests prove it works.</desc>
+
+            <rect x="20" y="20" width="960" height="70" rx="14" class="s-amber"/>
+            <text x="500" y="50" class="t-h mid">Business requirement: how long can we be down? how much can we lose?</text>
+            <text x="500" y="74" class="t-s mid">RTO (time to recover) · RPO (data you can afford to lose) · set per workload, not per company</text>
+
+            <path d="M180 90 V122" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M500 90 V122" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M820 90 V122" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="20" y="126" width="310" height="200" rx="14" class="s-blue"/>
+            <text x="175" y="156" class="t-m mid t-blue">1 · STAY UP</text>
+            <text x="175" y="182" class="t-h mid">High availability</text>
+            <text x="175" y="210" class="t-s mid">survive a server, rack or zone failure</text>
+            <text x="175" y="240" class="t-b mid">Availability sets</text>
+            <text x="175" y="262" class="t-b mid">Availability zones</text>
+            <text x="175" y="284" class="t-b mid">Zone-redundant services</text>
+            <text x="175" y="310" class="t-s mid">seconds, automatic, same region</text>
+
+            <rect x="345" y="126" width="310" height="200" rx="14" class="s-violet"/>
+            <text x="500" y="156" class="t-m mid t-violet">2 · COME BACK</text>
+            <text x="500" y="182" class="t-h mid">Disaster recovery</text>
+            <text x="500" y="210" class="t-s mid">survive the loss of a whole region</text>
+            <text x="500" y="240" class="t-b mid">Azure Site Recovery</text>
+            <text x="500" y="262" class="t-b mid">Geo-replication, failover groups</text>
+            <text x="500" y="284" class="t-b mid">Secondary region</text>
+            <text x="500" y="310" class="t-s mid">minutes to hours, a decision to fail over</text>
+
+            <rect x="670" y="126" width="310" height="200" rx="14" class="s-teal"/>
+            <text x="825" y="156" class="t-m mid t-teal">3 · GO BACK IN TIME</text>
+            <text x="825" y="182" class="t-h mid">Backup</text>
+            <text x="825" y="210" class="t-s mid">survive deletion, corruption, ransomware</text>
+            <text x="825" y="240" class="t-b mid">Azure Backup</text>
+            <text x="825" y="262" class="t-b mid">Recovery Services vault</text>
+            <text x="825" y="284" class="t-b mid">Backup vault</text>
+            <text x="825" y="310" class="t-s mid">restore a copy from before the damage</text>
+
+            <rect x="20" y="344" width="960" height="34" rx="10" class="s-surface2"/>
+            <text x="500" y="366" class="t-s mid">One view across all three: Azure Business Continuity Center · alerts on failed jobs · Azure Policy to enforce backup</text>
+            <rect x="20" y="386" width="960" height="34" rx="10" class="s-surface2"/>
+            <text x="500" y="408" class="t-b mid">A plan you haven't tested is a hope. Test restores and failovers on a schedule.</text>
+          </svg>
+        </div>
+        <figcaption><b>Three layers, three different failures.</b> Zones won't save you from someone deleting a table, and backups won't keep checkout running through a datacentre fire. A complete design has all three, sized by the workload's RTO and RPO.</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>Want every Part III service on one page? The <a href="resilience-map.html#t-survive">Resilience &amp; Compute Map</a> puts continuity, compute and application services on one expandable tree, with when to use each, when not to, and the exam words.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 8 quick portal walkthroughs · about 29 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos protect one small VM three ways: spread it across zones (on the create form), back it up into a Recovery Services vault, and replicate it to South India with Site Recovery. Along the way you harden the vault against ransomware, and look at the Backup vault for blobs and the single pane in Business Continuity Center.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are <b>Owner</b> or <b>Contributor</b> (Resource Guard demo: Owner).</li><li>Names below: resource group <code>rg-az305-m08-demo</code>, VM <code>vm-az305-m08</code> (Ubuntu, <b>B1s</b> or similar), vault <code>rsv-az305-m08</code>, Backup vault <code>bv-az305-m08</code>, region Central India; DR target South India.</li><li>If you still have Module 05's storage account, reuse it for the blob demo; otherwise create a small one.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li><b>Before class</b> (or at the start of the module), create the VM and run <b>Backup now</b> (demos 2–3). The first backup can take 20–40 minutes, and the restore demo needs a recovery point.</li><li>Enable Site Recovery replication on the same VM early too: initial replication takes a while before a test failover is possible.</li><li>Do the vault security demo before locking anything; <b>never lock immutability</b> on a demo vault.</li><li>Run the test failover last, then <b>Cleanup test failover</b> straight away.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m08-zones">See zones, sets and the SLA they buy on the VM create form</a><span>~3m</span></li><li><a href="#demo-m08-vault">Create a Recovery Services vault and set redundancy before anything else</a><span>~4m</span></li><li><a href="#demo-m08-vm-backup">Back up the VM and run the first backup now</a><span>~4m</span></li><li><a href="#demo-m08-restore">Walk the restore options: new VM, replace disks, single files</a><span>~3m</span></li><li><a href="#demo-m08-bcc">See everything protected, and unprotected, in Business Continuity Center</a><span>~2m</span></li><li><a href="#demo-m08-security">Harden the vault: always-on soft delete, immutability and a Resource Guard</a><span>~4m</span></li><li><a href="#demo-m08-blob-backup">Protect blobs two ways in a Backup vault: operational and vaulted</a><span>~3m</span></li><li><a href="#demo-m08-asr">Replicate the VM to South India, then run a test failover</a><span>~6m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li><b>Disable replication</b> on the VM (Site Recovery), then <b>stop backup and delete backup data</b>. Soft delete keeps deleted backup data for 14 days, and the vault can't be deleted while soft-deleted items exist: undelete-then-delete, or disable soft delete first on a demo vault.</li><li>Delete <code>rg-az305-m08-demo</code>. Site Recovery creates resources in South India (<code>…-asr</code> resource group, cache storage account, replicated disks, sometimes a target VNet): delete those too.</li><li>If you created a Resource Guard, remove its association from the vault before deleting either.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">08.1</span>
+      <h2>HA, DR and backup are three different jobs</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A hospital. <strong>High availability</strong> is the generator that kicks in the moment the power goes: patients barely notice. <strong>Disaster recovery</strong> is the agreement with another hospital across town: if this building floods, ambulances move patients there, and it takes hours. <strong>Backup</strong> is the medical records room: if a file is wrongly edited or a virus scrambles the computers, you pull last week's paper copy. A hospital needs all three, and none of them replaces the others.</p>
+      </div>
+
+      <h3>The two numbers that decide everything</h3>
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 230" role="img" aria-labelledby="rrt rrd">
+            <title id="rrt">RPO and RTO on a timeline</title>
+            <desc id="rrd">A timeline with the disaster in the middle. To the left, the last good recovery point; the gap between it and the disaster is the RPO, the data you lose. To the right, the moment service is restored; the gap between the disaster and recovery is the RTO, the time you are down.</desc>
+            <path d="M40 120 H960" class="s-line"/>
+            <rect x="460" y="70" width="80" height="100" rx="10" class="s-rose"/>
+            <text x="500" y="114" class="t-b mid">Disaster</text>
+            <text x="500" y="134" class="t-s mid">10:00</text>
+            <rect x="140" y="88" width="150" height="64" rx="10" class="s-surface"/>
+            <text x="215" y="114" class="t-b mid">Last good copy</text>
+            <text x="215" y="134" class="t-s mid">09:45</text>
+            <rect x="710" y="88" width="150" height="64" rx="10" class="s-green"/>
+            <text x="785" y="114" class="t-b mid">Service back</text>
+            <text x="785" y="134" class="t-s mid">11:00</text>
+            <path d="M290 50 H456" class="s-arrow-accent" marker-end="url(#ah-a)" marker-start="url(#ah-a)"/>
+            <text x="373" y="40" class="t-b mid t-accent">RPO = 15 minutes</text>
+            <text x="373" y="196" class="t-s mid">data written after 09:45 is lost</text>
+            <path d="M544 50 H706" class="s-arrow-accent" marker-end="url(#ah-a)" marker-start="url(#ah-a)"/>
+            <text x="625" y="40" class="t-b mid t-accent">RTO = 1 hour</text>
+            <text x="625" y="196" class="t-s mid">customers can't buy for an hour</text>
+          </svg>
+        </div>
+        <figcaption><b>RPO looks backwards, RTO looks forwards.</b> RPO is set by how often you copy data. RTO is set by how fast you can rebuild, fail over and redirect users. Smaller numbers cost more, roughly exponentially.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>High availability</th><th>Disaster recovery</th><th>Backup</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Protects against</strong></td><td>Server, rack, datacentre (zone) failure</td><td>Loss of a whole region</td><td>Deletion, corruption, ransomware, bad deployments</td></tr>
+            <tr><td><strong>Typical RTO</strong></td><td>Seconds, automatic</td><td>Minutes to hours</td><td>Hours (depends on size)</td></tr>
+            <tr><td><strong>Typical RPO</strong></td><td>Zero (synchronous copies)</td><td>Seconds to minutes (asynchronous)</td><td>Hours to a day (last backup)</td></tr>
+            <tr><td><strong>Azure tools</strong></td><td>Sets, zones, ZRS, zone-redundant PaaS</td><td>Site Recovery, geo-replication, failover groups, GRS</td><td>Azure Backup, PITR, soft delete, versioning</td></tr>
+            <tr><td><strong>Copies the damage?</strong></td><td><strong>Yes</strong>, instantly</td><td><strong>Yes</strong>, within seconds</td><td>No: older copies stay clean</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>"We have geo-replication, so we don't need backup." Replication copies a <code>DROP TABLE</code> or a ransomware encryption to the other region within seconds. Replication protects against <em>losing a place</em>; only backup protects against <em>losing the data's integrity</em>.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"Backup is ticked on in the portal. We're covered."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Each workload has an agreed <strong>RTO and RPO</strong> signed by the business owner. Checkout gets zones and a warm secondary region; the HR portal gets a nightly backup. And every quarter we <strong>prove</strong> a restore and a failover, with a stopwatch."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Minimise <strong>data loss</strong>" → think <strong>RPO</strong> (replication frequency). "Minimise <strong>downtime</strong>" → think <strong>RTO</strong> (failover speed). "Recover from <strong>accidental deletion</strong>" or "<strong>ransomware</strong>" → <strong>backup</strong>, never replication alone. "Survive a <strong>datacentre</strong> failure" → <strong>availability zones</strong>. "Survive a <strong>regional</strong> outage" → a <strong>second region</strong>.</p>
+      </div>
+    </section>
+
+    <!-- ======================= HA ======================= -->
+    <section id="ha">
+      <span class="sec-num">08.2</span>
+      <h2>High availability building blocks</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="6" height="14" rx="1.5"/><rect x="9" y="5" width="6" height="14" rx="1.5"/><rect x="16" y="5" width="6" height="14" rx="1.5"/></svg></span>
+        <h3>Racks, buildings and cities</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>An <strong>availability set</strong> spreads VMs across fault domains (separate power and network) and update domains (separate maintenance windows) inside one datacentre. An <strong>availability zone</strong> is a physically separate datacentre, or group of datacentres, within an Azure region, with independent power, cooling and networking. A <strong>region pair</strong> is two regions in the same geography that Azure links for platform recovery, sequential updates and geo-redundant storage.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Three sizes of "don't put all your eggs in one basket". A set spreads your VMs across <strong>racks</strong> in one building. Zones spread them across <strong>buildings</strong> a few kilometres apart. A second region puts them in another <strong>city</strong>. Each step survives a bigger failure, and adds a little latency and cost.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="hat had">
+            <title id="hat">Availability set, availability zones and regions</title>
+            <desc id="had">Left: an availability set inside one datacentre, with VMs spread over fault domains 1, 2 and 3; protects against a rack failure; 99.95 percent VM SLA. Middle: a region with three availability zones, one VM in each; protects against a datacentre failure; 99.99 percent VM SLA. Right: two regions, Central India and South India, with a primary and a secondary; protects against a regional disaster; recovery depends on your DR design.</desc>
+
+            <rect x="20" y="20" width="290" height="230" rx="14" class="s-surface2"/>
+            <text x="165" y="48" class="t-h mid">Availability set</text>
+            <text x="165" y="68" class="t-s mid">one datacentre</text>
+            <rect x="40" y="86" width="76" height="110" rx="8" class="s-surface"/><text x="78" y="106" class="t-m mid">FD 1</text>
+            <rect x="127" y="86" width="76" height="110" rx="8" class="s-surface"/><text x="165" y="106" class="t-m mid">FD 2</text>
+            <rect x="214" y="86" width="76" height="110" rx="8" class="s-surface"/><text x="252" y="106" class="t-m mid">FD 3</text>
+            <rect x="50" y="128" width="56" height="34" rx="6" class="s-blue"/><text x="78" y="150" class="t-s mid">VM</text>
+            <rect x="137" y="128" width="56" height="34" rx="6" class="s-blue"/><text x="165" y="150" class="t-s mid">VM</text>
+            <rect x="224" y="128" width="56" height="34" rx="6" class="s-blue"/><text x="252" y="150" class="t-s mid">VM</text>
+            <text x="165" y="222" class="t-b mid">rack failure · 99.95%</text>
+
+            <rect x="345" y="20" width="310" height="230" rx="14" class="s-surface2"/>
+            <text x="500" y="48" class="t-h mid">Availability zones</text>
+            <text x="500" y="68" class="t-s mid">one region, separate buildings</text>
+            <rect x="362" y="86" width="88" height="110" rx="8" class="s-blue"/><text x="406" y="108" class="t-m mid">Zone 1</text>
+            <rect x="456" y="86" width="88" height="110" rx="8" class="s-blue"/><text x="500" y="108" class="t-m mid">Zone 2</text>
+            <rect x="550" y="86" width="88" height="110" rx="8" class="s-blue"/><text x="594" y="108" class="t-m mid">Zone 3</text>
+            <rect x="378" y="128" width="56" height="34" rx="6" class="s-surface"/><text x="406" y="150" class="t-s mid">VM</text>
+            <rect x="472" y="128" width="56" height="34" rx="6" class="s-surface"/><text x="500" y="150" class="t-s mid">VM</text>
+            <rect x="566" y="128" width="56" height="34" rx="6" class="s-surface"/><text x="594" y="150" class="t-s mid">VM</text>
+            <text x="500" y="222" class="t-b mid">datacentre failure · 99.99%</text>
+
+            <rect x="690" y="20" width="290" height="230" rx="14" class="s-surface2"/>
+            <text x="835" y="48" class="t-h mid">Two regions</text>
+            <text x="835" y="68" class="t-s mid">separate cities</text>
+            <rect x="706" y="86" width="120" height="110" rx="8" class="s-violet"/>
+            <text x="766" y="120" class="t-b mid">Central</text><text x="766" y="140" class="t-b mid">India</text><text x="766" y="166" class="t-s mid">primary</text>
+            <rect x="846" y="86" width="120" height="110" rx="8" class="s-surface"/>
+            <text x="906" y="120" class="t-b mid">South</text><text x="906" y="140" class="t-b mid">India</text><text x="906" y="166" class="t-s mid">secondary</text>
+            <path d="M826 141 H842" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="835" y="222" class="t-b mid">regional disaster · your design</text>
+
+            <text x="500" y="284" class="t-s mid">Bigger blast radius survived → more distance → more latency between copies → more cost</text>
+          </svg>
+        </div>
+        <figcaption><b>Match the failure you must survive to the spread you pay for.</b> The SLA numbers are for two or more VMs; a single VM with Premium SSD or better on every disk gets 99.9%.</figcaption>
+      </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li><strong>VM SLAs:</strong> single VM with Premium SSD, Premium SSD v2 or Ultra disks: 99.9%. Two or more in an availability set: 99.95%. Two or more across zones: 99.99%.</li>
+        <li>An availability set gives up to <strong>3 fault domains</strong> and up to <strong>20 update domains</strong>. A VM joins a set or a zone only <strong>at creation</strong>.</li>
+        <li>Services are <strong>zonal</strong> (pinned to one zone you pick, like a VM or disk) or <strong>zone-redundant</strong> (spread for you, like ZRS storage, zone-redundant SQL Database or App Service). Not every region has zones; Central India and South India do, and so does Germany West Central.</li>
+        <li><strong>Region pairs</strong> (for example Central India ↔ South India) get staggered platform updates and are the GRS target. Newer regions may have no pair; then you choose the secondary yourself.</li>
+        <li><strong>Virtual Machine Scale Sets</strong> (Module 09) with flexible orchestration spread instances across zones and fault domains automatically.</li>
+      </ul>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p>"Zone-redundant" and "zonal" are not the same thing. A <strong>zonal</strong> VM sits in exactly one zone: if that zone fails, it fails. You get zone resilience only by running <strong>several</strong> zonal instances across zones behind a load balancer, or by using a <strong>zone-redundant</strong> service.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Protect against <strong>datacentre</strong> failure", "<strong>99.99%</strong> for VMs" → <strong>availability zones</strong>. "Protect against <strong>hardware or rack</strong> failure and <strong>planned maintenance</strong>", "region has no zones" → <strong>availability set</strong>. "Protect against <strong>regional</strong> failure" → deploy to a <strong>second region</strong> (paired where possible).</p>
+      </div>
+      <details class="demo" id="demo-m08-zones">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">See zones, sets and the SLA they buy on the VM create form</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Connect racks, buildings and cities to the actual drop-down an engineer picks from.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Virtual machines</span> › <span class="ui">+ Create</span> › <span class="ui">Azure virtual machine</span>: resource group <code>rg-az305-m08-demo</code>, name <code>vm-az305-m08</code>, region <b>Central India</b>.</li>
+            <li>Open <span class="ui">Availability options</span>: <b>No infrastructure redundancy required</b>, <b>Availability zone</b>, <b>Virtual machine scale set</b>, <b>Availability set</b>. Pick <b>Availability zone</b> and tick zones 1, 2 and 3: the portal offers to create <b>three VMs</b>, one per zone.</li>
+            <li>Untick back to a single zone. Change the region to one without zones (if your list has one) and watch the zone option disappear.</li>
+            <li>Finish the VM as a single, cheap VM: image Ubuntu, size <b>B1s</b>, SSH key or password, no public inbound ports › <span class="ui">Review + create</span> › <span class="ui">Create</span>. This VM is reused in the next demos.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>A VM joins a zone or set only at creation. Moving it later means recreating it.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Racks, buildings, cities: the form asks which one you're designing for.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= BACKUP ======================= -->
+    <section id="backup">
+      <span class="sec-num">08.3</span>
+      <h2>Azure Backup and its vaults</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></span>
+        <h3>One service, two kinds of vault</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Backup is a managed, agent-optional backup service that protects Azure VMs, disks, file shares, blobs, databases in VMs, Kubernetes clusters and on-premises machines. Backups are stored in a <strong>vault</strong>, governed by <strong>backup policies</strong> (schedule and retention), encrypted at rest, and isolated from the protected resource's own credentials.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>You don't run backup servers or buy tapes. You create a vault, write a policy ("every night at 11 p.m., keep 30 dailies, 12 monthlies, 7 yearlies"), and point it at your resources. Azure takes the snapshots, moves the copies into the vault, and expires them on schedule. You pay per protected instance plus the storage used.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A <strong>bank locker</strong>. Your jewellery at home is the live data. The locker is in another building, has its own key, and the bank keeps a register of when you put things in. Even if a thief gets into your house, the locker copy is safe. The two vault types are like two lockers at the same bank, built for different-shaped items.</p>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Vault</th><th>Protects</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Recovery Services vault</strong></td><td>Azure VMs · SQL Server and SAP HANA in Azure VMs · Azure Files · on-premises files and folders (MARS agent) · on-premises workloads via MABS or DPM</td><td>The original vault. Also the home of Azure Site Recovery replication.</td></tr>
+            <tr><td><strong>Backup vault</strong></td><td>Azure Blobs · Azure Disks · Azure Database for PostgreSQL (flexible server) · AKS clusters · newer workloads</td><td>The newer vault type. New datasources tend to arrive here first.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 260" role="img" aria-labelledby="bkt bkd">
+            <title id="bkt">How an Azure VM backup works</title>
+            <desc id="bkd">A backup policy triggers a snapshot of the VM's disks. The snapshot is kept locally as an instant restore tier for fast restores of recent points. The data is then transferred into the vault tier in the Recovery Services vault, where it is stored with the vault's redundancy (LRS, ZRS or GRS) and retained by the policy for days, weeks, months or years. Restore options are: create a new VM, replace disks, restore disks, or recover individual files.</desc>
+            <rect x="20" y="40" width="160" height="90" rx="12" class="s-amber"/>
+            <text x="100" y="74" class="t-b mid">Backup policy</text>
+            <text x="100" y="96" class="t-s mid">daily 23:00,</text>
+            <text x="100" y="114" class="t-s mid">keep 30 / 12 / 7</text>
+            <path d="M180 85 H216" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="220" y="40" width="160" height="90" rx="12" class="s-surface"/>
+            <text x="300" y="74" class="t-b mid">Azure VM</text>
+            <text x="300" y="96" class="t-s mid">OS + data disks</text>
+            <text x="300" y="114" class="t-s mid">no agent to install</text>
+            <path d="M380 85 H416" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="420" y="40" width="200" height="90" rx="12" class="s-blue"/>
+            <text x="520" y="70" class="t-b mid">Snapshot tier</text>
+            <text x="520" y="92" class="t-s mid">instant restore,</text>
+            <text x="520" y="110" class="t-s mid">kept 1–5 days (standard)</text>
+            <path d="M620 85 H656" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="660" y="30" width="320" height="110" rx="14" class="s-teal"/>
+            <text x="820" y="62" class="t-b mid">Recovery Services vault</text>
+            <text x="820" y="86" class="t-s mid">vault tier · LRS / ZRS / GRS</text>
+            <text x="820" y="106" class="t-s mid">retention up to 99 years</text>
+            <text x="820" y="126" class="t-s mid">soft delete · immutability · encryption</text>
+            <rect x="20" y="170" width="960" height="70" rx="12" class="s-surface2"/>
+            <text x="500" y="198" class="t-b mid">Restore options</text>
+            <text x="500" y="222" class="t-s mid">create a new VM · replace existing disks · restore disks only · file recovery (mount a recovery point, copy files) · cross-region restore (GRS vaults)</text>
+          </svg>
+        </div>
+        <figcaption><b>Recent restores come from snapshots; older ones from the vault.</b> That is why a restore from yesterday takes minutes and a restore from last year takes longer.</figcaption>
+      </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li><strong>Vault storage redundancy</strong> (LRS, ZRS or GRS) must be chosen <strong>before</strong> the first item is protected. Turn on <strong>Cross Region Restore</strong> on a GRS vault to restore in the paired region whenever you choose, not only when Microsoft declares a disaster.</li>
+        <li>The vault must be in the <strong>same region</strong> as the resources it protects. Multi-region estate = one vault per region.</li>
+        <li>VM policies: <strong>Standard</strong> (once a day) or <strong>Enhanced</strong> (several times a day, down to every 4 hours, longer snapshot retention, and required for Trusted Launch VMs).</li>
+        <li>For <strong>SQL Server in a VM</strong>, Azure Backup takes full, differential and <strong>log backups every 15 minutes</strong>: point-in-time restore inside a VM.</li>
+        <li>Blobs have two modes: <strong>operational</strong> backup (continuous, stays in the storage account, uses point-in-time restore) and <strong>vaulted</strong> backup (copies into the Backup vault, survives the account being deleted).</li>
+        <li><strong>Azure Policy</strong> can enforce "every VM tagged Environment=Prod is backed up" with a DeployIfNotExists policy (Module 02).</li>
+      </ul>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p><strong>Backup center</strong> has been folded into <strong>Azure Business Continuity Center</strong>: one place to see what is protected (by Backup and Site Recovery), what isn't, which jobs failed and which security settings are missing. On-premises protection still uses the <strong>MARS agent</strong> (files and folders) or <strong>Microsoft Azure Backup Server (MABS)</strong> for application-aware backups.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll write a script that copies the database file to a storage account every night."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Scripts fail silently. A vault gives us <strong>policy-driven retention</strong>, alerts on failed jobs, <strong>separate credentials</strong> from production, soft delete and immutability, and one report the auditors can read. And Policy makes sure nobody forgets to enable it."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Back up <strong>Azure VMs</strong>, <strong>Azure Files</strong>, <strong>SQL Server in a VM</strong>" → <strong>Recovery Services vault</strong>. "Back up <strong>blobs</strong>, <strong>managed disks</strong>, <strong>PostgreSQL</strong>, <strong>AKS</strong>" → <strong>Backup vault</strong>. "Back up <strong>on-premises files and folders</strong> without a server" → <strong>MARS agent</strong>. "Restore to the <strong>secondary region</strong> on demand" → GRS vault with <strong>Cross Region Restore</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m08-vault">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a Recovery Services vault and set redundancy before anything else</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the one setting you must get right before the first backup: vault storage redundancy.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Recovery Services vaults</span> › <span class="ui">+ Create</span>: resource group <code>rg-az305-m08-demo</code>, name <code>rsv-az305-m08</code>, Central India › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the vault › <span class="ui">Properties</span> › <b>Backup configuration</b> › <span class="ui">Update</span>: storage replication type <b>Geo-redundant</b>, and tick <b>Cross Region Restore</b>. Save.</li>
+            <li>Point out the warning: this can't be changed once items are protected.</li>
+            <li>Open <span class="ui">Backup policies</span>: the default <b>DefaultPolicy</b> (daily, 30 days). Click <span class="ui">+ Add</span> › <b>Azure Virtual Machine</b>: show <b>Standard</b> vs <b>Enhanced</b> (hourly options, longer snapshot retention) and the daily, weekly, monthly, yearly retention rows. Cancel.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Choose the locker's location before you put the jewellery in. You can't move it afterwards.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m08-vm-backup">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Back up the VM and run the first backup now</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Protect a VM in four clicks, with no agent to install.</p>
+          <p class="demo-note"><b>Before you start:</b> The first backup takes 20–40 minutes. Start it early and come back for the restore demo.</p>
+          <ol class="demo-steps">
+            <li>Open <code>vm-az305-m08</code> › <span class="ui">Backup</span> (under Operations): select vault <code>rsv-az305-m08</code>, policy <b>DefaultPolicy</b> › <span class="ui">Enable backup</span>.</li>
+            <li>When it finishes, on the VM's <span class="ui">Backup</span> blade click <span class="ui">Backup now</span> › keep the default retention › <span class="ui">OK</span>.</li>
+            <li>In the vault › <span class="ui">Backup jobs</span>: watch <b>Take Snapshot</b> then <b>Transfer data to vault</b>. Two phases: snapshot tier, then vault tier.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The VM didn't reboot and nothing was installed by hand: the backup extension is added for you.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Policy, snapshot, vault. Nobody runs a backup server any more.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m08-restore">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the restore options: new VM, replace disks, single files</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that a backup is only as good as the restore choices it offers.</p>
+          <p class="demo-note"><b>Before you start:</b> Needs at least one recovery point from the previous demo.</p>
+          <ol class="demo-steps">
+            <li>VM › <span class="ui">Backup</span> › <span class="ui">Restore VM</span>: pick the recovery point (note the type: <b>Snapshot</b> or <b>Snapshot and Vault</b>).</li>
+            <li>Show <b>Create new</b> (a new VM or just the disks) and <b>Replace existing</b> (swap the disks in place). If CRR is on, point at the <b>Secondary Region</b> option. Cancel.</li>
+            <li>Back on the Backup blade › <span class="ui">File Recovery</span>: step 1 selects a point, step 2 downloads a script that mounts the backup as a drive. Don't run it in class unless you have time.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Nobody wants a backup. Everybody wants a restore. Test the restore.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m08-bcc">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">See everything protected, and unprotected, in Business Continuity Center</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the single pane for Backup and Site Recovery across subscriptions.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Business Continuity Center</span> › <span class="ui">Overview</span>: protected items by solution (Backup, Site Recovery), job status, security level.</li>
+            <li><span class="ui">Protectable resources</span>: VMs and other resources with <b>no</b> protection. This is the list auditors ask for.</li>
+            <li><span class="ui">Security posture</span> (or <b>Security levels</b>): vaults scored on soft delete, immutability and MUA.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “The most useful screen in this module is the list of things nobody is backing up.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= PROTECT ======================= -->
+    <section id="protect">
+      <span class="sec-num">08.4</span>
+      <h2>Backups that survive ransomware</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg></span>
+        <h3>Assume the attacker has admin rights</h3>
+      </div>
+
+      <p>Modern ransomware doesn't just encrypt servers. It first finds the backups and deletes them, using a stolen admin account. So the real design question is: <strong>can someone with Contributor or Owner rights destroy our backups?</strong> Azure Backup has four layers that answer "no".</p>
+
+      <div class="terms">
+        <div class="term"><b>Soft delete</b><span>Deleted backup data is kept for 14 days by default, and can be extended with <strong>enhanced soft delete</strong>. Set it to <strong>always on</strong> so it can't be switched off.</span></div>
+        <div class="term"><b>Immutable vault</b><span>Recovery points can't be deleted or shortened before they expire. Once the setting is <strong>locked</strong>, nobody (not even Microsoft support for you) can turn it off.</span></div>
+        <div class="term"><b>Multi-user authorisation (MUA)</b><span>Critical operations (disable soft delete, reduce retention, stop protection) need approval through a <strong>Resource Guard</strong> owned by a different team, ideally in a different subscription or tenant.</span></div>
+        <div class="term"><b>Encryption and private access</b><span>Data is encrypted at rest (customer-managed keys optional), backup traffic can use <strong>private endpoints</strong>, and vault access follows Azure RBAC roles like <strong>Backup Operator</strong>.</span></div>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 220" role="img" aria-labelledby="mut mud">
+            <title id="mut">Multi-user authorisation with a Resource Guard</title>
+            <desc id="mud">A backup admin in the production subscription asks to disable soft delete on the vault. The vault checks the Resource Guard, which lives in a separate security subscription owned by the security team. Without a just-in-time role on the Resource Guard, approved through PIM by the security team, the operation is denied.</desc>
+            <rect x="20" y="40" width="200" height="90" rx="12" class="s-surface"/>
+            <text x="120" y="74" class="t-b mid">Backup admin</text>
+            <text x="120" y="96" class="t-s mid">"disable soft delete"</text>
+            <text x="120" y="114" class="t-s mid">(or an attacker)</text>
+            <path d="M220 85 H296" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="300" y="30" width="230" height="110" rx="14" class="s-teal"/>
+            <text x="415" y="66" class="t-b mid">Recovery Services vault</text>
+            <text x="415" y="90" class="t-s mid">prod subscription</text>
+            <text x="415" y="110" class="t-s mid">"is this allowed?"</text>
+            <path d="M530 85 H606" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="610" y="30" width="190" height="110" rx="14" class="s-violet"/>
+            <text x="705" y="66" class="t-b mid">Resource Guard</text>
+            <text x="705" y="90" class="t-s mid">security subscription</text>
+            <text x="705" y="110" class="t-s mid">owned by security team</text>
+            <path d="M800 85 H836" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="840" y="30" width="140" height="110" rx="14" class="s-rose"/>
+            <text x="910" y="76" class="t-b mid">Denied</text>
+            <text x="910" y="100" class="t-s mid">unless approved</text>
+            <text x="910" y="118" class="t-s mid">via PIM</text>
+            <text x="500" y="186" class="t-s mid">Two keys to open the locker: one held by the backup team, one by security. A single stolen account isn't enough.</text>
+          </svg>
+        </div>
+        <figcaption><b>Separation of duties, enforced by the platform.</b> The same idea as a bank locker that needs both your key and the bank's key.</figcaption>
+      </figure>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Locking immutability is <strong>irreversible</strong>. Turn it on unlocked first, check that your retention policies are what you really want (an accidental 10-year retention is now a 10-year bill), and only then lock it.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Prevent <strong>malicious deletion</strong> of backups", "<strong>ransomware</strong>" → <strong>soft delete</strong> (always-on) + <strong>immutable vault</strong>. "Require <strong>a second person's approval</strong> for critical backup operations" → <strong>multi-user authorisation</strong> with a <strong>Resource Guard</strong>.</p>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Design backups with the attacker in mind, not just the failed disk. The question isn't "do we have a backup?" but "<strong>who can delete it</strong>, and how would we know?"</p>
+      </div>
+      <details class="demo" id="demo-m08-security">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Harden the vault: always-on soft delete, immutability and a Resource Guard</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Make the vault survive an attacker with admin rights, and see why locking is a one-way door.</p>
+          <ol class="demo-steps">
+            <li>Vault › <span class="ui">Properties</span> › <b>Security settings</b> › <span class="ui">Update</span>: show <b>soft delete</b> retention and the <b>Enable always-on soft delete</b> option. Don't enable always-on on a demo vault (you couldn't clean up quickly).</li>
+            <li>Vault › <span class="ui">Properties</span> › <b>Immutable vault</b> › <span class="ui">Settings</span>: tick <b>Enable vault immutability</b>, leave it <b>unlocked</b>. Point at the lock option and its warning. Save unlocked or cancel.</li>
+            <li>Search <span class="ui">Resource Guards</span> › <span class="ui">+ Create</span>: show that it's a separate resource, normally in the security team's subscription, and the list of protected operations. Create it in the demo RG if you have time.</li>
+            <li>Vault › <span class="ui">Properties</span> › <b>Multi-user authorization</b> › <span class="ui">Update</span>: associate the Resource Guard. Then try to reduce soft delete retention: the portal asks for authorisation from the guard.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Locked immutability can never be undone. That's the point, and also the trap.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Two keys to open the locker: one with the backup team, one with security.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Remove the MUA association and delete the Resource Guard before deleting the vault.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SERVICES ======================= -->
+    <section id="services">
+      <span class="sec-num">08.5</span>
+      <h2>Data protection, service by service</h2>
+      <p>PaaS services mostly back themselves up. The architect's job is knowing <strong>what's automatic</strong>, <strong>for how long</strong>, and <strong>what you have to switch on</strong>. This table pulls together what Modules 05 and 06 taught, plus Azure Backup.</p>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Workload</th><th>Built-in protection</th><th>What you add</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Azure VMs</strong></td><td>None by default (disks are LRS/ZRS copies, not backups)</td><td>Azure Backup (Recovery Services vault); Site Recovery for DR</td></tr>
+            <tr><td><strong>Managed disks</strong></td><td>Snapshots on demand</td><td>Azure Disk Backup (Backup vault): incremental snapshots on a schedule</td></tr>
+            <tr><td><strong>SQL Server in a VM</strong></td><td>None</td><td>Azure Backup for SQL in VM: 15-minute log backups, point-in-time restore</td></tr>
+            <tr><td><strong>Azure SQL Database / Managed Instance</strong></td><td>Automatic full, differential and log backups; <strong>PITR 1–35 days</strong> (7 by default)</td><td><strong>Long-term retention</strong> (weekly/monthly/yearly, up to 10 years); geo-redundant backup storage; failover groups for DR</td></tr>
+            <tr><td><strong>Cosmos DB</strong></td><td><strong>Periodic</strong> backup (every 4 hours by default, 2 copies kept)</td><td><strong>Continuous</strong> backup (7 or 30 days) for point-in-time restore; multi-region writes for DR</td></tr>
+            <tr><td><strong>Blob storage</strong></td><td>Redundancy only</td><td>Soft delete, versioning, point-in-time restore (operational); vaulted backup; immutability</td></tr>
+            <tr><td><strong>Azure Files</strong></td><td>Share snapshots on demand</td><td>Azure Backup for Files (snapshots on a policy, and vaulted backup to the vault)</td></tr>
+            <tr><td><strong>AKS</strong></td><td>None for app state</td><td>Azure Backup for AKS (cluster state and persistent volumes)</td></tr>
+            <tr><td><strong>Key Vault</strong></td><td>Soft delete (always on), purge protection</td><td>Purge protection on; back up individual keys only if a process needs it</td></tr>
+            <tr><td><strong>App Service</strong></td><td>Automatic backups of app content (Basic tier and above)</td><td>Custom backups including a linked database; really, keep code in Git and config in IaC</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>For PaaS databases the question is rarely "how do we back it up?" and almost always "<strong>is the default retention long enough</strong>?" Seven days of PITR is fine for a fat-finger mistake; it's useless for an auditor asking about March three years ago. That's what long-term retention is for.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Keep Azure SQL backups for <strong>7 years</strong>" → <strong>long-term retention (LTR)</strong>. "Restore Cosmos DB to <strong>any second</strong> in the last 30 days" → <strong>continuous backup</strong>. "Back up <strong>managed disks</strong> with minimal impact" → <strong>Azure Disk Backup</strong> (incremental snapshots, Backup vault).</p>
+      </div>
+      <details class="demo" id="demo-m08-blob-backup">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Protect blobs two ways in a Backup vault: operational and vaulted</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the newer vault type and the difference between a local safety net and a separate copy.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Backup vaults</span> › <span class="ui">+ Create</span>: <code>bv-az305-m08</code>, Central India, redundancy <b>LRS</b> for the demo › <span class="ui">Create</span>.</li>
+            <li>Open it › <span class="ui">+ Backup</span> › datasource type <b>Azure Blobs (Azure Storage)</b>: create a policy and show the two sections, <b>Operational backup</b> (retention in days, data stays in the storage account) and <b>Vaulted backup</b> (copies into the vault on a schedule).</li>
+            <li>Select your storage account: the portal checks and offers to grant the vault's identity the <b>Storage Account Backup Contributor</b> role. Point it out, then cancel or finish.</li>
+            <li>Go back to the <span class="ui">+ Backup</span> list of datasource types: <b>Azure Disks</b>, <b>PostgreSQL flexible server</b>, <b>Kubernetes Services</b>. These live here, not in a Recovery Services vault.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Operational backup is your undo button. Vaulted backup is the copy that survives someone deleting the account.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= ASR ======================= -->
+    <section id="asr">
+      <span class="sec-num">08.6</span>
+      <h2>Azure Site Recovery</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="8" height="12" rx="1.5"/><rect x="14" y="6" width="8" height="12" rx="1.5"/><path d="M10 10h4M12.5 8.5L14 10l-1.5 1.5"/><path d="M14 14h-4M11.5 12.5L10 14l1.5 1.5"/></svg></span>
+        <h3>A spare building, ready in minutes</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Site Recovery (ASR) is a disaster recovery service that continuously replicates workloads running on physical servers, VMware and Hyper-V VMs, and Azure VMs from a primary site to a secondary location. When an outage occurs you <strong>fail over</strong> to the secondary, and <strong>fail back</strong> when the primary is restored. <strong>Recovery plans</strong> orchestrate the order, scripts and manual steps of a failover.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>ASR keeps a copy of your VMs' disks in another region, updated every few minutes. Until you need it, there are <strong>no running VMs</strong> on the other side, only disks, so it's much cheaper than running a second copy. On the bad day, one click (or one recovery plan) creates the VMs from the latest recovery point.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 290" role="img" aria-labelledby="art ard">
+            <title id="art">Azure Site Recovery flow</title>
+            <desc id="ard">Sources on the left: Azure VMs in Central India, VMware or physical servers on-premises, and Hyper-V VMs. Data is replicated continuously to the target region, South India, where replicated disks and a Recovery Services vault sit, with no VMs running. A recovery plan runs a failover in groups: databases first, then app servers, then web servers, with scripts in between. A test failover creates VMs in an isolated network without affecting production. After failover, re-protect replicates back, and fail back returns to the primary.</desc>
+            <rect x="20" y="30" width="230" height="200" rx="14" class="s-surface2"/>
+            <text x="135" y="58" class="t-h mid">Source</text>
+            <rect x="40" y="76" width="190" height="40" rx="8" class="s-blue"/><text x="135" y="101" class="t-b mid">Azure VMs (A2A)</text>
+            <rect x="40" y="124" width="190" height="40" rx="8" class="s-surface"/><text x="135" y="149" class="t-b mid">VMware / physical</text>
+            <rect x="40" y="172" width="190" height="40" rx="8" class="s-surface"/><text x="135" y="197" class="t-b mid">Hyper-V</text>
+            <path d="M250 130 H346" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <text x="298" y="118" class="t-s mid">continuous</text>
+            <text x="298" y="150" class="t-s mid">replication</text>
+            <rect x="350" y="30" width="270" height="200" rx="14" class="s-violet"/>
+            <text x="485" y="58" class="t-h mid">Target region</text>
+            <text x="485" y="88" class="t-b mid">Replicated disks</text>
+            <text x="485" y="108" class="t-s mid">recovery points every few minutes</text>
+            <text x="485" y="140" class="t-b mid">Recovery Services vault</text>
+            <text x="485" y="160" class="t-s mid">replication policy, recovery plans</text>
+            <text x="485" y="196" class="t-b mid">No VMs running</text>
+            <text x="485" y="216" class="t-s mid">(pay for disks + ASR licence)</text>
+            <path d="M620 130 H676" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="680" y="30" width="300" height="200" rx="14" class="s-surface"/>
+            <text x="830" y="58" class="t-h mid">Recovery plan</text>
+            <rect x="700" y="74" width="260" height="34" rx="8" class="s-teal"/><text x="830" y="96" class="t-s mid">Group 1 · database servers</text>
+            <rect x="700" y="114" width="260" height="34" rx="8" class="s-teal"/><text x="830" y="136" class="t-s mid">script: update DNS, run checks</text>
+            <rect x="700" y="154" width="260" height="34" rx="8" class="s-teal"/><text x="830" y="176" class="t-s mid">Group 2 · app, then Group 3 · web</text>
+            <text x="830" y="214" class="t-s mid">test failover · failover · re-protect · fail back</text>
+            <text x="500" y="270" class="t-s mid">Test failover runs in an isolated virtual network: production keeps replicating and nobody notices.</text>
+          </svg>
+        </div>
+        <figcaption><b>Replicate continuously, fail over in order, test without fear.</b> The recovery plan is your runbook written as code: which tier comes up first, and what scripts run in between.</figcaption>
+      </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Azure-to-Azure: <strong>crash-consistent</strong> recovery points every few minutes; <strong>app-consistent</strong> points on a schedule you set (hours). RPO is typically measured in minutes, not seconds.</li>
+        <li>Scenarios: <strong>Azure → Azure</strong> (region to region, or <strong>zone to zone</strong> in the same region), <strong>VMware / physical → Azure</strong>, <strong>Hyper-V → Azure</strong>. ASR is also how many teams first rehearse a migration (Module 12).</li>
+        <li><strong>Test failover</strong> into an isolated VNet costs only the test VMs' running time. Do it after every major change, and at least twice a year.</li>
+        <li>Billing is per protected instance (the first 31 days of each instance are free) plus storage in the target region.</li>
+        <li>ASR replicates <strong>VMs</strong>. PaaS services use their own geo features: SQL failover groups, Cosmos DB multi-region, GRS storage, Front Door for traffic.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>The VMs fail over perfectly, and nothing works: the target region has no capacity reserved, the IP addresses changed, DNS still points at the dead region, or the domain controller was never replicated. Plan the <strong>network, DNS and identity</strong> on the DR side, and consider <strong>capacity reservations</strong> for critical sizes.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"DR means a second copy of everything running in another region."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"For most VMs, a running copy is money burnt for a day that may never come. ASR gives an RTO of tens of minutes at a fraction of the cost. We pay for a hot copy only where the RTO is seconds."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Replicate <strong>VMs</strong> to another region", "<strong>orchestrated failover</strong>", "<strong>recovery plan</strong>", "test DR <strong>without affecting production</strong>" → <strong>Azure Site Recovery</strong>. "Minimise cost of DR for VMs" → ASR (no running VMs at the target). "Fail over <strong>on-premises VMware</strong> VMs to Azure" → ASR (VMware to Azure).</p>
+      </div>
+      <details class="demo" id="demo-m08-asr">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Replicate the VM to South India, then run a test failover</span><span class="demo-time">~6 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show DR for VMs with no running copy, and a test that doesn't touch production.</p>
+          <p class="demo-note"><b>Before you start:</b> Initial replication takes 15–30 minutes or more. Enable it early and come back for the test failover.</p>
+          <ol class="demo-steps">
+            <li>Open <code>vm-az305-m08</code> › <span class="ui">Disaster recovery</span>: target region <b>South India</b>. Open <span class="ui">Advanced settings</span>: target resource group, VNet, cache storage, and the <b>replication policy</b> (recovery point retention, app-consistent frequency) › <span class="ui">Review + Start replication</span>.</li>
+            <li>In the vault (a vault in the target region is created or chosen for you) › <span class="ui">Replicated items</span>: watch the status move to <b>Protected</b> and the RPO figure appear.</li>
+            <li>Open the item › <span class="ui">Test failover</span>: recovery point <b>Latest processed</b>, network: an isolated test VNet › <span class="ui">OK</span>. A VM appears in South India; production keeps running.</li>
+            <li>Show <span class="ui">Recovery Plans (Site Recovery)</span> › <span class="ui">+ Recovery plan</span>: groups, and where pre- and post-actions (scripts, manual steps) go. Cancel.</li>
+            <li>Back on the item › <span class="ui">Cleanup test failover</span>, tick <b>Testing is complete</b> › <span class="ui">OK</span>.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Before the test, South India had disks and no VMs. That's why ASR is the cheap DR option.</li></ul>
+          <p class="demo-say"><b>Say:</b> “A spare building, kept ready with today's furniture, that you only switch the lights on in when you need it.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Disable replication on the VM, then delete the Site Recovery resource group and cache account in South India.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= PATTERNS ======================= -->
+    <section id="patterns">
+      <span class="sec-num">08.7</span>
+      <h2>Disaster recovery patterns</h2>
+      <p>Every DR design sits somewhere on one dial: how much you keep running in the second region before disaster strikes. Turn the dial up and RTO falls, and the bill rises.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 260" role="img" aria-labelledby="drt drd">
+            <title id="drt">Four disaster recovery patterns</title>
+            <desc id="drd">From left to right, cost rises and recovery time falls. Backup and restore: only backups in the second region; RTO in hours to a day. Pilot light: data replicated, minimal core running, the rest deployed on demand; RTO in hours. Warm standby: a scaled-down full copy running, scaled up on failover; RTO in minutes. Active-active: full capacity in both regions serving users all the time; RTO near zero.</desc>
+            <path d="M40 222 H960" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <text x="500" y="248" class="t-s mid">more running in region 2 → lower RTO → higher cost</text>
+            <rect x="20" y="30" width="225" height="170" rx="14" class="s-surface"/>
+            <text x="132" y="62" class="t-h mid">Backup &amp; restore</text>
+            <text x="132" y="92" class="t-s mid">only backups (GRS, CRR)</text>
+            <text x="132" y="112" class="t-s mid">rebuild with IaC</text>
+            <text x="132" y="160" class="t-b mid">RTO: hours–a day</text>
+            <text x="132" y="180" class="t-s mid">cost: lowest</text>
+            <rect x="260" y="30" width="225" height="170" rx="14" class="s-teal"/>
+            <text x="372" y="62" class="t-h mid">Pilot light</text>
+            <text x="372" y="92" class="t-s mid">data replicated (ASR, geo)</text>
+            <text x="372" y="112" class="t-s mid">compute created on failover</text>
+            <text x="372" y="160" class="t-b mid">RTO: tens of minutes–hours</text>
+            <text x="372" y="180" class="t-s mid">cost: low</text>
+            <rect x="500" y="30" width="225" height="170" rx="14" class="s-violet"/>
+            <text x="612" y="62" class="t-h mid">Warm standby</text>
+            <text x="612" y="92" class="t-s mid">small copy always running</text>
+            <text x="612" y="112" class="t-s mid">scale up on failover</text>
+            <text x="612" y="160" class="t-b mid">RTO: minutes</text>
+            <text x="612" y="180" class="t-s mid">cost: medium</text>
+            <rect x="740" y="30" width="240" height="170" rx="14" class="s-green"/>
+            <text x="860" y="62" class="t-h mid">Active-active</text>
+            <text x="860" y="92" class="t-s mid">both regions serve users</text>
+            <text x="860" y="112" class="t-s mid">global load balancer in front</text>
+            <text x="860" y="160" class="t-b mid">RTO: near zero</text>
+            <text x="860" y="180" class="t-s mid">cost: highest, plus complexity</text>
+          </svg>
+        </div>
+        <figcaption><b>Pick the pattern per workload, not per company.</b> The online checkout may justify warm standby or active-active; the internal leave-approval app is fine with backup and restore.</figcaption>
+      </figure>
+
+      <h3>The pieces of a regional failover</h3>
+      <ol class="steps">
+        <li><strong>Traffic:</strong> a global entry point that can move users (Front Door or Traffic Manager, Module 11).</li>
+        <li><strong>Compute:</strong> already running (active), scaled down (warm), or created by ASR or IaC (pilot light, backup).</li>
+        <li><strong>Data:</strong> geo-replicated with a known RPO: SQL failover groups, Cosmos DB multi-region, GZRS storage.</li>
+        <li><strong>Dependencies:</strong> identity, DNS, Key Vault, secrets and messaging must exist in the secondary too.</li>
+        <li><strong>Decision and drill:</strong> who declares the disaster, the runbook, and a test date in the calendar.</li>
+      </ol>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Minimise cost</strong>, RTO of a day is acceptable" → backup and restore (GRS vault, Cross Region Restore). "RTO of <strong>minutes</strong>, cost matters" → warm standby. "<strong>No downtime</strong> during a regional outage", "users in <strong>both</strong> regions" → active-active behind <strong>Front Door</strong>.</p>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Resilience is a <strong>budget conversation</strong>. Show the business owner the dial, the RTO at each position and the monthly cost. Let them choose with their eyes open, then write the answer down.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">08.8</span>
+      <h2>Meridian: the continuity design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 08</span></div>
+        <div class="case-body">
+          <p>Leadership's words: <em>"Checkout must survive a regional outage. We can't lose card transactions. And after what happened to our competitor last year, ransomware must not be able to take our backups with it."</em> The first step was a workshop with each business owner to set RTO and RPO per workload.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Agreed numbers per workload</td><td><strong>Tier 1</strong> checkout and orders: RTO 15 min, RPO under 1 min. <strong>Tier 2</strong> merchandising ERP, store systems: RTO 4 h, RPO 15 min. <strong>Tier 3</strong> reporting, internal apps: RTO 24 h, RPO 24 h</td><td>Spend follows business impact; nobody pays Tier 1 prices for the canteen menu app.</td></tr>
+                <tr><td>Checkout survives a regional outage</td><td><strong>Warm standby</strong> in South India: zone-redundant web tier running at reduced scale, SQL <strong>failover group</strong> (Module 06), RA-GZRS images (Module 05), <strong>Front Door</strong> health probes move traffic</td><td>RTO in minutes without paying for full capacity twice.</td></tr>
+                <tr><td>Stay up through a datacentre failure</td><td>Availability zones everywhere they exist: zone-redundant SQL Business Critical, zone-redundant App Service and storage, VMs spread across zones</td><td>A zone failure becomes a non-event for Tier 1 and Tier 2.</td></tr>
+                <tr><td>Remaining IaaS (vendor SQL VM, ERP app servers)</td><td><strong>Azure Site Recovery</strong> Central India → South India; recovery plans (database, then app, then web); <strong>test failover every quarter</strong> into an isolated VNet</td><td>Tier 2 RTO met with no running VMs in the secondary.</td></tr>
+                <tr><td>Backups for VMs, SQL in VM and file shares</td><td><strong>Recovery Services vault</strong> per region, <strong>GRS with Cross Region Restore</strong>; Enhanced policy every 4 hours for PCI VMs; SQL log backups every 15 minutes; Azure Files backup for the HQ shares</td><td>Meets Tier 2 RPO and lets us restore in South India on our own decision.</td></tr>
+                <tr><td>Blobs and disks</td><td><strong>Backup vault</strong>: operational backup for blobs (in-account PITR) plus vaulted backup for invoices; Azure Disk Backup for standalone data disks</td><td>Covers both "undo a mistake" and "the account itself was deleted".</td></tr>
+                <tr><td>Ransomware cannot remove backups</td><td>Soft delete <strong>always on</strong>; <strong>immutable vaults, locked</strong> after a month of checks; <strong>multi-user authorisation</strong> with a Resource Guard in the security team's subscription, approved via PIM (Module 03)</td><td>A stolen backup-admin account can't delete or shorten retention.</td></tr>
+                <tr><td>Databases' long-term retention</td><td>Azure SQL PITR 35 days and <strong>LTR yearly for 7 years</strong> (Module 06); Cosmos DB <strong>continuous backup</strong> (30 days)</td><td>Audit and PCI retention without separate tools.</td></tr>
+                <tr><td>Nothing goes unprotected</td><td>Azure Policy (DeployIfNotExists) enables backup for VMs tagged <code>Environment=Prod</code>; <strong>Business Continuity Center</strong> and backup alerts to the ops action group (Module 04)</td><td>Protection is enforced, not remembered.</td></tr>
+                <tr><td>EU data stays in the EU</td><td>EU vaults in Germany West Central with GRS to <strong>Germany North</strong> (its pair); EU DR stays inside Germany</td><td>Recovery copies respect the same residency rules as the data.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Module 09 decides where Meridian's code runs, which is exactly what this continuity design will have to protect.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">08.9</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's continuity checklist</h3>
+      <ul class="checklist">
+        <li>RTO and RPO agreed per workload with the business owner, and written down.</li>
+        <li>HA, DR and backup treated as three separate layers, each sized to the numbers.</li>
+        <li>Availability zones (or sets where zones don't exist) for anything Tier 1 or Tier 2.</li>
+        <li>A DR pattern chosen per workload, with traffic, compute, data and dependencies covered.</li>
+        <li>Vaults per region, redundancy set before the first backup, Cross Region Restore where needed.</li>
+        <li>Soft delete always on, immutability locked, MUA with a Resource Guard owned by another team.</li>
+        <li>Default PaaS retention checked; LTR or continuous backup added where audits need it.</li>
+        <li>Restores and failovers tested on a calendar, with a stopwatch.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. An application uses two VMs and must stay available if a single Azure datacentre fails. The region supports zones. What do you use, and what SLA do you get?</summary>
+          <div><p>Place the VMs in <strong>different availability zones</strong> behind a zone-redundant load balancer: <strong>99.99%</strong>. An availability set only protects against rack-level failures inside one datacentre (99.95%).</p></div>
+        </details>
+        <details>
+          <summary>2. A company replicates its database to a second region with a 5-second lag. Is a backup still needed?</summary>
+          <div><p><strong>Yes.</strong> Replication copies deletions, corruption and ransomware encryption within seconds. Only backups give a clean copy from before the damage.</p></div>
+        </details>
+        <details>
+          <summary>3. You must back up Azure Blob data and managed disks. Which vault type?</summary>
+          <div><p>A <strong>Backup vault</strong>. Azure VMs, Azure Files and SQL in VMs use a <strong>Recovery Services vault</strong>.</p></div>
+        </details>
+        <details>
+          <summary>4. A security officer wants any attempt to disable soft delete or reduce backup retention to need approval from the security team. What do you configure?</summary>
+          <div><p><strong>Multi-user authorisation</strong> using a <strong>Resource Guard</strong> in a subscription the security team owns (ideally with PIM for the approval role). Add an <strong>immutable vault</strong> to stop recovery points being deleted early.</p></div>
+        </details>
+        <details>
+          <summary>5. Forty application VMs must be recoverable in another region within two hours, at the lowest cost, with the database tier started before the web tier. What do you recommend?</summary>
+          <div><p><strong>Azure Site Recovery</strong> (Azure to Azure) with a <strong>recovery plan</strong> that groups the database VMs first, then app, then web. No VMs run in the target until failover.</p></div>
+        </details>
+        <details>
+          <summary>6. Azure SQL Database backups must be kept for 7 years for auditors. What do you configure?</summary>
+          <div><p><strong>Long-term retention (LTR)</strong> with a yearly backup kept for 7 years. Point-in-time restore only covers up to 35 days.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 09</div>
+        <p>Every compute choice comes with a different continuity story. A VM needs you to add backup and ASR; App Service and Functions bring zone redundancy with a setting; containers need their images and state protected separately. As you choose where code runs, keep asking: <strong>how does this come back on the bad day?</strong></p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="07-data-analytics.html"><small>Previous module</small><span>← 07 · Integration &amp; Analytics</span></a>
+        <a class="next" href="09-compute.html"><small>Next module</small><span>09 · Compute →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

@@ -750,7 +750,7 @@ details[open] > summary > .tn-chev { transform: rotate(45deg); }
 
 .ftree ul { list-style: none; margin: 0; padding: 0; }
 .ftree li { margin: 0; }
-.ft-cats { display: grid; grid-template-columns: 1fr 1.12fr 1fr 1fr .86fr; margin-top: 22px !important; }
+.ft-cats { display: grid; grid-template-columns: var(--ft-cols, 1fr 1.12fr 1fr 1fr .86fr); margin-top: 22px !important; }
 .ft-cat { position: relative; padding: 22px 5px 0; min-width: 0; }
 .ft-cat::before { content: ""; position: absolute; top: 0; left: 0; right: 0; border-top: 1.5px solid var(--ft-line); }
 .ft-cat:first-child::before { left: 50%; }

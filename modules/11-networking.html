@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Networking in Azure</title>
+<meta name="description" content="Module 11 of the AZ-305 Architect Handbook: virtual networks and address planning, NSGs and ASGs, hub-and-spoke and Virtual WAN, VPN Gateway and ExpressRoute, private endpoints and DNS, choosing between Load Balancer, Application Gateway, Front Door and Traffic Manager, and protecting the edge with Azure Firewall, WAF, DDoS Protection, Bastion and NAT Gateway.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part IV · Connect and move</div>
+    <span class="eyebrow">Module 11</span>
+    <h1>Networking: Roads, Gates and Guards</h1>
+    <p class="lead">Networking is where cloud designs quietly fail. The app is perfect, the database is zone-redundant, and then: the address range overlaps with the head office, the database is reachable from the internet, or every store's traffic hairpins through one VPN that can't take the load. This module gives you the network plan an architect draws before anyone deploys a VM.</p>
+    <div class="hero-meta">
+      <span class="chip">VNets and NSGs</span><span class="chip">Hub and spoke</span><span class="chip">Virtual WAN</span><span class="chip">VPN / ExpressRoute</span><span class="chip">Private endpoints</span><span class="chip">Front Door</span><span class="chip">App Gateway</span><span class="chip">Azure Firewall</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why the network is designed first</a></li>
+        <li><a href="#vnet">Virtual networks and address planning</a></li>
+        <li><a href="#nsg">Filtering traffic: NSGs and ASGs</a></li>
+        <li><a href="#topology">Topology: hub and spoke, Virtual WAN</a></li>
+        <li><a href="#hybrid">Hybrid connectivity: VPN and ExpressRoute</a></li>
+        <li><a href="#private">Private access to PaaS, and DNS</a></li>
+        <li><a href="#lb">Load balancing: which one?</a></li>
+        <li><a href="#edge">Protecting the edge</a></li>
+        <li><a href="#case">Meridian: the network design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">11.0</span>
+      <h2>The mental map</h2>
+      <p>Think of an Azure network as a city. <strong>Virtual networks</strong> are gated colonies with their own streets (subnets). <strong>Peering</strong> and a central <strong>hub</strong> are the ring road. <strong>VPN and ExpressRoute</strong> are the highway to your old office. <strong>Private endpoints</strong> bring PaaS services inside the colony walls. At the city gates, <strong>Front Door, Application Gateway and Azure Firewall</strong> decide who gets in and where they go.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 440" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">Azure networking map</title>
+            <desc id="m0d">Internet users reach Azure Front Door with a web application firewall at the global edge, which routes to an Application Gateway or directly to apps in spoke networks. On-premises sites (datacentre and branch stores) connect to a hub virtual network through ExpressRoute and VPN Gateway. The hub contains Azure Firewall, the gateways, Azure Bastion and DNS Private Resolver. Spoke virtual networks for workloads (online, corporate, PCI) are peered to the hub; traffic between spokes and to the internet goes through the firewall using route tables. Inside spokes, subnets are protected by network security groups, and PaaS services such as SQL Database and Storage are reached through private endpoints with private DNS zones.</desc>
+
+            <rect x="20" y="20" width="200" height="80" rx="14" class="s-surface"/>
+            <text x="120" y="54" class="t-b mid">Internet users</text>
+            <text x="120" y="76" class="t-s mid">shoppers, partners</text>
+            <path d="M220 60 H266" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="270" y="20" width="250" height="80" rx="14" class="s-rose"/>
+            <text x="395" y="52" class="t-b mid">Front Door + WAF</text>
+            <text x="395" y="74" class="t-s mid">global edge, TLS, caching</text>
+            <path d="M520 60 Q700 60 760 150" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+
+            <rect x="20" y="170" width="170" height="150" rx="14" class="s-surface2"/>
+            <text x="105" y="200" class="t-b mid">On-premises</text>
+            <text x="105" y="230" class="t-s mid">Bengaluru datacentre</text>
+            <text x="105" y="252" class="t-s mid">180 stores</text>
+            <text x="105" y="274" class="t-s mid">head office</text>
+            <path d="M190 220 H286" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <text x="240" y="210" class="t-s mid">ExpressRoute</text>
+            <path d="M190 280 H286" class="s-dash" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <text x="240" y="300" class="t-s mid">VPN</text>
+
+            <rect x="290" y="140" width="300" height="210" rx="16" class="s-blue"/>
+            <text x="440" y="168" class="t-h mid">Hub VNet</text>
+            <rect x="308" y="184" width="130" height="40" rx="8" class="s-surface"/><text x="373" y="209" class="t-s mid">Azure Firewall</text>
+            <rect x="444" y="184" width="130" height="40" rx="8" class="s-surface"/><text x="509" y="209" class="t-s mid">ER / VPN gateway</text>
+            <rect x="308" y="232" width="130" height="40" rx="8" class="s-surface"/><text x="373" y="257" class="t-s mid">Bastion</text>
+            <rect x="444" y="232" width="130" height="40" rx="8" class="s-surface"/><text x="509" y="257" class="t-s mid">DNS resolver</text>
+            <text x="440" y="300" class="t-s mid">shared services, one place</text>
+            <text x="440" y="320" class="t-s mid">for inspection and logging</text>
+
+            <path d="M590 200 H646" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <path d="M590 250 H646" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <path d="M590 300 H646" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <text x="618" y="340" class="t-s mid">peering</text>
+
+            <rect x="650" y="150" width="330" height="56" rx="10" class="s-teal"/>
+            <text x="670" y="174" class="t-b">Spoke: Online</text><text x="670" y="194" class="t-s">App Gateway, apps, private endpoints</text>
+            <rect x="650" y="222" width="330" height="56" rx="10" class="s-teal"/>
+            <text x="670" y="246" class="t-b">Spoke: Corp</text><text x="670" y="266" class="t-s">ERP VMs, NSGs per subnet</text>
+            <rect x="650" y="294" width="330" height="56" rx="10" class="s-teal"/>
+            <text x="670" y="318" class="t-b">Spoke: PCI</text><text x="670" y="338" class="t-s">isolated, all traffic via firewall</text>
+
+            <rect x="20" y="374" width="960" height="52" rx="12" class="s-surface2"/>
+            <text x="500" y="396" class="t-b mid">Inside every spoke: subnets + NSGs · private endpoints to SQL, Storage, Key Vault · private DNS zones</text>
+            <text x="500" y="414" class="t-s mid">Route tables send spoke-to-spoke and internet traffic through the firewall in the hub</text>
+          </svg>
+        </div>
+        <figcaption><b>Edge, hub, spokes, private access.</b> Almost every enterprise Azure network is a variation of this picture. Learn it once and most networking questions become "which box does this requirement belong in?"</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>The <a href="connect-map.html#t-network">Network &amp; Migration Map</a> puts every networking and migration service of Part IV on one expandable tree, with when to use each, when not to, and the exam words.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 7 quick portal walkthroughs · about 27 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos build a tiny hub and spoke: two VNets with a planned address space, an NSG with an ASG, peering between them, a storage account reached through a private endpoint and private DNS, and a look at why traffic is allowed or denied. The expensive pieces (VPN Gateway, ExpressRoute, Azure Firewall, Front Door) are walked on their create forms and cancelled.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are <b>Contributor</b> (Network Contributor is enough for most steps).</li><li>Names below: resource group <code>rg-az305-m11-demo</code>, VNets <code>vnet-hub-m11</code> (<code>10.10.0.0/16</code>) and <code>vnet-spoke-m11</code> (<code>10.11.0.0/16</code>), NSG <code>nsg-web-m11</code>, storage <code>staz305m11</code> plus initials, region Central India.</li><li>A small Linux VM in the spoke is optional (for IP flow verify and Bastion). Module 08's VM works if it's still around and its VNet doesn't overlap.</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li>Create both VNets first (demo 1), then peer them (demo 3). The private endpoint demo uses the spoke.</li><li>If you want to show Bastion, start deploying the <b>Developer</b> SKU (free, shared) or Basic early; Basic and Standard take several minutes and bill hourly.</li><li><b>Never finish</b> the VPN Gateway, ExpressRoute, Firewall or Front Door forms in class: gateways take 30–45 minutes and all of them bill by the hour.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m11-vnet">Create a hub and a spoke with a planned address space</a><span>~4m</span></li><li><a href="#demo-m11-nsg">Write NSG rules with an ASG, then ask why a packet is blocked</a><span>~4m</span></li><li><a href="#demo-m11-peering">Peer the spoke to the hub and look at gateway transit</a><span>~3m</span></li><li><a href="#demo-m11-hybrid">Walk the VPN Gateway and ExpressRoute forms, then cancel</a><span>~4m</span></li><li><a href="#demo-m11-pe">Reach a storage account through a private endpoint and private DNS</a><span>~5m</span></li><li><a href="#demo-m11-lb">Let the portal's load-balancing guide pick for you, then compare</a><span>~3m</span></li><li><a href="#demo-m11-edge">Tour the guards: Firewall Policy, WAF policy, DDoS plan and Bastion</a><span>~4m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m11-demo</code>. The private DNS zone and its VNet links are in the same group if you let the wizard create them there.</li><li>If you created a Bastion host, it's the most expensive thing here: confirm it's gone.</li><li>Peerings are removed with the VNets; nothing lives outside the group.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">11.1</span>
+      <h2>Why the network is designed first</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>Building a <strong>township</strong>. You can repaint houses and change shops any time. But once the roads, plot numbers and water pipes are laid, changing them means digging up every street. In Azure, <strong>address spaces, topology and hybrid links</strong> are the roads and pipes. They're cheap to plan and painful to change.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll create a VNet with the default 10.0.0.0/16 and put everything in it. We can sort out the network later."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Every team picks 10.0.0.0/16 and then nobody can peer or connect to on-premises. We start with an <strong>IP address plan</strong> for the whole company, a <strong>hub</strong> for shared services, and <strong>private by default</strong> for PaaS. The network team owns the roads; app teams own their colonies."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Three network decisions are close to one-way doors (Module 01): the <strong>address plan</strong>, the <strong>topology</strong> (hub-spoke or Virtual WAN), and the <strong>hybrid link</strong>. Take them early, together, and write them down.</p>
+      </div>
+    </section>
+
+    <!-- ======================= VNET ======================= -->
+    <section id="vnet">
+      <span class="sec-num">11.2</span>
+      <h2>Virtual networks and address planning</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 12h18M12 3v18"/></svg></span>
+        <h3>Your private colony in Azure</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>An Azure Virtual Network (VNet) is a logically isolated private network in one region and one subscription, defined by one or more <strong>address spaces</strong> (CIDR ranges) and divided into <strong>subnets</strong>. Resources in a VNet communicate privately with each other by default and can be connected to other VNets (peering) and to on-premises networks (VPN, ExpressRoute).</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A VNet is a <strong>gated colony</strong>; subnets are its <strong>lanes</strong>. Houses in the colony can visit each other freely. Visitors from outside need a gate (public IP, load balancer, gateway). A VNet lives in one region; you need one per region.</p>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li>Azure <strong>reserves 5 addresses</strong> in every subnet (first four and the last). A /29 gives you only 3 usable.</li>
+        <li>Some services need a <strong>dedicated subnet</strong> with a fixed name: <code>GatewaySubnet</code> (VPN/ExpressRoute, /27 or larger), <code>AzureFirewallSubnet</code> (/26), <code>AzureBastionSubnet</code> (/26 or larger). Others need a <strong>delegated</strong> subnet (App Service VNet integration, Container Apps, SQL MI).</li>
+        <li><strong>Address spaces must not overlap</strong> with peered VNets or on-premises ranges you connect to. This is the most expensive mistake to fix later.</li>
+        <li>Plan for growth: a /16 per region hub-and-spokes, carved into /22–/24 spokes, leaves room for years.</li>
+        <li>Outbound internet: Microsoft is retiring <strong>default outbound access</strong> for new subnets, so plan explicit egress with <strong>NAT Gateway</strong> or a firewall.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Two VNets built with <code>10.0.0.0/16</code> by different teams can <strong>never be peered</strong>. Re-addressing a live VNet means moving every resource. An enterprise <strong>IP address management (IPAM)</strong> plan, such as Azure Virtual Network Manager's IPAM pools, prevents it on day one.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"How many subnets / addresses are available?" → remember the <strong>5 reserved</strong>. "Connect two VNets that <strong>overlap</strong>" → not possible with peering; re-address (or NAT through an appliance). "<strong>Outbound</strong> internet with a fixed public IP for many VMs" → <strong>NAT Gateway</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m11-vnet">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a hub and a spoke with a planned address space</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show address spaces, subnets, the 5 reserved addresses and the special subnet names.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Virtual networks</span> › <span class="ui">+ Create</span>: <code>vnet-hub-m11</code>, <code>rg-az305-m11-demo</code>, Central India. <span class="ui">Security</span> tab: point at the Bastion, Firewall and DDoS checkboxes, leave them off.</li>
+            <li><span class="ui">IP addresses</span> tab: change the space to <code>10.10.0.0/16</code>. Add subnets: <code>AzureFirewallSubnet</code> <code>10.10.0.0/26</code> (use the <b>Subnet purpose</b> drop-down), <code>GatewaySubnet</code> <code>10.10.1.0/27</code>, <code>shared</code> <code>10.10.2.0/24</code>. Note the portal shows the usable address count.</li>
+            <li>Point at the subnet options: <b>Private subnet</b> (no default outbound access), NAT gateway, NSG, route table, service endpoints, <b>delegation</b> › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Create <code>vnet-spoke-m11</code> with <code>10.11.0.0/16</code> and subnets <code>web</code> <code>10.11.1.0/24</code> and <code>data</code> <code>10.11.2.0/24</code>.</li>
+            <li>Try to create a third VNet with <code>10.10.0.0/16</code>: the portal lets you. Say why that's dangerous: it can never be peered with the hub.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Lay the roads with plot numbers that never clash. Everything else can move later; these can't.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= NSG ======================= -->
+    <section id="nsg">
+      <span class="sec-num">11.3</span>
+      <h2>Filtering traffic: NSGs and ASGs</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M8 4v4M14 10v4M10 16v4"/></svg></span>
+        <h3>The guard at each lane</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>A <strong>network security group (NSG)</strong> contains prioritised allow and deny rules that filter inbound and outbound traffic by source, destination, port and protocol (layer 3–4). It can be associated with a <strong>subnet</strong> or a <strong>network interface</strong>. An <strong>application security group (ASG)</strong> groups VMs by role (for example "web" or "db") so NSG rules can refer to the group instead of IP addresses.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>NSGs are <strong>guards with a list</strong>: "Port 443 from the internet to web servers: allow. Port 1433 from web servers to database servers: allow. Everything else: deny." Rules are checked by priority number, lowest first, and the first match wins. ASGs let you write "web" instead of "10.1.2.4, 10.1.2.5, 10.1.2.9…".</p>
+      </div>
+
+      <ul>
+        <li>Every NSG has <strong>default rules</strong>: allow VNet-to-VNet, allow from Azure Load Balancer, deny all other inbound; allow outbound to the internet.</li>
+        <li><strong>Service tags</strong> (<code>Internet</code>, <code>VirtualNetwork</code>, <code>Storage.CentralIndia</code>, <code>AzureLoadBalancer</code>) stand for Microsoft-maintained IP ranges.</li>
+        <li><strong>Effective security rules</strong> and <strong>IP flow verify</strong> (Network Watcher) show why a packet was allowed or denied.</li>
+        <li>NSG <strong>flow logs</strong> are moving to <strong>VNet flow logs</strong>, which cover a whole VNet; send them to Log Analytics with Traffic Analytics (Module 04).</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Allow or deny traffic by <strong>IP, port, protocol</strong> between subnets" → <strong>NSG</strong>. "Group VMs by <strong>role</strong> so rules don't use IPs" → <strong>ASG</strong>. "Filter by <strong>FQDN</strong>, <strong>threat intelligence</strong>, central rules for many VNets" → <strong>Azure Firewall</strong> (not an NSG). "Why is my traffic blocked?" → <strong>IP flow verify</strong> / effective rules.</p>
+      </div>
+      <details class="demo" id="demo-m11-nsg">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Write NSG rules with an ASG, then ask why a packet is blocked</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show priority-ordered rules, default rules, ASGs and the troubleshooting views.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Application security groups</span> › <span class="ui">+ Create</span>: <code>asg-web</code>, Central India.</li>
+            <li>Search <span class="ui">Network security groups</span> › <span class="ui">+ Create</span>: <code>nsg-web-m11</code>. Open it › <span class="ui">Inbound security rules</span>: show the three <b>default rules</b> (65000, 65001, 65500).</li>
+            <li><span class="ui">+ Add</span>: source <b>Service Tag</b> <code>Internet</code>, destination <b>Application security group</b> <code>asg-web</code>, port 443, Allow, priority 100. Add another: port 3389 from Internet, <b>Deny</b>, priority 110.</li>
+            <li><span class="ui">Subnets</span> › <span class="ui">+ Associate</span>: <code>vnet-spoke-m11</code> / <code>web</code>.</li>
+            <li>If you have a VM: search <span class="ui">Network Watcher</span> › <span class="ui">IP flow verify</span>: test inbound TCP 3389 from an internet IP to the VM: <b>Access denied</b>, with the rule name. Or open the VM's NIC › <span class="ui">Effective security rules</span>.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Guards with a list, read top to bottom; the first match wins.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= TOPOLOGY ======================= -->
+    <section id="topology">
+      <span class="sec-num">11.4</span>
+      <h2>Topology: hub and spoke, Virtual WAN</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><path d="M6 6.5l4 3.5M18 6.5l-4 3.5M6 17.5l4-3.5M18 17.5l-4-3.5"/></svg></span>
+        <h3>The ring road and the colonies</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>VNet peering</strong> connects two VNets (in the same or different regions) over the Microsoft backbone with low latency; peering is <strong>not transitive</strong>. In a <strong>hub-and-spoke</strong> topology, a central hub VNet hosts shared services (firewall, gateways, Bastion, DNS) and is peered with workload spoke VNets; <strong>user-defined routes</strong> send traffic through the hub's firewall. <strong>Azure Virtual WAN</strong> is a Microsoft-managed networking service that provides hubs with built-in routing, VPN, ExpressRoute, and optional Azure Firewall ("secured hubs"), with any-to-any connectivity across hubs.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Peering is a <strong>private road between two colonies</strong>. If A is peered to the hub and B is peered to the hub, A still can't reach B directly: roads don't chain. So spoke-to-spoke traffic goes <strong>through the hub's firewall</strong>, by a route you set. Virtual WAN is the same idea, but Microsoft builds and runs the ring road, its junctions and toll gates for you.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 280" role="img" aria-labelledby="tpt tpd">
+            <title id="tpt">Hub and spoke compared with Virtual WAN</title>
+            <desc id="tpd">Left, customer-managed hub and spoke: a hub VNet with a firewall and gateway, three peered spokes, and route tables sending spoke-to-spoke traffic through the firewall. You build and manage the hub. Right, Virtual WAN: Microsoft-managed hubs in two regions connected to each other automatically, with VNets, branch VPN sites, ExpressRoute and point-to-site users attached; secured hubs add Azure Firewall. Any-to-any routing is built in.</desc>
+            <rect x="20" y="20" width="460" height="230" rx="14" class="s-surface2"/>
+            <text x="250" y="48" class="t-h mid">Hub and spoke (you build it)</text>
+            <rect x="185" y="100" width="130" height="80" rx="12" class="s-blue"/>
+            <text x="250" y="132" class="t-b mid">Hub</text><text x="250" y="152" class="t-s mid">firewall, gateway</text>
+            <rect x="40" y="70" width="110" height="44" rx="10" class="s-teal"/><text x="95" y="97" class="t-s mid">Spoke A</text>
+            <rect x="40" y="170" width="110" height="44" rx="10" class="s-teal"/><text x="95" y="197" class="t-s mid">Spoke B</text>
+            <rect x="350" y="120" width="110" height="44" rx="10" class="s-teal"/><text x="405" y="147" class="t-s mid">Spoke C</text>
+            <path d="M150 92 L182 120" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <path d="M150 192 L182 164" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <path d="M315 142 H346" class="s-arrow" marker-end="url(#ah)" marker-start="url(#ah)"/>
+            <path d="M95 114 V166" class="s-dash"/><text x="110" y="145" class="t-s t-rose">no direct path</text>
+            <text x="250" y="232" class="t-s mid">peering + UDRs · full control · you operate it</text>
+
+            <rect x="520" y="20" width="460" height="230" rx="14" class="s-surface2"/>
+            <text x="750" y="48" class="t-h mid">Virtual WAN (Microsoft runs it)</text>
+            <rect x="570" y="100" width="140" height="80" rx="12" class="s-violet"/>
+            <text x="640" y="132" class="t-b mid">Hub · India</text><text x="640" y="152" class="t-s mid">secured (firewall)</text>
+            <rect x="790" y="100" width="140" height="80" rx="12" class="s-violet"/>
+            <text x="860" y="132" class="t-b mid">Hub · Germany</text><text x="860" y="152" class="t-s mid">secured (firewall)</text>
+            <path d="M710 140 H786" class="s-arrow-accent" marker-end="url(#ah-a)" marker-start="url(#ah-a)"/>
+            <text x="748" y="130" class="t-s mid t-accent">auto</text>
+            <text x="640" y="80" class="t-s mid">VNets · branches · ER · users</text>
+            <text x="860" y="80" class="t-s mid">VNets · branches · ER · users</text>
+            <text x="750" y="232" class="t-s mid">any-to-any · built-in routing · scales to many branches</text>
+          </svg>
+        </div>
+        <figcaption><b>Same shape, different owner.</b> Hub-and-spoke gives you full control of every route. Virtual WAN trades some control for a managed backbone that shines with many branches and many regions.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Hub and spoke</th><th>Virtual WAN</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Who builds the hub</strong></td><td>You (a VNet with gateways, firewall, UDRs)</td><td>Microsoft (a managed hub resource)</td></tr>
+            <tr><td><strong>Transit between spokes</strong></td><td>Through a firewall or NVA with UDRs</td><td>Built in (any-to-any), optionally via secured hub</td></tr>
+            <tr><td><strong>Branch sites</strong></td><td>Tens of site-to-site tunnels per gateway</td><td>Hundreds to <strong>thousands</strong> of sites, SD-WAN partner integration</td></tr>
+            <tr><td><strong>Best for</strong></td><td>One or two regions, custom routing, NVAs</td><td>Many regions and branches, global transit</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Good practice: Azure Virtual Network Manager</div>
+        <p><strong>Azure Virtual Network Manager</strong> creates hub-and-spoke or mesh connectivity across many VNets and subscriptions from one place, and applies <strong>security admin rules</strong> that override NSGs (for example "always deny RDP from the internet"). It's governance for the network layer.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Connect two VNets with <strong>low latency</strong> over the backbone" → <strong>peering</strong>. "Spoke A must reach spoke B" → route through the <strong>hub firewall/NVA</strong> (peering isn't transitive) or use Virtual WAN. "<strong>Hundreds of branch offices</strong>", "<strong>global transit</strong>", "SD-WAN", "minimise network management" → <strong>Virtual WAN</strong>. "Centrally manage connectivity and <strong>security admin rules</strong> across subscriptions" → <strong>Virtual Network Manager</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m11-peering">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Peer the spoke to the hub and look at gateway transit</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that peering is two links, and where transit through a hub is switched on.</p>
+          <ol class="demo-steps">
+            <li>Open <code>vnet-hub-m11</code> › <span class="ui">Peerings</span> › <span class="ui">+ Add</span>: remote VNet <code>vnet-spoke-m11</code>. Name both directions (<code>hub-to-spoke</code>, <code>spoke-to-hub</code>).</li>
+            <li>Point at the options on each side: <b>Allow traffic to remote virtual network</b>, <b>Allow forwarded traffic</b> (needed for traffic routed via a firewall/NVA), <b>Allow gateway or route server in this VNet to forward traffic</b> (hub side) and <b>Use the remote VNet's gateway</b> (spoke side) › <span class="ui">Add</span>.</li>
+            <li>Both peerings show <b>Connected</b>. Open the spoke › <span class="ui">Connected devices</span> or a VM's NIC › <span class="ui">Effective routes</span>: the hub's range appears as <b>VNet peering</b>.</li>
+            <li>Search <span class="ui">Virtual WANs</span> › <span class="ui">+ Create</span>: show <b>Basic</b> vs <b>Standard</b> type and that hubs are added afterwards. Cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Add a second spoke peered only to the hub, and it can't see the first. Roads don't chain.</li></ul>
+          <p class="demo-say"><b>Say:</b> “A private road between two colonies, built from both ends.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= HYBRID ======================= -->
+    <section id="hybrid">
+      <span class="sec-num">11.5</span>
+      <h2>Hybrid connectivity: VPN and ExpressRoute</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="6" height="10" rx="1.5"/><rect x="16" y="7" width="6" height="10" rx="1.5"/><path d="M8 10h8M8 14h8"/></svg></span>
+        <h3>The highway to your datacentre</h3>
+      </div>
+
+      <div class="two-col">
+        <div>
+          <h4>VPN Gateway</h4>
+          <p>An encrypted <strong>IPsec tunnel over the public internet</strong>. <strong>Site-to-site</strong> links an office or datacentre; <strong>point-to-site</strong> links individual laptops; <strong>VNet-to-VNet</strong> links VNets. Quick to set up, cheap, bandwidth up to a few Gbps (by SKU), latency as good as the internet that day.</p>
+        </div>
+        <div>
+          <h4>ExpressRoute</h4>
+          <p>A <strong>private connection</strong> through a connectivity provider (or directly at a peering location with ExpressRoute Direct) into Microsoft's network. <strong>Does not traverse the internet.</strong> Predictable latency, bandwidth from 50 Mbps to 10 Gbps per circuit (100 Gbps with Direct), built-in redundancy (two connections), financially backed SLA.</p>
+        </div>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>VPN is an <strong>armoured van on the public highway</strong>: your goods are locked and safe, but you're in the same traffic as everyone else. ExpressRoute is a <strong>private freight railway line</strong> from your warehouse to Microsoft's: costlier and takes weeks to lay, but no traffic jams, and it never touches the public road.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 250" role="img" aria-labelledby="hyt hyd">
+            <title id="hyt">VPN and ExpressRoute paths</title>
+            <desc id="hyd">The on-premises datacentre connects to Azure two ways. The top path, ExpressRoute, goes through a connectivity provider and a peering location with two redundant connections to Microsoft Enterprise Edge routers, then to the ExpressRoute gateway in the hub VNet; private peering reaches VNets and Microsoft peering reaches Microsoft 365 and public PaaS endpoints. The bottom path, site-to-site VPN, goes over the internet to the VPN gateway as an encrypted IPsec tunnel, often used as a backup for ExpressRoute.</desc>
+            <rect x="20" y="70" width="170" height="110" rx="14" class="s-surface"/>
+            <text x="105" y="112" class="t-b mid">On-premises</text>
+            <text x="105" y="134" class="t-s mid">datacentre</text>
+            <text x="105" y="152" class="t-s mid">edge routers</text>
+            <path d="M190 95 H276" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <rect x="280" y="30" width="200" height="90" rx="12" class="s-amber"/>
+            <text x="380" y="62" class="t-b mid">Provider + peering</text>
+            <text x="380" y="82" class="t-b mid">location</text>
+            <text x="380" y="104" class="t-s mid">2 connections (redundant)</text>
+            <path d="M480 75 H566" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <rect x="570" y="30" width="170" height="90" rx="12" class="s-surface2"/>
+            <text x="655" y="66" class="t-b mid">Microsoft edge</text>
+            <text x="655" y="88" class="t-s mid">(MSEE routers)</text>
+            <path d="M740 75 H786" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <rect x="790" y="20" width="190" height="210" rx="14" class="s-blue"/>
+            <text x="885" y="48" class="t-h mid">Azure</text>
+            <text x="885" y="80" class="t-b mid">ER gateway</text>
+            <text x="885" y="98" class="t-s mid">private peering → VNets</text>
+            <text x="885" y="124" class="t-s mid">Microsoft peering →</text>
+            <text x="885" y="140" class="t-s mid">M365, public PaaS</text>
+            <text x="885" y="186" class="t-b mid">VPN gateway</text>
+            <text x="885" y="204" class="t-s mid">IPsec tunnel</text>
+            <path d="M190 160 Q480 230 786 195" class="s-dash" marker-end="url(#ah)"/>
+            <text x="480" y="186" class="t-s mid">site-to-site VPN over the internet (backup path)</text>
+            <text x="380" y="18" class="t-m mid t-accent">EXPRESSROUTE · private, not the internet</text>
+          </svg>
+        </div>
+        <figcaption><b>ExpressRoute for the main road, VPN as the spare.</b> A common enterprise pattern: ExpressRoute carries the traffic; a site-to-site VPN on the same gateway set-up takes over if the circuit fails.</figcaption>
+      </figure>
+
+      <h4>ExpressRoute details the exam likes</h4>
+      <div class="terms">
+        <div class="term"><b>Private peering</b><span>Reach your VNets' private IPs. The normal use.</span></div>
+        <div class="term"><b>Microsoft peering</b><span>Reach Microsoft 365 and Azure public endpoints over the private circuit.</span></div>
+        <div class="term"><b>Circuit SKUs</b><span><strong>Local</strong> (only regions near the peering location, no egress data charge), <strong>Standard</strong> (regions in the same geopolitical area), <strong>Premium</strong> (all regions worldwide, more routes and VNet links).</span></div>
+        <div class="term"><b>Global Reach</b><span>Connects two of your on-premises sites to each other <strong>through</strong> Microsoft's backbone, using their ExpressRoute circuits.</span></div>
+        <div class="term"><b>FastPath</b><span>Sends traffic straight to VMs, bypassing the gateway, for the lowest latency at high throughput.</span></div>
+        <div class="term"><b>ExpressRoute Direct</b><span>Connect your own routers at 10 or 100 Gbps directly at a Microsoft peering location; physical isolation for regulated industries.</span></div>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>"ExpressRoute is encrypted." It's <strong>private</strong>, not encrypted. If a regulator says "encrypted in transit", add <strong>MACsec</strong> (ExpressRoute Direct) or run <strong>IPsec over ExpressRoute</strong> (VPN over the private peering), or rely on TLS at the application layer.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Encrypted</strong> over the <strong>internet</strong>", "quick and cheap", "<strong>remote users</strong>" (point-to-site) → <strong>VPN Gateway</strong>. "<strong>Private</strong>, does <strong>not traverse the internet</strong>", "<strong>predictable latency</strong>", "high bandwidth", "SLA" → <strong>ExpressRoute</strong>. "Reach regions in <strong>another geography</strong>" → ExpressRoute <strong>Premium</strong>. "Connect <strong>two datacentres</strong> through Microsoft" → <strong>Global Reach</strong>. "Failover if ExpressRoute fails" → <strong>site-to-site VPN as backup</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m11-hybrid">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the VPN Gateway and ExpressRoute forms, then cancel</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> See the decisions behind the highway: SKU, active-active, peering location, bandwidth, circuit SKU.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Virtual network gateways</span> › <span class="ui">+ Create</span>: gateway type <b>VPN</b> or <b>ExpressRoute</b>. For VPN: SKUs <b>VpnGw1AZ…VpnGw5AZ</b> (zone-redundant), generation, <b>active-active</b> mode, BGP. It needs <code>GatewaySubnet</code> in <code>vnet-hub-m11</code>. Cancel.</li>
+            <li>Search <span class="ui">Local network gateways</span> › <span class="ui">+ Create</span>: the on-premises side (public IP of your router and on-premises address ranges). Cancel.</li>
+            <li>Search <span class="ui">ExpressRoute circuits</span> › <span class="ui">+ Create</span>: port type <b>Provider</b> vs <b>Direct</b>; provider, <b>peering location</b> (Chennai, Mumbai…), <b>bandwidth</b>, <b>SKU</b> (Local, Standard, Premium) and <b>billing model</b> (metered vs unlimited). Cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>A real VPN gateway takes 30–45 minutes to deploy. In a design, that's also your DR time if you haven't pre-built it.</li></ul>
+          <p class="demo-say"><b>Say:</b> “An armoured van on the public highway, or a private railway line. These forms are where you choose.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= PRIVATE ======================= -->
+    <section id="private">
+      <span class="sec-num">11.6</span>
+      <h2>Private access to PaaS, and DNS</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6"/></svg></span>
+        <h3>Bringing services inside the colony walls</h3>
+      </div>
+
+      <p>PaaS services like Azure SQL, Storage and Key Vault have <strong>public endpoints</strong> by default. Two features let your VNet reach them privately, and they're constantly confused.</p>
+
+      <div class="two-col">
+        <div>
+          <h4>Service endpoint</h4>
+          <p>Your subnet reaches the service's <strong>public</strong> endpoint over the Azure backbone, and the service's firewall can say "allow only this subnet". The service still has a public IP. Free, simple, works only from Azure VNets (not on-premises).</p>
+        </div>
+        <div>
+          <h4>Private endpoint (Private Link)</h4>
+          <p>A <strong>network interface with a private IP from your subnet</strong> that maps to one specific resource (this storage account, this database). Reachable from peered VNets and <strong>on-premises</strong> over VPN/ExpressRoute; the public endpoint can be disabled entirely. Charged per hour and per GB.</p>
+        </div>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A service endpoint is a <strong>VIP lane</strong> on the public road to the bank: faster, and the bank only lets cars from your colony in, but it's still the bank's public building. A private endpoint is the bank opening a <strong>branch inside your colony</strong>, with a house number on your street. Nobody outside even sees it.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 240" role="img" aria-labelledby="pet ped">
+            <title id="pet">Private endpoint and DNS resolution</title>
+            <desc id="ped">A VM in a spoke subnet looks up mystorage.blob.core.windows.net. The public DNS name is a CNAME to mystorage.privatelink.blob.core.windows.net, which a private DNS zone linked to the VNet resolves to 10.1.4.5, the private endpoint's IP in the subnet. Traffic goes to the private endpoint and on to the storage account over Private Link. On-premises clients resolve the same name through DNS Private Resolver in the hub, which forwards to the private zone.</desc>
+            <rect x="20" y="40" width="170" height="90" rx="12" class="s-surface"/>
+            <text x="105" y="74" class="t-b mid">VM in spoke</text>
+            <text x="105" y="96" class="t-s mid">resolves</text>
+            <text x="105" y="114" class="t-m mid">mystorage.blob…</text>
+            <path d="M190 85 H266" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="270" y="30" width="270" height="110" rx="12" class="s-violet"/>
+            <text x="405" y="58" class="t-b mid">Private DNS zone</text>
+            <text x="405" y="80" class="t-m mid">privatelink.blob.core…</text>
+            <text x="405" y="104" class="t-s mid">mystorage → 10.1.4.5</text>
+            <text x="405" y="124" class="t-s mid">linked to the VNets</text>
+            <path d="M540 85 H616" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="620" y="40" width="160" height="90" rx="12" class="s-teal"/>
+            <text x="700" y="74" class="t-b mid">Private endpoint</text>
+            <text x="700" y="96" class="t-m mid">10.1.4.5</text>
+            <text x="700" y="114" class="t-s mid">NIC in your subnet</text>
+            <path d="M780 85 H836" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <rect x="840" y="40" width="140" height="90" rx="12" class="s-blue"/>
+            <text x="910" y="74" class="t-b mid">Storage</text>
+            <text x="910" y="96" class="t-s mid">public access</text>
+            <text x="910" y="114" class="t-s mid">disabled</text>
+            <rect x="20" y="160" width="520" height="60" rx="12" class="s-surface2"/>
+            <text x="280" y="186" class="t-b mid">On-premises clients</text>
+            <text x="280" y="206" class="t-s mid">conditional forwarder → DNS Private Resolver in the hub</text>
+            <path d="M405 160 V144" class="s-arrow" marker-end="url(#ah)"/>
+          </svg>
+        </div>
+        <figcaption><b>Private endpoints are 20% networking and 80% DNS.</b> The app keeps using the normal name; the private DNS zone quietly answers with the private IP. Get DNS wrong and the app either fails or silently goes to the public endpoint.</figcaption>
+      </figure>
+
+      <ul>
+        <li>Keep <strong>private DNS zones centrally</strong> (in the Connectivity subscription), linked to every VNet, and use <strong>Azure Policy</strong> to register each new private endpoint automatically.</li>
+        <li><strong>Azure DNS Private Resolver</strong> lets on-premises DNS servers resolve Azure private zones (inbound endpoint) and Azure resolve on-premises names (outbound endpoint), without DNS VMs.</li>
+        <li><strong>Private Link service</strong> is the other direction: publish <strong>your own</strong> service (behind a Standard Load Balancer) privately to other customers' VNets.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Access PaaS from <strong>on-premises</strong> privately", "<strong>private IP</strong> for the service", "<strong>disable public access</strong>", "data exfiltration protection (one specific resource)" → <strong>private endpoint</strong>. "Restrict a service to a <strong>subnet</strong>, no extra cost" → <strong>service endpoint</strong>. "On-premises must <strong>resolve</strong> Azure private names" → <strong>DNS Private Resolver</strong>. "Offer <strong>your</strong> service privately to other tenants" → <strong>Private Link service</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m11-pe">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Reach a storage account through a private endpoint and private DNS</span><span class="demo-time">~5 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the private IP, the privatelink DNS zone, and public access turned off.</p>
+          <ol class="demo-steps">
+            <li>Create a storage account <code>staz305m11</code> + initials in <code>rg-az305-m11-demo</code>, Central India, LRS. <span class="ui">Networking</span> tab: <b>Disable public access and use private access</b>.</li>
+            <li>On the same tab › <span class="ui">+ Add private endpoint</span>: name <code>pe-staz305m11</code>, sub-resource <b>blob</b>, VNet <code>vnet-spoke-m11</code>, subnet <code>data</code>, <b>Integrate with private DNS zone</b>: Yes › <span class="ui">OK</span> › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open the private endpoint › <span class="ui">DNS configuration</span>: the FQDN <code>staz305m11….blob.core.windows.net</code> and its private IP <code>10.11.2.x</code>. Open the network interface it created.</li>
+            <li>Search <span class="ui">Private DNS zones</span> › <code>privatelink.blob.core.windows.net</code>: the A record, and <span class="ui">Virtual network links</span> showing the spoke.</li>
+            <li>From your laptop, open the storage account's <span class="ui">Storage browser</span> or <span class="ui">Containers</span>: access is denied, because you're on the internet. That's the point.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Link the zone to the hub too, and to every spoke, or name resolution quietly falls back to the public IP.</li></ul>
+          <p class="demo-say"><b>Say:</b> “The bank opened a branch inside your colony, and closed its door on the main road.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= LB ======================= -->
+    <section id="lb">
+      <span class="sec-num">11.7</span>
+      <h2>Load balancing: which one?</h2>
+      <p>Four services, two questions. <strong>Is the traffic HTTP(S)?</strong> (layer 7 or layer 4) and <strong>Is it global or regional?</strong> Answer both and there's only one box left.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="lbt lbd">
+            <title id="lbt">Load balancing two-by-two</title>
+            <desc id="lbd">A two-by-two grid. Columns: regional and global. Rows: HTTP and HTTPS web traffic (layer 7) and any TCP or UDP traffic (layer 4 or DNS). Regional web traffic: Application Gateway, with path-based routing, TLS termination and WAF. Global web traffic: Azure Front Door, with edge acceleration, caching, WAF and instant failover. Regional non-HTTP traffic: Azure Load Balancer, layer 4 TCP and UDP, ultra-low latency, zone redundant. Global non-HTTP traffic: Traffic Manager, DNS-based routing, or the cross-region (global) Load Balancer.</desc>
+            <text x="370" y="30" class="t-m mid">REGIONAL</text>
+            <text x="760" y="30" class="t-m mid">GLOBAL</text>
+            <text transform="translate(60 100) rotate(-90)" class="t-m mid">HTTP(S) · L7</text>
+            <text transform="translate(60 230) rotate(-90)" class="t-m mid">ANY · L4 / DNS</text>
+            <rect x="180" y="44" width="380" height="118" rx="14" class="s-teal"/>
+            <text x="370" y="78" class="t-h mid">Application Gateway</text>
+            <text x="370" y="104" class="t-s mid">URL path and host routing, TLS termination</text>
+            <text x="370" y="124" class="t-s mid">WAF, cookie affinity, inside your VNet</text>
+            <text x="370" y="148" class="t-b mid">one region's web apps</text>
+            <rect x="580" y="44" width="380" height="118" rx="14" class="s-rose"/>
+            <text x="770" y="78" class="t-h mid">Azure Front Door</text>
+            <text x="770" y="104" class="t-s mid">global anycast edge, CDN caching, WAF</text>
+            <text x="770" y="124" class="t-s mid">instant failover between regions</text>
+            <text x="770" y="148" class="t-b mid">worldwide web apps, multi-region</text>
+            <rect x="180" y="174" width="380" height="118" rx="14" class="s-blue"/>
+            <text x="370" y="208" class="t-h mid">Azure Load Balancer</text>
+            <text x="370" y="234" class="t-s mid">layer 4 TCP/UDP, ultra-low latency</text>
+            <text x="370" y="254" class="t-s mid">public or internal, zone redundant</text>
+            <text x="370" y="278" class="t-b mid">VMs, scale sets, non-HTTP</text>
+            <rect x="580" y="174" width="380" height="118" rx="14" class="s-violet"/>
+            <text x="770" y="208" class="t-h mid">Traffic Manager</text>
+            <text x="770" y="234" class="t-s mid">DNS-based: priority, weighted,</text>
+            <text x="770" y="254" class="t-s mid">performance, geographic routing</text>
+            <text x="770" y="278" class="t-b mid">any protocol, any endpoint</text>
+          </svg>
+        </div>
+        <figcaption><b>Two questions, one answer.</b> They also stack: Front Door (global) in front of Application Gateway (regional) in front of VMs, or Front Door straight to App Service.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Service</th><th>Layer and scope</th><th>Pick it when the question says…</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Load Balancer</strong> (Standard)</td><td>L4, regional (a cross-region tier exists)</td><td>"TCP/UDP", "non-HTTP", "internal load balancer", "high performance, low latency", "HA ports for NVAs"</td></tr>
+            <tr><td><strong>Application Gateway</strong> (v2)</td><td>L7, regional</td><td>"URL path-based routing", "TLS/SSL offload", "WAF in the region", "multiple sites on one gateway", "cookie-based affinity"</td></tr>
+            <tr><td><strong>Front Door</strong> (Standard / Premium)</td><td>L7, global</td><td>"global users", "multi-region failover", "edge caching/CDN", "WAF at the edge", "Private Link to origins" (Premium)</td></tr>
+            <tr><td><strong>Traffic Manager</strong></td><td>DNS, global</td><td>"DNS-based", "non-HTTP global", "geographic routing", "on-premises endpoints too"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p><strong>Basic Load Balancer</strong> and <strong>Basic public IPs</strong> are retired: use Standard. <strong>Application Gateway v1</strong> is retired: use v2. <strong>Front Door (classic)</strong> and <strong>Azure CDN from Microsoft (classic)</strong> are being replaced by <strong>Front Door Standard/Premium</strong>. Older questions may still mention the classic names.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>Read the protocol first, then the scope. "HTTP + one region" → <strong>Application Gateway</strong>. "HTTP + global" → <strong>Front Door</strong>. "TCP/UDP + one region" → <strong>Load Balancer</strong>. "Any protocol + global, DNS-level" → <strong>Traffic Manager</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m11-lb">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Let the portal's load-balancing guide pick for you, then compare</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Connect the two-by-two picture to the portal's own decision helper.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Load balancing</span> (Load balancing - help me choose). Open <span class="ui">Help me choose</span> (or the Overview): answer the questions, <b>web application (HTTP/HTTPS)?</b> and <b>global or regional?</b>, and watch it point at Front Door, Application Gateway, Load Balancer or Traffic Manager.</li>
+            <li>Search <span class="ui">Application gateways</span> › <span class="ui">+ Create</span>: tier <b>Standard V2</b> or <b>WAF V2</b>, autoscaling, zones. <span class="ui">Configuration</span> tab: <b>routing rules</b> with listeners and <b>path-based</b> targets. Cancel.</li>
+            <li>Search <span class="ui">Front Door and CDN profiles</span> › <span class="ui">+ Create</span> › <b>Azure Front Door</b> › <b>Custom create</b>: tier <b>Standard</b> vs <b>Premium</b> (Private Link origins, managed WAF rules), endpoint, origin group with health probes, WAF policy. Cancel.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Two questions: is it HTTP, and is it global? The portal asks the same ones.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= EDGE ======================= -->
+    <section id="edge">
+      <span class="sec-num">11.8</span>
+      <h2>Protecting the edge</h2>
+      <p>The last layer of the network design is the guards: what inspects traffic, what absorbs attacks, how admins get in, and how servers get out.</p>
+
+      <div class="topic">
+        <div class="topic-head">
+          <span class="t-icon tone-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c2 3 5 4 5 8a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-7z"/></svg></span>
+          <h3>Azure Firewall</h3>
+        </div>
+        <div class="callout definition">
+          <div class="c-label">Definition</div>
+          <p>Azure Firewall is a cloud-native, stateful network firewall as a service with built-in high availability and autoscaling. It filters east-west and north-south traffic with <strong>network rules</strong>, <strong>application rules (FQDNs)</strong> and <strong>DNAT rules</strong>, uses Microsoft <strong>threat intelligence</strong>, and is managed through <strong>Firewall Policy</strong>. SKUs: <strong>Basic</strong> (small businesses), <strong>Standard</strong>, and <strong>Premium</strong> (adds TLS inspection, IDPS, URL filtering and web categories).</p>
+        </div>
+        <div class="callout plain">
+          <div class="c-label">In plain words</div>
+          <p>NSGs are guards at each lane checking IDs. The firewall is the <strong>central checkpost</strong> on the ring road: it knows domain names ("allow <code>*.ubuntu.com</code>, deny everything else"), recognises known bad addresses, and with Premium can open and inspect parcels (TLS inspection). It logs everything centrally.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Guard</th><th>What it does</th><th>Exam words</th></tr></thead>
+          <tbody>
+            <tr><td><strong>NSG</strong></td><td>L3–4 allow/deny per subnet or NIC</td><td>"port", "subnet", "IP range"</td></tr>
+            <tr><td><strong>Azure Firewall</strong></td><td>Central stateful firewall, FQDN and threat-intel filtering, logging</td><td>"centrally", "FQDN", "outbound filtering", "spoke-to-spoke inspection"</td></tr>
+            <tr><td><strong>Web Application Firewall</strong></td><td>L7 protection against SQL injection, XSS and the OWASP top 10; runs on <strong>Front Door</strong> or <strong>Application Gateway</strong></td><td>"OWASP", "SQL injection", "protect the web app"</td></tr>
+            <tr><td><strong>DDoS Protection</strong></td><td>Infrastructure protection is free for all; <strong>DDoS Network Protection</strong> (per VNet) or <strong>IP Protection</strong> (per public IP) adds adaptive tuning, telemetry, rapid response and cost protection</td><td>"volumetric attack", "DDoS", "cost protection"</td></tr>
+            <tr><td><strong>Azure Bastion</strong></td><td>Browser-based RDP/SSH to VMs over TLS, with <strong>no public IP</strong> on the VMs</td><td>"no public IP", "secure RDP/SSH", "jump box"</td></tr>
+            <tr><td><strong>NAT Gateway</strong></td><td>Outbound internet for a subnet through a fixed set of public IPs, at scale</td><td>"outbound", "fixed egress IP", "SNAT port exhaustion"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll open port 3389 to my home IP so I can RDP into the VM."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"No management ports on the internet, ever. Admins come through <strong>Bastion</strong> with Entra sign-in and PIM (Module 03), or <strong>just-in-time</strong> access from Defender for Cloud. One open RDP port is the most common way in for ransomware."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Central</strong> filtering of outbound traffic by <strong>FQDN</strong>", "<strong>threat intelligence</strong>", "inspect traffic between spokes" → <strong>Azure Firewall</strong> (Premium for "<strong>TLS inspection</strong>" or "<strong>IDPS</strong>"). "Protect against <strong>SQL injection / XSS</strong>" → <strong>WAF</strong> on Front Door or Application Gateway. "<strong>RDP/SSH without public IPs</strong>" → <strong>Bastion</strong>. "Mitigate <strong>DDoS</strong> with telemetry and cost protection" → <strong>DDoS Network Protection</strong>.</p>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Defence in depth, drawn as layers: <strong>edge</strong> (Front Door + WAF, DDoS), <strong>perimeter</strong> (Azure Firewall in the hub), <strong>segment</strong> (NSGs per subnet), <strong>service</strong> (private endpoints, public access off), <strong>identity</strong> (Part I). An attacker should have to beat every layer, not just one.</p>
+      </div>
+      <details class="demo" id="demo-m11-edge">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Tour the guards: Firewall Policy, WAF policy, DDoS plan and Bastion</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show where each layer of protection is configured, without deploying the expensive ones.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Firewall Policies</span> › <span class="ui">+ Create</span>: policy tier <b>Basic / Standard / Premium</b>. Premium tab: <b>TLS inspection</b>, <b>IDPS</b>. <span class="ui">Rules</span>: rule collections for <b>DNAT</b>, <b>Network</b> and <b>Application</b> (FQDN) rules, and <b>Threat intelligence</b> mode. Create the policy if you like (a policy alone costs nothing on Standard tier), or cancel.</li>
+            <li>Search <span class="ui">Web Application Firewall policies (WAF)</span> › <span class="ui">+ Create</span>: policy for <b>Front Door</b> or <b>Application Gateway</b>, mode <b>Detection</b> vs <b>Prevention</b>, managed rule sets (OWASP / Default Rule Set, Bot Manager), custom rules such as a rate limit. Cancel.</li>
+            <li>Search <span class="ui">DDoS protection plans</span> › <span class="ui">+ Create</span>: point at the monthly price and the note that one plan covers many VNets. Cancel.</li>
+            <li>If time allows: a VM › <span class="ui">Connect</span> › <span class="ui">Connect via Bastion</span> › deploy the <b>Developer</b> SKU, and open an SSH session in the browser. The VM has no public IP.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>NSG, firewall, WAF, DDoS: four guards at four different gates. None of them replaces another.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Edge, perimeter, segment, service. An attacker should have to beat every layer.”</p>
+          <p class="demo-clean"><b>Clean up:</b> Delete any Bastion host you deployed.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">11.9</span>
+      <h2>Meridian: the network design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 11</span></div>
+        <div class="case-body">
+          <p>The network has to connect a Bengaluru datacentre (during an 18-month migration), <strong>180 stores</strong> with basic broadband, the head office, two India regions, a German subsidiary, and online shoppers across India. The PCI environment must be isolated, and the database must never be reachable from the internet.</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>One address plan</td><td>Non-overlapping ranges agreed up front: <code>10.10.0.0/16</code> Central India, <code>10.20.0.0/16</code> South India, <code>10.30.0.0/16</code> Germany West Central; on-premises and stores kept out of <code>10.0.0.0/12</code>; IPAM pools in <strong>Virtual Network Manager</strong></td><td>Anything can be peered or connected later without re-addressing.</td></tr>
+                <tr><td>Connect 180 stores, three regions and the datacentre</td><td><strong>Azure Virtual WAN</strong> (Standard) with <strong>secured hubs</strong> in Central India, South India and Germany West Central; stores connect by <strong>SD-WAN / site-to-site VPN</strong> to the nearest hub; spokes (Corp, Online, PCI, Online-EU) attach to their regional hub. The "hub network" locked in Module 02 is these hubs</td><td>A self-built VPN gateway can't take 180 sites per region; Virtual WAN gives any-to-any transit and scales to thousands of branches.</td></tr>
+                <tr><td>Fast, private link to the datacentre during migration</td><td><strong>ExpressRoute</strong> Standard, 1 Gbps, from a Chennai peering location into the Central India hub; a <strong>site-to-site VPN</strong> as backup path</td><td>Predictable bandwidth for Azure Migrate replication and Data Factory (Modules 07, 12); the VPN covers a circuit failure.</td></tr>
+                <tr><td>Inspect traffic, isolate PCI</td><td><strong>Azure Firewall Premium</strong> in each secured hub (TLS inspection and IDPS for PCI flows); routing intent sends spoke-to-spoke and internet traffic through it; the PCI spoke accepts traffic only from the Online spoke's checkout subnet</td><td>PCI DSS asks for segmentation and inspection; one policy, applied centrally.</td></tr>
+                <tr><td>Databases and storage never on the internet</td><td><strong>Private endpoints</strong> for SQL, Cosmos DB, Storage, Key Vault, Service Bus and Redis; public access disabled; <strong>private DNS zones</strong> in the Connectivity subscription with Policy auto-registration; <strong>DNS Private Resolver</strong> for the datacentre</td><td>Matches the security decisions of Modules 05, 06 and 10; on-premises resolves the same names.</td></tr>
+                <tr><td>Shoppers across India, checkout that survives a region</td><td><strong>Front Door Premium</strong> with <strong>WAF</strong> (OWASP rules, bot protection, rate limits) in front of App Service in both regions, connecting to origins over <strong>Private Link</strong>; caching for product images (Module 05)</td><td>Global edge, instant failover for the warm-standby design (Module 08), and no public origins.</td></tr>
+                <tr><td>Internal apps and the ERP</td><td>Internal <strong>Application Gateway v2</strong> with WAF in the Corp spoke for HTTP apps; <strong>internal Standard Load Balancer</strong> for the ERP's TCP services</td><td>Layer 7 where it's web, layer 4 where it isn't.</td></tr>
+                <tr><td>Admin access and outbound traffic</td><td><strong>Azure Bastion</strong> in each region (no public IPs on any VM); outbound through the hub firewall, with <strong>NAT Gateway</strong> on the firewall subnet for SNAT scale</td><td>No RDP on the internet; fixed, allow-listable egress IPs for suppliers.</td></tr>
+                <tr><td>DDoS</td><td><strong>DDoS Network Protection</strong> on the VNets with public IPs (Application Gateway, firewall); Front Door's edge absorbs attacks on the storefront</td><td>Telemetry, rapid response and cost protection during sale days.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">With the roads built, Module 12 moves the 600 VMs, the SQL estate and 240 TB of files across them.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">11.10</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's network checklist</h3>
+      <ul class="checklist">
+        <li>An organisation-wide, non-overlapping IP address plan, with room to grow.</li>
+        <li>A topology chosen: hub-and-spoke, or Virtual WAN for many branches and regions.</li>
+        <li>Hybrid link sized and made redundant: ExpressRoute with VPN backup, or VPN alone where enough.</li>
+        <li>PaaS reached through private endpoints, public access disabled, DNS designed centrally.</li>
+        <li>Load balancer picked by protocol and scope; Front Door for global web, App Gateway for regional.</li>
+        <li>Layers of protection: WAF and DDoS at the edge, firewall in the hub, NSGs per subnet.</li>
+        <li>No management ports on the internet; Bastion or JIT for admins; explicit egress via NAT or firewall.</li>
+        <li>Flow logs and firewall logs in Log Analytics, with Traffic Analytics (Module 04).</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. Spoke A and spoke B are each peered to a hub. VMs in A can't reach VMs in B. Why, and what do you do?</summary>
+          <div><p>VNet peering is <strong>not transitive</strong>. Route spoke-to-spoke traffic through a <strong>firewall or NVA in the hub</strong> with user-defined routes (or peer A and B directly, or use <strong>Virtual WAN</strong>).</p></div>
+        </details>
+        <details>
+          <summary>2. A company needs a private, high-bandwidth connection to Azure that does not traverse the internet, with predictable latency. What do you recommend, and what's a sensible backup?</summary>
+          <div><p><strong>ExpressRoute</strong>, with a <strong>site-to-site VPN</strong> as a failover path.</p></div>
+        </details>
+        <details>
+          <summary>3. On-premises servers must reach an Azure SQL Database over ExpressRoute using a private IP, and the database's public access must be disabled. What do you configure?</summary>
+          <div><p>A <strong>private endpoint</strong> for the SQL server, a <strong>private DNS zone</strong> (<code>privatelink.database.windows.net</code>), and <strong>DNS Private Resolver</strong> (or forwarders) so on-premises DNS resolves the private IP. A service endpoint wouldn't work from on-premises.</p></div>
+        </details>
+        <details>
+          <summary>4. A web app runs in two regions for global users. You need TLS at the edge, caching of static content, WAF and automatic failover between regions. Which service?</summary>
+          <div><p><strong>Azure Front Door</strong> (Standard or Premium) with a <strong>WAF policy</strong>.</p></div>
+        </details>
+        <details>
+          <summary>5. In one region, requests to <code>/images/*</code> must go to one pool of servers and <code>/api/*</code> to another, with SQL injection protection. Which service?</summary>
+          <div><p><strong>Application Gateway v2</strong> with <strong>path-based routing</strong> and <strong>WAF</strong>.</p></div>
+        </details>
+        <details>
+          <summary>6. Admins need RDP to Windows VMs without public IPs on the VMs and without a VPN client. What do you deploy?</summary>
+          <div><p><strong>Azure Bastion</strong> in the VNet (or the hub, reaching peered spokes).</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Carry this into Module 12</div>
+        <p>A migration is mostly a network event: replication traffic needs bandwidth (ExpressRoute), migrated servers need address space that doesn't clash (the IP plan), and cut-over means changing DNS and routes. With the roads in place, it's time to move the city.</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="10-app-architecture.html"><small>Previous module</small><span>← 10 · Application Architecture</span></a>
+        <a class="next" href="12-migration.html"><small>Next module</small><span>12 · Migration →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

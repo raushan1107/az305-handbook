@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Application Architecture</title>
+<meta name="description" content="Module 10 of the AZ-305 Architect Handbook: messages versus events, Queue Storage, Service Bus, Event Grid, Event Hubs, API Management, caching with Redis, App Configuration, and automated deployment with Bicep, Terraform and deployment stacks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/handbook.css">
+<script src="../assets/js/handbook.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head"/></marker>
+    <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-head-accent"/></marker>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">305</span>
+      <span class="brand-text"><b>AZ-305 Architect Handbook</b><span>Written by a Microsoft Certified Trainer</span></span>
+    </a>
+    <nav>
+      <a class="hide-sm" href="../index.html#modules">All modules</a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </nav>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+
+<section class="module-hero">
+  <div class="module-hero-inner">
+    <div class="crumbs"><a href="../index.html">Handbook</a> / Part III · Resilience</div>
+    <span class="eyebrow">Module 10</span>
+    <h1>Application Architecture: Wiring the Pieces Together</h1>
+    <p class="lead">On the first day of a big sale, the checkout button works perfectly, until the email service slows down. Then checkout waits for email, the web servers run out of threads, and the whole site falls over because a receipt was late. This module is about the plumbing that stops one slow part from taking everything down: queues, events, gateways and caches.</p>
+    <div class="hero-meta">
+      <span class="chip">Messages vs events</span><span class="chip">Queue Storage</span><span class="chip">Service Bus</span><span class="chip">Event Grid</span><span class="chip">Event Hubs</span><span class="chip">API Management</span><span class="chip">Redis</span><span class="chip">IaC</span>
+    </div>
+  </div>
+</section>
+
+<div class="layout">
+  <aside class="toc">
+    <details>
+      <summary class="toc-title">In this module</summary>
+      <ol>
+        <li><a href="#map">The mental map</a></li>
+        <li><a href="#why">Why loose coupling matters</a></li>
+        <li><a href="#concepts">Messages, events and patterns</a></li>
+        <li><a href="#queues">Azure Queue Storage</a></li>
+        <li><a href="#servicebus">Azure Service Bus</a></li>
+        <li><a href="#eventgrid">Azure Event Grid</a></li>
+        <li><a href="#eventhubs">Azure Event Hubs</a></li>
+        <li><a href="#compare">Choosing the messaging service</a></li>
+        <li><a href="#apim">Azure API Management</a></li>
+        <li><a href="#cache">Caching with Redis</a></li>
+        <li><a href="#config">App Configuration and secrets</a></li>
+        <li><a href="#iac">Automated deployment</a></li>
+        <li><a href="#case">Meridian: the application design</a></li>
+        <li><a href="#recap">Recap and self-check</a></li>
+      </ol>
+    </details>
+  </aside>
+
+  <article class="content">
+
+    <!-- ======================= MAP ======================= -->
+    <section id="map">
+      <span class="sec-num">10.0</span>
+      <h2>The mental map</h2>
+      <p>A modern application is a set of services that talk. They talk in three ways: a client <strong>calls</strong> an API and waits; a service <strong>sends a message</strong> that someone must process; a service <strong>announces an event</strong> that anyone may react to. Around those conversations sit a front door for APIs, a cache for speed, a place for settings, and code that deploys it all.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 420" role="img" aria-labelledby="m0t m0d">
+            <title id="m0t">Application architecture map</title>
+            <desc id="m0d">Clients such as web, mobile and partners call APIs through Azure API Management. Behind it, services built on App Service, Container Apps and Functions communicate in three ways. Commands go through queues: Queue Storage for simple cases, Service Bus for enterprise messaging with topics, sessions and dead-lettering. Discrete events go through Event Grid, which pushes notifications such as "blob created" to subscribers. Event streams go through Event Hubs, which ingests millions of telemetry events for analytics. Supporting services: Azure Managed Redis for caching and sessions, App Configuration and Key Vault for settings and secrets. Underneath, infrastructure as code with Bicep or Terraform deploys everything through a pipeline.</desc>
+
+            <rect x="20" y="20" width="150" height="150" rx="14" class="s-surface"/>
+            <text x="95" y="52" class="t-b mid">Clients</text>
+            <text x="95" y="82" class="t-s mid">web</text>
+            <text x="95" y="104" class="t-s mid">mobile</text>
+            <text x="95" y="126" class="t-s mid">partners</text>
+            <path d="M170 95 H206" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="210" y="20" width="160" height="150" rx="14" class="s-teal"/>
+            <text x="290" y="60" class="t-b mid">API</text>
+            <text x="290" y="80" class="t-b mid">Management</text>
+            <text x="290" y="110" class="t-s mid">security, limits,</text>
+            <text x="290" y="128" class="t-s mid">versions, portal</text>
+            <path d="M370 95 H406" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="410" y="20" width="200" height="150" rx="14" class="s-blue"/>
+            <text x="510" y="52" class="t-b mid">Services</text>
+            <text x="510" y="82" class="t-s mid">App Service</text>
+            <text x="510" y="104" class="t-s mid">Container Apps</text>
+            <text x="510" y="126" class="t-s mid">Functions</text>
+            <text x="510" y="152" class="t-s mid">(Module 09)</text>
+
+            <rect x="650" y="20" width="330" height="46" rx="10" class="s-amber"/>
+            <text x="670" y="40" class="t-b">Commands</text><text x="670" y="58" class="t-s">Queue Storage · Service Bus</text>
+            <rect x="650" y="72" width="330" height="46" rx="10" class="s-violet"/>
+            <text x="670" y="92" class="t-b">Discrete events</text><text x="670" y="110" class="t-s">Event Grid</text>
+            <rect x="650" y="124" width="330" height="46" rx="10" class="s-rose"/>
+            <text x="670" y="144" class="t-b">Event streams</text><text x="670" y="162" class="t-s">Event Hubs</text>
+            <path d="M610 43 H646" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M610 95 H646" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M610 147 H646" class="s-arrow" marker-end="url(#ah)"/>
+
+            <rect x="410" y="200" width="200" height="70" rx="12" class="s-surface2"/>
+            <text x="510" y="230" class="t-b mid">Azure Managed Redis</text>
+            <text x="510" y="252" class="t-s mid">cache, sessions</text>
+            <rect x="650" y="200" width="330" height="70" rx="12" class="s-surface2"/>
+            <text x="815" y="230" class="t-b mid">App Configuration + Key Vault</text>
+            <text x="815" y="252" class="t-s mid">settings, feature flags, secrets</text>
+            <path d="M510 170 V196" class="s-dash"/>
+            <path d="M610 235 H646" class="s-dash"/>
+
+            <rect x="20" y="300" width="960" height="54" rx="12" class="s-green"/>
+            <text x="500" y="324" class="t-b mid">Infrastructure as code: Bicep / ARM / Terraform · deployment stacks · template specs</text>
+            <text x="500" y="344" class="t-s mid">deployed by a pipeline (GitHub Actions, Azure DevOps) with a managed identity, not by hand</text>
+            <rect x="20" y="366" width="960" height="40" rx="10" class="s-surface2"/>
+            <text x="500" y="391" class="t-s mid">Watch it all with Application Insights and distributed tracing (Module 04)</text>
+          </svg>
+        </div>
+        <figcaption><b>Call, send, announce.</b> Most design mistakes in this area come from using a call where a message belongs, or a message where an event belongs. Learn the three verbs and the service choice follows.</figcaption>
+      </figure>
+
+      <div class="callout note">
+        <div class="c-label">Related</div>
+        <p>The <a href="resilience-map.html#t-integrate">Resilience &amp; Compute Map</a> shows every messaging, API and deployment service from this module next to the compute and continuity services of Modules 08 and 09, as one expandable tree.</p>
+      </div>
+
+      <div class="demo-kit" id="demo-kit">
+        <div class="demo-kit-head"><b>Trainer's demo kit</b><span>· 9 quick portal walkthroughs · about 33 minutes if you run them all</span><button type="button" data-demos-toggle>Open all demos</button></div>
+        <div class="demo-kit-body">
+          <p>These demos build Meridian's order plumbing in miniature: a storage queue, a Service Bus queue and topic with a filtered subscription and a dead-letter queue, an Event Grid subscription that drops a message into a queue whenever a blob is uploaded, an event hub with consumer groups, an API in API Management with a rate limit, feature flags in App Configuration, and a resource group exported as a template. Everything is message-level, so you can see each idea working in the portal without writing code.</p>
+          <h4>You'll need</h4>
+          <ul><li>A subscription where you are <b>Contributor</b>.</li><li>Names below: resource group <code>rg-az305-m10-demo</code>, storage account <code>staz305m10</code> plus initials, Service Bus namespace <code>sb-az305-m10</code> plus initials (<b>Standard</b>, for topics), Event Hubs namespace <code>evh-az305-m10</code> plus initials, APIM <code>apim-az305-m10</code> plus initials (<b>Consumption</b>), App Configuration <code>appcs-az305-m10</code> plus initials, region Central India.</li><li>Make sure the <b>Microsoft.EventGrid</b> resource provider is registered on the subscription (Subscriptions › Resource providers).</li></ul>
+          <h4>Run order that saves time</h4>
+          <ol><li>Create the <b>APIM Consumption</b> instance first: even Consumption takes a few minutes. (Never create a Developer or Premium instance in class: they take 30+ minutes and bill by the hour.)</li><li>Create the storage account early; it's used by the queue demo and as the Event Grid source.</li><li>Event Hubs: Standard tier only if you want to show Capture and consumer groups; Basic shows partitions only.</li><li>Export the template (last demo) from this module's resource group, so it has interesting resources in it.</li></ol>
+          <h4>Demos in this module</h4>
+          <ul class="demo-list"><li><a href="#demo-m10-queue">Add, peek and dequeue messages in a storage queue</a><span>~3m</span></li><li><a href="#demo-m10-sb-queue">Send, peek and dead-letter in a Service Bus queue</a><span>~4m</span></li><li><a href="#demo-m10-sb-topic">Fan out with a topic and a filtered subscription</a><span>~4m</span></li><li><a href="#demo-m10-eg">Upload a blob and watch Event Grid drop a notification into a queue</a><span>~4m</span></li><li><a href="#demo-m10-eh">See partitions, consumer groups and Capture on an event hub</a><span>~3m</span></li><li><a href="#demo-m10-apim">Put an API behind API Management and add a rate limit</a><span>~6m</span></li><li><a href="#demo-m10-redis">Walk the Azure Managed Redis form: tiers, zones and geo-replication</a><span>~2m</span></li><li><a href="#demo-m10-appconfig">Flip a feature flag and reference a Key Vault secret</a><span>~3m</span></li><li><a href="#demo-m10-iac">Export a resource group as a template, and find template specs and deployment stacks</a><span>~4m</span></li></ul>
+          <h4>Clean up at the end</h4>
+          <ul><li>Delete <code>rg-az305-m10-demo</code>. The Event Grid system topic sits in the same group as its storage account and goes with it.</li><li>App Configuration has <b>soft delete</b> with purge protection options: a deleted store can be recovered for a retention period, and its name stays reserved. Purge it if you want the name back.</li><li>APIM instances are soft-deleted for 48 hours; purge if you need to reuse the name sooner.</li></ul>
+          <p class="small muted">Portal menus move around now and then. If a blade isn't where a step says, type the service name in the top search bar. Every step here starts from a name you can search for.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= WHY ======================= -->
+    <section id="why">
+      <span class="sec-num">10.1</span>
+      <h2>Why loose coupling matters</h2>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A busy <strong>dosa restaurant</strong>. If each waiter walked into the kitchen and stood next to the cook until his dosa was ready, six waiters would be stuck in the kitchen and nobody would be taking orders. Instead the waiter <strong>pins the order slip on the rail</strong> and goes back to the tables. Cooks pick slips in order, at their own speed. When the rush comes, the rail gets longer, nothing breaks, and the manager can add a cook. That rail is a <strong>queue</strong>.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 240" role="img" aria-labelledby="cpt cpd">
+            <title id="cpt">Tight coupling compared with loose coupling</title>
+            <desc id="cpd">Top: tightly coupled. The web app calls the order service, which calls the email service synchronously. If email is slow or down, the order fails and the user waits. Bottom: loosely coupled. The web app puts an order message on a queue and replies to the user at once. The order service processes messages at its own pace and publishes an "order placed" event; email, loyalty and analytics each react independently. If email is down, messages wait and nothing else is affected.</desc>
+            <text x="20" y="30" class="t-m t-rose">TIGHTLY COUPLED</text>
+            <rect x="20" y="42" width="160" height="56" rx="10" class="s-surface"/><text x="100" y="75" class="t-b mid">Web app</text>
+            <path d="M180 70 H256" class="s-arrow" marker-end="url(#ah)"/><text x="218" y="62" class="t-s mid">waits</text>
+            <rect x="260" y="42" width="160" height="56" rx="10" class="s-surface"/><text x="340" y="75" class="t-b mid">Order service</text>
+            <path d="M420 70 H496" class="s-arrow" marker-end="url(#ah)"/><text x="458" y="62" class="t-s mid">waits</text>
+            <rect x="500" y="42" width="160" height="56" rx="10" class="s-rose"/><text x="580" y="75" class="t-b mid">Email (slow)</text>
+            <text x="690" y="66" class="t-s">→ user waits, threads pile up,</text>
+            <text x="690" y="84" class="t-s">one slow part takes all down</text>
+
+            <text x="20" y="140" class="t-m t-green">LOOSELY COUPLED</text>
+            <rect x="20" y="152" width="140" height="56" rx="10" class="s-surface"/><text x="90" y="185" class="t-b mid">Web app</text>
+            <path d="M160 180 H196" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="200" y="152" width="140" height="56" rx="10" class="s-amber"/><text x="270" y="178" class="t-b mid">Queue</text><text x="270" y="196" class="t-s mid">order slips</text>
+            <path d="M340 180 H376" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="380" y="152" width="160" height="56" rx="10" class="s-surface"/><text x="460" y="185" class="t-b mid">Order service</text>
+            <path d="M540 180 H576" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="580" y="152" width="150" height="56" rx="10" class="s-violet"/><text x="655" y="178" class="t-b mid">"Order placed"</text><text x="655" y="196" class="t-s mid">event</text>
+            <path d="M730 165 H766" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M730 180 H766" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M730 195 H766" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="770" y="146" width="210" height="68" rx="10" class="s-green"/>
+            <text x="875" y="168" class="t-s mid">email · loyalty · analytics</text>
+            <text x="875" y="188" class="t-s mid">each at its own pace;</text>
+            <text x="875" y="206" class="t-s mid">one down, others fine</text>
+          </svg>
+        </div>
+        <figcaption><b>Put a buffer between things that fail separately.</b> The user gets "order received" in milliseconds, the backlog absorbs the spike, and a broken email service delays receipts instead of losing sales.</figcaption>
+      </figure>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"The order service just calls the payment, stock and email APIs one after the other. It's simple and it works on my machine."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"Four synchronous calls means four SLAs multiplied together (Module 01's composite SLA) and the slowest one sets the response time. I keep the <strong>call</strong> only where the user must wait for the answer (payment), and turn the rest into <strong>messages and events</strong>."</p>
+        </div>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Ask of every arrow in a diagram: <strong>does the caller really need to wait for the answer?</strong> If not, it shouldn't be a call.</p>
+      </div>
+    </section>
+
+    <!-- ======================= CONCEPTS ======================= -->
+    <section id="concepts">
+      <span class="sec-num">10.2</span>
+      <h2>Messages, events and patterns</h2>
+      <p>Azure's own guidance draws one line that answers most exam questions: is the sender handing over <strong>a job</strong>, or announcing <strong>a fact</strong>?</p>
+
+      <div class="two-col">
+        <div><h4>Message (a command)</h4><p>"<strong>Process this order.</strong>" The sender expects it to be handled, exactly once, by someone. The message carries the data. If nobody processes it, that's a problem. Think courier parcel: it must reach a person and be signed for.</p></div>
+        <div><h4>Event (a fact)</h4><p>"<strong>An order was placed.</strong>" The publisher doesn't care who listens, or whether anyone does. Lightweight; often just a pointer to the data. Think a society notice board: whoever is interested reads it.</p></div>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Kind</th><th>Example</th><th>Azure service</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Message / command</strong></td><td>"Charge this card", "generate this invoice"</td><td><strong>Service Bus</strong> (enterprise) or <strong>Queue Storage</strong> (simple)</td></tr>
+            <tr><td><strong>Discrete event</strong></td><td>"A blob was created", "a VM was deleted", "order 1234 shipped"</td><td><strong>Event Grid</strong></td></tr>
+            <tr><td><strong>Event stream</strong></td><td>Clickstream, POS telemetry, IoT readings: millions per minute, analysed over time</td><td><strong>Event Hubs</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Patterns you'll see in questions</h3>
+      <div class="terms">
+        <div class="term"><b>Queue-based load levelling</b><span>A queue absorbs spikes so a backend processes at a steady rate. The rail on the dosa counter.</span></div>
+        <div class="term"><b>Competing consumers</b><span>Several workers read the same queue; each message goes to one of them. Add workers to go faster.</span></div>
+        <div class="term"><b>Publish / subscribe</b><span>One message or event, many independent subscribers, each getting its own copy. Service Bus topics, Event Grid.</span></div>
+        <div class="term"><b>Retry and circuit breaker</b><span>Retry transient failures with back-off; stop calling a failing service for a while so it can recover.</span></div>
+        <div class="term"><b>Dead-letter queue</b><span>Messages that can't be processed after N tries are parked for a human to inspect, instead of blocking the line.</span></div>
+        <div class="term"><b>Cache-aside</b><span>Read from the cache; on a miss, read the database and put the result in the cache for next time.</span></div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"The sender <strong>expects the work to be done</strong>", "<strong>order processing</strong>", "<strong>transactions</strong>" → a <strong>message</strong> (Service Bus). "<strong>React</strong> to a change", "<strong>notify</strong> subscribers", "lightweight notification" → a <strong>discrete event</strong> (Event Grid). "<strong>Telemetry</strong>", "<strong>millions of events</strong>", "<strong>streaming</strong>" → an <strong>event stream</strong> (Event Hubs).</p>
+      </div>
+    </section>
+
+    <!-- ======================= QUEUES ======================= -->
+    <section id="queues">
+      <span class="sec-num">10.3</span>
+      <h2>Azure Queue Storage</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="5" height="8" rx="1"/><rect x="9.5" y="8" width="5" height="8" rx="1"/><rect x="17" y="8" width="5" height="8" rx="1"/></svg></span>
+        <h3>The simplest queue there is</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Queue Storage is a service, part of an Azure storage account, for storing large numbers of messages that can be accessed from anywhere via authenticated HTTP or HTTPS calls. A message can be up to <strong>64 KB</strong>, and a queue can hold millions of messages up to the capacity of the storage account.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A cheap, huge to-do list inside your storage account. Put messages in, workers take them out. No ordering guarantee, no topics, no transactions. If that's all you need, nothing is cheaper or simpler.</p>
+      </div>
+
+      <ul>
+        <li>Messages are <strong>hidden</strong> while a worker processes them (visibility timeout) and reappear if the worker crashes: <strong>at-least-once</strong> delivery.</li>
+        <li>Default time-to-live is 7 days (configurable, including never expire).</li>
+        <li>Pick it when you need a backlog of <strong>more than 80 GB</strong>, want <strong>progress tracking</strong> on a message, or need server-side logs of every transaction.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Simple</strong> queue", "<strong>lowest cost</strong>", "more than <strong>80 GB</strong> of messages", "messages up to 64 KB", "already using a <strong>storage account</strong>" → <strong>Queue Storage</strong>. Anything about FIFO, sessions, duplicate detection, topics or transactions → Service Bus.</p>
+      </div>
+      <details class="demo" id="demo-m10-queue">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Add, peek and dequeue messages in a storage queue</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the order rail at its simplest: messages in, messages out, nothing else.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Storage accounts</span> › <span class="ui">+ Create</span>: <code>staz305m10</code> + initials, <code>rg-az305-m10-demo</code>, Central India, Standard, LRS › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open it › <span class="ui">Storage browser</span> (or <span class="ui">Queues</span>) › <span class="ui">+ Queue</span>: <code>orders</code>.</li>
+            <li>Open the queue › <span class="ui">+ Add message</span>: <code>{"orderId":1001,"store":"S001"}</code>, expires in 7 days. Add two more.</li>
+            <li>Show the list: <b>dequeue count</b>, insertion and expiry time. <span class="ui">Dequeue message</span> removes the oldest. Point out: no ordering promise, no topics, no dead-letter.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “A cheap, endless order rail. If that's all you need, stop here.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= SERVICE BUS ======================= -->
+    <section id="servicebus">
+      <span class="sec-num">10.4</span>
+      <h2>Azure Service Bus</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="11" rx="2"/><path d="M3 10h18"/><circle cx="7.5" cy="19" r="1.6"/><circle cx="16.5" cy="19" r="1.6"/></svg></span>
+        <h3>Enterprise messaging: queues and topics</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Service Bus is a fully managed enterprise message broker with <strong>queues</strong> (point-to-point) and <strong>publish-subscribe topics</strong>. It supports ordered delivery with <strong>sessions</strong>, <strong>duplicate detection</strong>, <strong>dead-letter queues</strong>, scheduled and deferred messages, <strong>transactions</strong>, and the AMQP 1.0 protocol, so applications and services can be decoupled reliably.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A <strong>registered post office</strong> for business messages. It guarantees delivery, can keep things in order, refuses duplicates, sets aside letters that can't be delivered, and with topics can send copies to several departments at once, each department seeing only the letters its filter allows.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 260" role="img" aria-labelledby="sbt sbd">
+            <title id="sbt">Service Bus queue and topic</title>
+            <desc id="sbd">Left: a queue. A sender puts messages in; several competing consumers each receive different messages; failed messages move to the dead-letter queue. Right: a topic. A publisher sends an order event to the topic; three subscriptions (billing, logistics with a filter for region equals South, loyalty) each get their own copy and their receivers process them independently.</desc>
+            <text x="20" y="28" class="t-m t-amber">QUEUE · one message, one receiver</text>
+            <rect x="20" y="44" width="110" height="54" rx="10" class="s-surface"/><text x="75" y="76" class="t-b mid">Sender</text>
+            <path d="M130 71 H166" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="170" y="40" width="160" height="62" rx="10" class="s-amber"/>
+            <rect x="184" y="56" width="22" height="30" rx="4" class="s-surface"/><rect x="212" y="56" width="22" height="30" rx="4" class="s-surface"/><rect x="240" y="56" width="22" height="30" rx="4" class="s-surface"/><rect x="268" y="56" width="22" height="30" rx="4" class="s-surface"/>
+            <path d="M330 60 H366" class="s-arrow" marker-end="url(#ah)"/><path d="M330 82 H366" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="370" y="40" width="110" height="28" rx="8" class="s-surface"/><text x="425" y="59" class="t-s mid">worker A</text>
+            <rect x="370" y="74" width="110" height="28" rx="8" class="s-surface"/><text x="425" y="93" class="t-s mid">worker B</text>
+            <path d="M250 102 V140" class="s-dash" marker-end="url(#ah)"/>
+            <rect x="170" y="144" width="160" height="44" rx="10" class="s-rose"/><text x="250" y="166" class="t-b mid">Dead-letter</text><text x="250" y="182" class="t-s mid">after N failed tries</text>
+
+            <text x="530" y="28" class="t-m t-amber">TOPIC · one message, a copy per subscription</text>
+            <rect x="530" y="96" width="110" height="54" rx="10" class="s-surface"/><text x="585" y="128" class="t-b mid">Publisher</text>
+            <path d="M640 123 H676" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="680" y="88" width="100" height="70" rx="10" class="s-amber"/><text x="730" y="120" class="t-b mid">Topic</text><text x="730" y="138" class="t-s mid">order-events</text>
+            <path d="M780 110 Q800 70 816 62" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M780 123 H816" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M780 136 Q800 176 816 184" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="820" y="40" width="160" height="44" rx="10" class="s-surface"/><text x="900" y="60" class="t-b mid">sub: billing</text><text x="900" y="76" class="t-s mid">all orders</text>
+            <rect x="820" y="101" width="160" height="44" rx="10" class="s-surface"/><text x="900" y="121" class="t-b mid">sub: logistics</text><text x="900" y="137" class="t-s mid">filter Region='South'</text>
+            <rect x="820" y="162" width="160" height="44" rx="10" class="s-surface"/><text x="900" y="182" class="t-b mid">sub: loyalty</text><text x="900" y="198" class="t-s mid">all orders</text>
+            <text x="500" y="238" class="t-s mid">Sessions keep related messages in order · duplicate detection drops repeats within a time window · transactions group operations</text>
+          </svg>
+        </div>
+        <figcaption><b>Queues for "one of you do this", topics for "each of you needs to know".</b> Subscriptions behave like their own queues, with their own filters and dead-letter queues.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Tier</th><th>Key features</th><th>Use it for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Basic</strong></td><td>Queues only</td><td>Simple, low-cost queueing</td></tr>
+            <tr><td><strong>Standard</strong></td><td>Queues and <strong>topics</strong>, sessions, transactions, messages up to 256 KB; pay per operation</td><td>Most applications, dev/test</td></tr>
+            <tr><td><strong>Premium</strong></td><td>Dedicated capacity (messaging units), predictable latency, messages up to 100 MB, <strong>private endpoints</strong>, availability zones, geo-disaster recovery and geo-replication</td><td>Production with high throughput, isolation or network requirements</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>FIFO</strong> / guaranteed <strong>order</strong>" → Service Bus <strong>sessions</strong>. "Ignore <strong>duplicate</strong> messages" → <strong>duplicate detection</strong>. "Several systems each get a <strong>copy</strong>", "<strong>filter</strong> by property" → <strong>topics and subscriptions</strong>. "<strong>Poison</strong> messages" → <strong>dead-letter queue</strong>. "<strong>Private endpoint</strong>", "<strong>predictable performance</strong>", "large messages" → <strong>Premium</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m10-sb-queue">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Send, peek and dead-letter in a Service Bus queue</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> See the extras a broker adds: sessions, duplicate detection and a dead-letter queue.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Service Bus</span> › <span class="ui">+ Create</span>: namespace <code>sb-az305-m10</code> + initials, Central India, pricing tier <b>Standard</b>. Point at the <b>Premium</b> option (messaging units, zones). <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open it › <span class="ui">+ Queue</span>: name <code>orders</code>. Show the options: <b>Max delivery count</b> (10), <b>Enable duplicate detection</b>, <b>Enable sessions</b>, <b>Enable dead lettering on message expiration</b>. Tick duplicate detection › <span class="ui">Create</span>.</li>
+            <li>Open the queue › <span class="ui">Service Bus Explorer</span> › <span class="ui">Send messages</span>: a JSON body, then send it <b>twice with the same Message ID</b>. <span class="ui">Peek from start</span>: only one copy.</li>
+            <li><span class="ui">Receive messages</span> in <b>PeekLock</b> mode › select a message › <span class="ui">Dead-letter</span>. Switch to the <span class="ui">Dead-letter</span> tab: it's parked there with a reason.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>Sessions and duplicate detection can only be set when the queue is created. Decide them in the design, not later.</li></ul>
+          <p class="demo-say"><b>Say:</b> “Registered post: delivered once, in order if you ask, and the undeliverable letters go to a separate shelf.”</p>
+        </div>
+      </details>
+      <details class="demo" id="demo-m10-sb-topic">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Fan out with a topic and a filtered subscription</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> One order, many teams, each getting only what its filter allows.</p>
+          <ol class="demo-steps">
+            <li>In the namespace › <span class="ui">+ Topic</span>: <code>order-events</code> › <span class="ui">Create</span>.</li>
+            <li>Open the topic › <span class="ui">+ Subscription</span>: <code>billing</code> (max delivery count 10) › create. Then <code>logistics-south</code>.</li>
+            <li>Open <code>logistics-south</code> › <span class="ui">Filters</span> (Rules) › edit the default rule to a <b>SQL filter</b>: <code>Region = 'South'</code> › save.</li>
+            <li>Topic › <span class="ui">Service Bus Explorer</span> › <span class="ui">Send messages</span>: one with custom property <code>Region</code> = <code>South</code>, one with <code>North</code>.</li>
+            <li>Check each subscription's message count: <code>billing</code> has 2, <code>logistics-south</code> has 1.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Each of you needs to know, and each of you only hears what's relevant.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= EVENT GRID ======================= -->
+    <section id="eventgrid">
+      <span class="sec-num">10.5</span>
+      <h2>Azure Event Grid</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="5" r="2.5"/><circle cx="19" cy="12" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M7.5 12h9M7 10.5l9.6-4.5M7 13.5l9.6 4.5"/></svg></span>
+        <h3>"Something happened", pushed to whoever cares</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Event Grid is a highly scalable, fully managed publish-subscribe service for <strong>event routing</strong>. Sources (Azure services through <strong>system topics</strong>, or your apps through <strong>custom topics</strong>) publish events; <strong>event subscriptions</strong> filter them and <strong>push</strong> them to handlers such as Functions, webhooks, Service Bus, Storage queues, Event Hubs and Logic Apps, with retries and dead-lettering. It supports the CloudEvents schema, and namespaces add MQTT and pull delivery.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Event Grid is the <strong>society WhatsApp group</strong> for Azure. "A file was uploaded." "A VM was deleted." "A key in Key Vault is about to expire." You don't poll every few seconds asking "anything new?": Event Grid tells you within moments, and only about the things your filter cares about.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 230" role="img" aria-labelledby="egt egd">
+            <title id="egt">Event Grid routing</title>
+            <desc id="egd">Event sources on the left: Blob Storage, resource groups and subscriptions, Key Vault, and custom applications. They publish to Event Grid topics. Event subscriptions with filters, such as "blob created in the images container with suffix .jpg", push events to handlers: Azure Functions, a webhook, a Service Bus queue, a Storage queue, or Logic Apps. Failed deliveries are retried for up to 24 hours and then dead-lettered to storage.</desc>
+            <rect x="20" y="20" width="200" height="190" rx="14" class="s-surface2"/>
+            <text x="120" y="48" class="t-b mid">Sources</text>
+            <text x="120" y="80" class="t-s mid">Blob Storage</text>
+            <text x="120" y="104" class="t-s mid">resource groups, subs</text>
+            <text x="120" y="128" class="t-s mid">Key Vault, Cosmos DB…</text>
+            <text x="120" y="152" class="t-s mid">your app (custom topic)</text>
+            <path d="M220 115 H296" class="s-arrow" marker-end="url(#ah)"/>
+            <text x="258" y="104" class="t-s mid">publish</text>
+            <rect x="300" y="30" width="330" height="170" rx="14" class="s-violet"/>
+            <text x="465" y="62" class="t-h mid">Event Grid</text>
+            <text x="465" y="92" class="t-s mid">topics → event subscriptions</text>
+            <rect x="325" y="110" width="280" height="40" rx="8" class="s-surface"/>
+            <text x="465" y="135" class="t-m mid">filter: BlobCreated, *.jpg</text>
+            <text x="465" y="182" class="t-s mid">retry up to 24 h · then dead-letter</text>
+            <path d="M630 115 H706" class="s-arrow-accent" marker-end="url(#ah-a)"/>
+            <text x="668" y="104" class="t-s mid t-accent">push</text>
+            <rect x="710" y="20" width="270" height="190" rx="14" class="s-surface2"/>
+            <text x="845" y="48" class="t-b mid">Handlers</text>
+            <text x="845" y="80" class="t-s mid">Azure Functions</text>
+            <text x="845" y="104" class="t-s mid">webhook (any HTTPS)</text>
+            <text x="845" y="128" class="t-s mid">Service Bus, Storage queue</text>
+            <text x="845" y="152" class="t-s mid">Event Hubs, Logic Apps</text>
+          </svg>
+        </div>
+        <figcaption><b>Reactive, not polling.</b> The source doesn't know who's listening, handlers don't know about each other, and you pay per operation (the first 100,000 a month are free).</figcaption>
+      </figure>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>React</strong> when a <strong>blob is created</strong>", "notify when a <strong>resource changes</strong>", "<strong>event-driven</strong>, <strong>serverless</strong>", "<strong>avoid polling</strong>", "<strong>push</strong> to many handlers with filters" → <strong>Event Grid</strong>. "<strong>MQTT</strong> from devices" → Event Grid <strong>namespaces</strong> (MQTT broker).</p>
+      </div>
+      <details class="demo" id="demo-m10-eg">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Upload a blob and watch Event Grid drop a notification into a queue</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show push-based eventing from an Azure service with no code at all.</p>
+          <p class="demo-note"><b>Before you start:</b> The <b>Microsoft.EventGrid</b> resource provider must be registered.</p>
+          <ol class="demo-steps">
+            <li>Storage account <code>staz305m10…</code> › <span class="ui">Containers</span> › <span class="ui">+ Container</span>: <code>images</code>. Then <span class="ui">Queues</span> › <span class="ui">+ Queue</span>: <code>image-events</code>.</li>
+            <li>Storage account › <span class="ui">Events</span> › <span class="ui">+ Event Subscription</span>: name <code>on-image-upload</code>, schema <b>Event Grid Schema</b>, system topic name <code>egst-az305-m10</code>; event types: only <b>Blob Created</b>; endpoint type <b>Storage Queues</b> › select <code>image-events</code>.</li>
+            <li><span class="ui">Filters</span> tab: <b>Enable subject filtering</b>, subject begins with <code>/blobServices/default/containers/images/</code>, ends with <code>.jpg</code> › <span class="ui">Create</span>.</li>
+            <li>Upload any <code>.jpg</code> into <code>images</code>, then a <code>.txt</code>. Open the <code>image-events</code> queue: one message, with the blob URL and event type inside.</li>
+            <li>Back in <span class="ui">Events</span>: the metrics chart shows published and delivered events. Point at the other endpoint types: Function, Webhook, Service Bus, Event Hubs.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Nobody polled. The storage account announced it, and only the subscriber who cared about .jpg heard it.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= EVENT HUBS ======================= -->
+    <section id="eventhubs">
+      <span class="sec-num">10.6</span>
+      <h2>Azure Event Hubs</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h14M3 10h18M3 14h12M3 18h16"/></svg></span>
+        <h3>A firehose of events, kept in order per partition</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure Event Hubs is a fully managed, real-time data streaming platform that can ingest millions of events per second. Events are appended to <strong>partitions</strong> (ordered logs) and retained for a configured period, so many <strong>consumer groups</strong> can read the same stream independently, at their own pace, and replay it. It offers an <strong>Apache Kafka</strong>-compatible endpoint and <strong>Capture</strong> to write the stream to Blob Storage or Data Lake automatically.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Event Hubs is not a to-do list; it's a <strong>CCTV recording</strong>. Every event is written to the tape in order. Security watches it live, the analytics team rewinds to 9 a.m., and nobody's viewing removes anything from the tape. Events expire only when the retention period ends.</p>
+      </div>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li><strong>Partitions</strong> decide parallelism: events with the same partition key stay in order. Plan the count up front (it can't be reduced, and only grows on Premium and Dedicated).</li>
+        <li><strong>Consumer groups</strong> are independent views of the stream: Stream Analytics in one, a Databricks job in another (Module 07).</li>
+        <li>Tiers: Basic, Standard (Kafka, Capture), Premium and Dedicated (isolation, longer retention up to 90 days, more partitions).</li>
+        <li><strong>Capture</strong> lands raw events as Avro or Parquet files in the lake: the bronze layer for free.</li>
+      </ul>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Millions of events per second</strong>", "<strong>telemetry</strong>", "<strong>clickstream</strong>", "<strong>big data streaming</strong>", "<strong>Kafka</strong> without managing Kafka", "<strong>replay</strong> events", "multiple readers of the same stream" → <strong>Event Hubs</strong>. "Archive the stream to the lake automatically" → Event Hubs <strong>Capture</strong>. Device management and cloud-to-device commands for IoT → <strong>IoT Hub</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m10-eh">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">See partitions, consumer groups and Capture on an event hub</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Connect the CCTV-tape idea to the screens that define a stream.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Event Hubs</span> › <span class="ui">+ Create</span>: namespace <code>evh-az305-m10</code> + initials, Central India, tier <b>Standard</b>, throughput units 1 › <span class="ui">Create</span>.</li>
+            <li>Open it › <span class="ui">+ Event Hub</span>: name <code>pos-telemetry</code>, <b>partition count</b> 4, <b>retention</b> (hours or days). <span class="ui">Capture</span> tab: show <b>Capture</b> On, output Avro or Parquet to a storage account, time and size windows. Leave it off › <span class="ui">Create</span>.</li>
+            <li>Open the event hub › <span class="ui">Consumer groups</span>: <code>$Default</code> exists › <span class="ui">+ Consumer group</span> <code>stream-analytics</code>.</li>
+            <li>Point at <span class="ui">Data Explorer</span> (if shown) to send and view a few events, and at the namespace's <b>Kafka</b> endpoint note on the Overview.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “It's a tape, not a to-do list. Every team rewinds it independently.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= COMPARE ======================= -->
+    <section id="compare">
+      <span class="sec-num">10.7</span>
+      <h2>Choosing the messaging service</h2>
+      <p>Four services, one table. In real designs they are combined, not chosen between: Event Grid tells a function a file arrived, the function puts a job on Service Bus, telemetry flows through Event Hubs.</p>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th></th><th>Queue Storage</th><th>Service Bus</th><th>Event Grid</th><th>Event Hubs</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Carries</strong></td><td>Messages</td><td>Messages (commands)</td><td>Discrete events</td><td>Event streams</td></tr>
+            <tr><td><strong>Delivery</strong></td><td>Pull</td><td>Pull (and push via SDK)</td><td><strong>Push</strong> (pull in namespaces)</td><td>Pull, replayable</td></tr>
+            <tr><td><strong>Ordering</strong></td><td>No guarantee</td><td>FIFO with sessions</td><td>No</td><td>Per partition</td></tr>
+            <tr><td><strong>Fan-out</strong></td><td>No</td><td>Topics and subscriptions</td><td>Many subscriptions</td><td>Consumer groups</td></tr>
+            <tr><td><strong>Stand-out features</strong></td><td>Cheapest, 80 GB+ backlogs</td><td>Transactions, dedupe, DLQ, scheduled</td><td>Filters, Azure system events, retries</td><td>Kafka, Capture, millions/sec</td></tr>
+            <tr><td><strong>Analogy</strong></td><td>Order rail</td><td>Registered post</td><td>WhatsApp group</td><td>CCTV tape</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Related: Logic Apps</div>
+        <p><strong>Azure Logic Apps</strong> builds integration <strong>workflows</strong> visually from hundreds of connectors (Office 365, SAP, Salesforce, SFTP, Service Bus). Pick it when the question says "<strong>low-code</strong> workflow", "<strong>connectors</strong> to SaaS", or "business users design the process". Pick Durable Functions (Module 09) when developers want the workflow <strong>in code</strong>.</p>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">Mindset takeaway</div>
+        <p>Ask two questions: <strong>does the sender need it done</strong> (message) or <strong>just announce it</strong> (event)? And is it <strong>one thing that happened</strong> (Event Grid) or <strong>a continuous flow to analyse</strong> (Event Hubs)? Those two questions answer almost every messaging question on the exam.</p>
+      </div>
+    </section>
+
+    <!-- ======================= APIM ======================= -->
+    <section id="apim">
+      <span class="sec-num">10.8</span>
+      <h2>Azure API Management</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-teal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v16H4zM14 4h6v6h-6zM14 14h6v6h-6z"/><path d="M10 12h4M10 7h4M10 17h4"/></svg></span>
+        <h3>One front door for all your APIs</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure API Management (APIM) is a hybrid, multicloud platform for managing APIs. It has three parts: the <strong>API gateway</strong>, which accepts calls, enforces <strong>policies</strong> (authentication, rate limits, quotas, caching, transformation) and routes to back ends; the <strong>management plane</strong>, for defining APIs, products and policies; and the <strong>developer portal</strong>, where consumers discover APIs, read documentation and get subscription keys.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>APIM is the <strong>reception desk</strong> of an office building. Visitors (API callers) don't wander the floors; they show ID at reception, get a visitor pass with limits ("max 100 visits a minute"), and are sent to the right department. Departments can move floors without telling visitors. And there's a brochure stand (the developer portal) explaining what each department does.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 240" role="img" aria-labelledby="apt apd">
+            <title id="apt">API Management in front of back-end services</title>
+            <desc id="apd">Consumers (mobile app, partner systems, the web front end) call one API Management gateway URL. Inbound policies validate the JWT token, check the subscription key, apply a rate limit and look up the response cache. The gateway routes to back ends: App Service APIs, Container Apps, Functions, or a legacy SOAP service exposed as REST. Outbound policies transform the response. The developer portal lets partners sign up and read the documentation. Application Insights receives the telemetry.</desc>
+            <rect x="20" y="30" width="180" height="150" rx="14" class="s-surface"/>
+            <text x="110" y="60" class="t-b mid">Consumers</text>
+            <text x="110" y="92" class="t-s mid">mobile app</text>
+            <text x="110" y="114" class="t-s mid">partner systems</text>
+            <text x="110" y="136" class="t-s mid">web front end</text>
+            <path d="M200 105 H246" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="250" y="20" width="420" height="170" rx="14" class="s-teal"/>
+            <text x="460" y="50" class="t-h mid">API Management gateway</text>
+            <rect x="270" y="66" width="185" height="104" rx="10" class="s-surface"/>
+            <text x="362" y="88" class="t-b mid">Inbound policies</text>
+            <text x="362" y="110" class="t-s mid">validate JWT (Entra ID)</text>
+            <text x="362" y="128" class="t-s mid">rate limit, quota</text>
+            <text x="362" y="146" class="t-s mid">cache lookup</text>
+            <rect x="465" y="66" width="185" height="104" rx="10" class="s-surface"/>
+            <text x="557" y="88" class="t-b mid">Outbound policies</text>
+            <text x="557" y="110" class="t-s mid">transform, mask</text>
+            <text x="557" y="128" class="t-s mid">set headers</text>
+            <text x="557" y="146" class="t-s mid">cache store</text>
+            <path d="M670 105 H716" class="s-arrow" marker-end="url(#ah)"/>
+            <rect x="720" y="30" width="260" height="150" rx="14" class="s-blue"/>
+            <text x="850" y="60" class="t-b mid">Back ends</text>
+            <text x="850" y="92" class="t-s mid">App Service, Container Apps</text>
+            <text x="850" y="114" class="t-s mid">Functions</text>
+            <text x="850" y="136" class="t-s mid">legacy SOAP, on-premises</text>
+            <text x="500" y="222" class="t-s mid">Developer portal for partners · products and subscriptions · versions and revisions · telemetry to Application Insights</text>
+          </svg>
+        </div>
+        <figcaption><b>Security, limits and documentation in one place, not in every service.</b> Back ends can change, move or be split without breaking the consumers' URL.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Tier</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Consumption</strong></td><td>Serverless, pay per call, scales automatically; fewer features. Good for light or spiky APIs.</td></tr>
+            <tr><td><strong>Developer</strong></td><td>All features, <strong>no SLA</strong>. For development and evaluation only.</td></tr>
+            <tr><td><strong>Basic / Standard</strong> (classic and v2)</td><td>Production with an SLA. The v2 tiers deploy faster and Standard v2 can reach back ends in a VNet.</td></tr>
+            <tr><td><strong>Premium</strong> (classic and v2)</td><td><strong>Multi-region</strong> gateways (classic), <strong>VNet injection</strong>, availability zones, <strong>self-hosted gateways</strong>, highest scale.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Publish APIs</strong> to partners", "<strong>developer portal</strong>", "<strong>rate limiting</strong> / <strong>throttling</strong>", "<strong>validate JWT</strong>", "transform <strong>SOAP to REST</strong>", "<strong>version</strong> APIs", "one endpoint for many back ends" → <strong>API Management</strong>. "Gateway <strong>on-premises</strong> or in another cloud" → <strong>self-hosted gateway</strong>. "<strong>Multi-region</strong> gateway", "<strong>internal VNet</strong>" → <strong>Premium</strong>. "Pay per call", "serverless" → <strong>Consumption</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m10-apim">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Put an API behind API Management and add a rate limit</span><span class="demo-time">~6 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the reception desk: one URL, a policy, and a test that gets throttled.</p>
+          <p class="demo-note"><b>Before you start:</b> Create the Consumption instance at the start of the module; it takes a few minutes.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">API Management services</span> › <span class="ui">+ Create</span>: name <code>apim-az305-m10</code> + initials, Central India, organisation name and admin email, pricing tier <b>Consumption</b> › <span class="ui">Review + create</span> › <span class="ui">Create</span>.</li>
+            <li>Open it › <span class="ui">APIs</span> › <span class="ui">+ Add API</span> › <b>HTTP</b>: display name <code>Echo</code>, web service URL <code>https://httpbin.org</code>, API URL suffix <code>echo</code> › create. <span class="ui">+ Add operation</span>: GET <code>/get</code>.</li>
+            <li>Select the API (All operations) › <span class="ui">Inbound processing</span> › <span class="ui">+ Add policy</span> › <b>Limit call rate</b>: 3 calls per 60 seconds (or edit the XML: <code>&lt;rate-limit calls="3" renewal-period="60" /&gt;</code>) › save.</li>
+            <li><span class="ui">Test</span> tab › GET <code>/get</code> › <span class="ui">Send</span> four times: the fourth returns <b>429 Too Many Requests</b>.</li>
+            <li>Point at <span class="ui">Products</span>, <span class="ui">Subscriptions</span> (keys per consumer) and the <b>Developer portal</b> link (not available on Consumption; show it in the menu of a classic tier or a screenshot).</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Visitors stop at reception, show ID, and get told to wait if they come too often.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CACHE ======================= -->
+    <section id="cache">
+      <span class="sec-num">10.9</span>
+      <h2>Caching with Redis</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16.5L12 21l9-4.5"/></svg></span>
+        <h3>Answers kept within arm's reach</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>Azure Managed Redis</strong> is a fully managed, in-memory data store based on Redis Enterprise software, used as a distributed cache, session store, message broker and for data structures such as sorted sets and streams. It offers <strong>Memory Optimized</strong>, <strong>Balanced</strong>, <strong>Compute Optimized</strong> and <strong>Flash Optimized</strong> tiers, high availability across zones, persistence and <strong>active geo-replication</strong>.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A chaiwala doesn't boil fresh milk for every cup. He keeps a <strong>pot on the stove</strong> for the next twenty cups, and only goes back to the fridge when the pot is empty. Redis is the pot; the database is the fridge. Most requests are served from the pot in under a millisecond.</p>
+      </div>
+
+      <ul>
+        <li><strong>Cache-aside</strong> is the default pattern: read cache; on a miss, read the database and write the result to the cache with an expiry (TTL).</li>
+        <li><strong>Session state</strong> in Redis makes web servers stateless, so they can scale out and in (Module 09).</li>
+        <li>Also used for leaderboards (sorted sets), rate limiting counters and short-lived locks.</li>
+        <li>The hard part is <strong>invalidation</strong>: decide how stale data may be, and set TTLs accordingly.</li>
+      </ul>
+
+      <div class="callout note">
+        <div class="c-label">Name check</div>
+        <p><strong>Azure Cache for Redis</strong> (Basic, Standard, Premium, Enterprise tiers) is being retired in favour of <strong>Azure Managed Redis</strong>. Older questions may say "Azure Cache for Redis"; the answer pattern (cache-aside, sessions, sub-millisecond reads) is the same.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Reduce <strong>database load</strong>", "<strong>sub-millisecond</strong> reads", "<strong>frequently read</strong>, rarely changed data", "store <strong>session state</strong> for a web farm" → <strong>Redis</strong> (Azure Managed Redis). "Cache API <strong>responses</strong> at the gateway" → APIM <strong>caching policy</strong>. "Cache <strong>static content</strong> near users" → <strong>Front Door</strong> (Module 11).</p>
+      </div>
+      <details class="demo" id="demo-m10-redis">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Walk the Azure Managed Redis form: tiers, zones and geo-replication</span><span class="demo-time">~2 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show the choices a cache asks for, without paying for one.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">Azure Managed Redis</span> (or <span class="ui">Azure Cache for Redis</span> › create › Azure Managed Redis) › <span class="ui">+ Create</span>: point at the tiers: <b>Memory Optimized</b>, <b>Balanced</b>, <b>Compute Optimized</b>, <b>Flash Optimized</b>, and the cache sizes and prices.</li>
+            <li>Show <b>high availability</b> (zones), <span class="ui">Networking</span> (private endpoint), and <span class="ui">Advanced</span>: <b>clustering policy</b>, <b>active geo-replication</b>, persistence. Cancel.</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “The pot of chai on the stove: sized for the rush, and refilled from the fridge only when it's empty.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CONFIG ======================= -->
+    <section id="config">
+      <span class="sec-num">10.10</span>
+      <h2>App Configuration and secrets</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>
+        <h3>Settings in one place, secrets in a vault</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>Azure App Configuration is a managed service to centrally store application settings and <strong>feature flags</strong>, with labels for environments, point-in-time snapshots, change notifications and <strong>Key Vault references</strong>, so secrets stay in Key Vault while apps read all configuration from one place.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>Twelve microservices, three environments, two regions. Keeping their settings in twelve <code>appsettings.json</code> files is how production ends up pointing at the test database. App Configuration is the one <strong>settings register</strong>, and <strong>feature flags</strong> let you switch the Diwali banner on at midnight without redeploying.</p>
+      </div>
+
+      <div class="www">
+        <div><b>App Configuration</b>Non-secret settings, per environment labels, feature flags, dynamic refresh.</div>
+        <div><b>Key Vault</b>Secrets, keys and certificates (Module 03), referenced from App Configuration or App Service.</div>
+        <div><b>Managed identity</b>How the app reads both, with no connection string in code.</div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Centralise configuration</strong> for many apps", "<strong>feature flags</strong>", "change settings <strong>without redeploying</strong>" → <strong>App Configuration</strong>. "Store <strong>secrets</strong>, keys, certificates" → <strong>Key Vault</strong>.</p>
+      </div>
+      <details class="demo" id="demo-m10-appconfig">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Flip a feature flag and reference a Key Vault secret</span><span class="demo-time">~3 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show one settings register for many apps, with flags you can toggle live.</p>
+          <ol class="demo-steps">
+            <li>Search <span class="ui">App Configuration</span> › <span class="ui">+ Create</span>: <code>appcs-az305-m10</code> + initials, Central India, tier <b>Free</b> (or Standard to show replicas and soft delete) › <span class="ui">Create</span>.</li>
+            <li><span class="ui">Configuration explorer</span> › <span class="ui">+ Create</span> › <b>Key-value</b>: key <code>Checkout:MaxItems</code>, value <code>20</code>, label <code>prod</code>. Add the same key with label <code>test</code> and value <code>5</code>.</li>
+            <li><span class="ui">+ Create</span> › <b>Key Vault reference</b>: show that it points at a secret in a vault (Module 03's vault, if you still have it) rather than copying the value. Cancel if no vault exists.</li>
+            <li><span class="ui">Feature manager</span> › <span class="ui">+ Create</span>: <code>DiwaliBanner</code>, off. Toggle it on: apps reading it switch without a redeploy. Point at <b>filters</b> (percentage, time window, targeting).</li>
+          </ol>
+          <p class="demo-say"><b>Say:</b> “Settings in a register, secrets in a vault, and the Diwali banner on a switch.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= IAC ======================= -->
+    <section id="iac">
+      <span class="sec-num">10.11</span>
+      <h2>Automated deployment</h2>
+      <div class="topic-head" style="margin-top:0">
+        <span class="t-icon tone-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg></span>
+        <h3>Infrastructure you can review, repeat and roll back</h3>
+      </div>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>Infrastructure as code (IaC)</strong> describes resources in declarative files that are version-controlled and deployed by a pipeline. On Azure the native options are <strong>ARM templates</strong> (JSON) and <strong>Bicep</strong> (a simpler language that compiles to ARM); <strong>Terraform</strong> is the common multicloud option. <strong>Template specs</strong> store approved templates as Azure resources, and <strong>deployment stacks</strong> manage a set of resources as one unit, with deny settings and clean-up of resources removed from the template.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>If a resource was built by clicking in the portal, it can only be rebuilt by someone remembering the clicks. Written as Bicep, it's <strong>reviewed like code</strong>, deployed the same way to dev, test and prod, and rebuilt in another region in minutes. That's also your fastest disaster recovery for the infrastructure (Module 08).</p>
+      </div>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>Tool</th><th>Pick it when</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Bicep</strong></td><td>Azure-only estate; day-one support for new Azure features; no state file to manage</td></tr>
+            <tr><td><strong>ARM templates</strong></td><td>Existing JSON templates; anything Bicep compiles to</td></tr>
+            <tr><td><strong>Terraform</strong></td><td>Multicloud, or a team that already uses it; needs a <strong>state file</strong> stored safely (for example in a storage account)</td></tr>
+            <tr><td><strong>Template specs</strong></td><td>A platform team shares approved, versioned templates with RBAC</td></tr>
+            <tr><td><strong>Deployment stacks</strong></td><td>Manage a group of resources as one unit; <strong>deny</strong> manual changes; delete resources removed from the template. The successor to Blueprints' locking idea</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"I'll create the resources in the portal now and write the templates later."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"'Later' never comes, and the portal-built prod never matches test. The <strong>pipeline</strong> deploys with its own managed identity; humans get <strong>Reader</strong> in prod. Drift is a bug."</p>
+        </div>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"<strong>Repeatable</strong>, <strong>consistent</strong> deployments", "<strong>declarative</strong>", "Azure-native" → <strong>Bicep / ARM</strong>. "<strong>Multicloud</strong>" → <strong>Terraform</strong>. "Share <strong>approved templates</strong> across the organisation" → <strong>template specs</strong>. "Prevent changes to deployed resources", "replace <strong>Blueprints</strong>" → <strong>deployment stacks</strong> (with template specs).</p>
+      </div>
+      <details class="demo" id="demo-m10-iac">
+        <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Export a resource group as a template, and find template specs and deployment stacks</span><span class="demo-time">~4 min</span></summary>
+        <div class="demo-body">
+          <p class="demo-goal"><b>Goal:</b> Show that every portal action is a template underneath, and where the platform team publishes theirs.</p>
+          <ol class="demo-steps">
+            <li>Open <code>rg-az305-m10-demo</code> › <span class="ui">Export template</span> (under Automation): the ARM JSON for everything in the group. Switch to the <b>Bicep</b> tab if shown, and point at the <span class="ui">Download</span> option.</li>
+            <li>Open any resource's create form, fill it, and on <span class="ui">Review + create</span> click <span class="ui">Download a template for automation</span>: the form becomes a template.</li>
+            <li>Search <span class="ui">Template specs</span> › <span class="ui">+ Create</span>: name, version <code>1.0</code>, and the template editor. This is how a platform team shares approved templates with RBAC. Cancel.</li>
+            <li>Search <span class="ui">Deployment stacks</span> (or open a resource group › <span class="ui">Deployment stacks</span>): show the create options <b>Action on unmanage</b> (detach or delete) and <b>Deny settings</b> (deny delete, deny write). Cancel.</li>
+          </ol>
+          <p class="demo-sub">Point out while you are there</p>
+          <ul><li>The exported template is a starting point, not production IaC: it's verbose and hard-codes names. Real templates are written and reviewed.</li></ul>
+          <p class="demo-say"><b>Say:</b> “If it was built by clicking, it can only be rebuilt by remembering. Write it down as code.”</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- ======================= CASE ======================= -->
+    <section id="case">
+      <span class="sec-num">10.12</span>
+      <h2>Meridian: the application design</h2>
+      <div class="case">
+        <div class="case-head"><b>Meridian Retail</b><span>· applying Module 10</span></div>
+        <div class="case-body">
+          <p>Last Diwali the old site went down for two hours because the SMS gateway slowed down and checkout waited for it. This year: ten times the traffic, three logistics partners calling Meridian's APIs, a new loyalty programme, and leadership asking for "no more big-bang releases".</p>
+          <div class="table-wrap min" style="margin:1em 0">
+            <table>
+              <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
+              <tbody>
+                <tr><td>Checkout must not wait for slow systems</td><td>Checkout API takes payment synchronously, then puts an order on a <strong>Service Bus Premium</strong> queue <code>orders</code> (<strong>sessions</strong> by order ID, <strong>duplicate detection</strong>, dead-letter alerts to ops)</td><td>The user waits only for what they must; the rest is buffered. Premium for private endpoints and zones.</td></tr>
+                <tr><td>Billing, logistics and loyalty each react to an order</td><td>Topic <code>order-events</code> with subscriptions per team; logistics filters by region; Container Apps workers scale on subscription length (Module 09)</td><td>Each team gets its own copy and can be slow, down or redeployed independently.</td></tr>
+                <tr><td>React to uploads and Azure changes</td><td><strong>Event Grid</strong> system topics: blob created → thumbnail Function; supplier file → ADF trigger (Module 07); Key Vault near-expiry → ops</td><td>No polling; lightweight, filtered, push-based.</td></tr>
+                <tr><td>Store and online telemetry for real-time analytics</td><td><strong>Event Hubs</strong> (Standard, 8 partitions keyed by store ID) with <strong>Capture</strong> to the bronze layer; Stream Analytics in its own consumer group (Module 07)</td><td>A replayable stream that feeds both live alerts and the lake.</td></tr>
+                <tr><td>Partners call Meridian's APIs safely</td><td><strong>API Management Premium</strong> with a gateway in Central India and one in South India; JWT validation with Entra ID, per-partner products and <strong>rate limits</strong>, developer portal; back ends private in the VNet</td><td>One controlled front door; survives the regional failover like checkout does.</td></tr>
+                <tr><td>Fast catalogue and stateless web tier</td><td><strong>Azure Managed Redis</strong> (Balanced, zone-redundant) for cache-aside on catalogue reads and for <strong>session state</strong>; active geo-replication to South India</td><td>Cuts Cosmos DB reads at peak and lets App Service scale out freely.</td></tr>
+                <tr><td>No big-bang releases</td><td><strong>App Configuration</strong> with <strong>feature flags</strong> (Diwali banner, new loyalty flow) and Key Vault references; App Service <strong>slots</strong> and Container Apps <strong>revisions</strong> for gradual rollout</td><td>Turn features on and off without deploying; roll back by flipping a flag.</td></tr>
+                <tr><td>Repeatable environments</td><td><strong>Bicep</strong> in Git, deployed by <strong>GitHub Actions</strong> with a workload identity; the platform team publishes <strong>template specs</strong> and manages landing-zone resources with <strong>deployment stacks</strong> (deny settings on hub resources)</td><td>Dev, test, prod and the DR region are built the same way; manual drift is blocked.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted">Part III is complete: Meridian can survive the bad day, knows where each piece of code runs, and has pieces that fail independently. Part IV connects all of it to the stores, the datacentre and the internet, and moves the old estate across.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= RECAP ======================= -->
+    <section id="recap">
+      <span class="sec-num">10.13</span>
+      <h2>Recap and self-check</h2>
+      <h3>Architect's application checklist</h3>
+      <ul class="checklist">
+        <li>Every synchronous call justified: the caller truly needs the answer now.</li>
+        <li>Commands on queues (Service Bus or Queue Storage), facts as events (Event Grid), streams on Event Hubs.</li>
+        <li>Ordering, duplicates and poison messages handled (sessions, duplicate detection, dead-letter).</li>
+        <li>APIs exposed through API Management with authentication, limits and versions.</li>
+        <li>Hot reads cached with a TTL; session state out of the web servers.</li>
+        <li>Settings and feature flags in App Configuration; secrets in Key Vault; access by managed identity.</li>
+        <li>All infrastructure in Bicep or Terraform, deployed by a pipeline, with drift prevented.</li>
+      </ul>
+
+      <h3>Self-check</h3>
+      <div class="quiz">
+        <details>
+          <summary>1. Orders must be processed exactly in the order they were placed for each customer, and duplicates must be ignored. Which service and features?</summary>
+          <div><p><strong>Service Bus</strong> with <strong>sessions</strong> (session ID = customer ID) for FIFO per customer, and <strong>duplicate detection</strong>.</p></div>
+        </details>
+        <details>
+          <summary>2. A Function must run whenever a new image is uploaded to Blob Storage, without polling. Which service delivers the notification?</summary>
+          <div><p><strong>Event Grid</strong> (a system topic on the storage account with a BlobCreated subscription) pushing to the Function.</p></div>
+        </details>
+        <details>
+          <summary>3. 50,000 sensors send readings every second. Several teams must read the same stream independently, and data must also land in the data lake. Design?</summary>
+          <div><p><strong>Event Hubs</strong> with a <strong>consumer group</strong> per team, and <strong>Capture</strong> to ADLS Gen2.</p></div>
+        </details>
+        <details>
+          <summary>4. A company wants to publish APIs to partners with a self-service portal, per-partner rate limits and token validation. Which service?</summary>
+          <div><p><strong>Azure API Management</strong>: developer portal, products and subscriptions, <strong>rate-limit</strong> and <strong>validate-jwt</strong> policies.</p></div>
+        </details>
+        <details>
+          <summary>5. A web farm loses user sessions every time it scales in. What do you change?</summary>
+          <div><p>Move session state to a distributed cache, <strong>Azure Managed Redis</strong>, so instances are stateless.</p></div>
+        </details>
+        <details>
+          <summary>6. The platform team wants approved templates shared across subscriptions, and resources they deploy protected from manual changes. What do you use?</summary>
+          <div><p><strong>Template specs</strong> to share versioned templates, and <strong>deployment stacks</strong> with deny settings to protect the deployed resources.</p></div>
+        </details>
+      </div>
+
+      <div class="callout takeaway">
+        <div class="c-label">End of Part III</div>
+        <p>You can now design for the bad day, place each workload on the right compute, and wire the pieces so they fail independently. Part IV answers the last two questions every design faces: <strong>how does it all connect</strong> (to users, stores and the datacentre), and <strong>how do we get there</strong> from today's estate?</p>
+      </div>
+
+      <nav class="pager" aria-label="Module navigation">
+        <a href="09-compute.html"><small>Previous module</small><span>← 09 · Compute</span></a>
+        <a class="next" href="11-networking.html"><small>Next module</small><span>11 · Networking →</span></a>
+      </nav>
+    </section>
+
+  </article>
+</div>
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>AZ-305 Architect Handbook · Written by a Microsoft Certified Trainer</span>
+    <span>Not affiliated with Microsoft. Always confirm limits and pricing in the official documentation.</span>
+  </div>
+</footer>
+</body>
+</html>

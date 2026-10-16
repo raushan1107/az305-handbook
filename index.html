@@ -155,21 +155,21 @@
           <text x="862" y="177" class="t"><tspan class="t-m">07</tspan>  Analytics</text>
 
           <!-- row 3 -->
-          <rect x="566" y="250" width="200" height="44" rx="10" class="s-surface2"/>
+          <rect x="566" y="250" width="200" height="44" rx="10" class="s-surface"/>
           <text x="582" y="277" class="t"><tspan class="t-m">08</tspan>  Backup &amp; recovery</text>
 
           <!-- row 4 -->
-          <rect x="566" y="330" width="130" height="38" rx="10" class="s-surface2"/>
+          <rect x="566" y="330" width="130" height="38" rx="10" class="s-surface"/>
           <text x="582" y="354" class="t"><tspan class="t-m">09</tspan>  Compute</text>
-          <rect x="706" y="330" width="130" height="38" rx="10" class="s-surface2"/>
+          <rect x="706" y="330" width="130" height="38" rx="10" class="s-surface"/>
           <text x="722" y="354" class="t"><tspan class="t-m">10</tspan>  App design</text>
-          <rect x="566" y="376" width="130" height="38" rx="10" class="s-surface2"/>
+          <rect x="566" y="376" width="130" height="38" rx="10" class="s-surface"/>
           <text x="582" y="400" class="t"><tspan class="t-m">11</tspan>  Networking</text>
-          <rect x="706" y="376" width="130" height="38" rx="10" class="s-surface2"/>
+          <rect x="706" y="376" width="130" height="38" rx="10" class="s-surface"/>
           <text x="722" y="400" class="t"><tspan class="t-m">12</tspan>  Migration</text>
         </svg>
       </div>
-      <figcaption><b>How to read this:</b> the percentages are the approximate exam weight of each design area. Highlighted modules are available now; the others are being written.</figcaption>
+      <figcaption><b>How to read this:</b> the percentages are the approximate exam weight of each design area. Every module is available; each Part also has a companion services map.</figcaption>
     </figure>
 
     <div class="section-head" id="modules">
@@ -224,6 +224,16 @@
           <h4>Monitoring &amp; Logging</h4>
           <p>The eyes and ears of your architecture: Azure Monitor, Log Analytics, alerts, Insights, Workbooks and Data Explorer.</p>
           <div class="mc-topics"><span>Azure Monitor</span><span>Log Analytics</span><span>Alerts</span><span>ADX</span></div>
+        </a>
+        <a class="module-card" href="modules/foundations-map.html">
+          <div class="mc-top">
+            <span class="mc-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="5" rx="1"/><rect x="15" y="10" width="6" height="4" rx="1"/><rect x="15" y="17" width="6" height="4" rx="1"/><path d="M6 8v11h9M6 12h9"/></svg></span>
+            <span class="status ready">Companion</span>
+          </div>
+          <span class="mc-num">PART I MAP</span>
+          <h4>Foundations Map</h4>
+          <p>Every framework, governance, identity and monitoring service on one expandable tree: what it is, when to use it, and the exam words.</p>
+          <div class="mc-topics"><span>56 services</span><span>Keyword filter</span><span>Exam cues</span></div>
         </a>
       </div>
     </div>
@@ -287,36 +297,46 @@
         <p>Surviving the bad day, choosing compute, wiring apps together.</p>
       </div>
       <div class="module-grid">
-        <div class="module-card locked">
+        <a class="module-card" href="modules/08-backup-recovery.html">
           <div class="mc-top">
             <span class="mc-icon tone-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg></span>
-            <span class="status soon">Coming soon</span>
+            <span class="status ready">Available</span>
           </div>
           <span class="mc-num">MODULE 08</span>
           <h4>Backup &amp; Recovery</h4>
           <p>Designing for the bad day: RTO/RPO, Azure Backup and Site Recovery.</p>
           <div class="mc-topics"><span>RTO / RPO</span><span>Azure Backup</span><span>ASR</span></div>
-        </div>
-        <div class="module-card locked">
+        </a>
+        <a class="module-card" href="modules/09-compute.html">
           <div class="mc-top">
             <span class="mc-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></span>
-            <span class="status soon">Coming soon</span>
+            <span class="status ready">Available</span>
           </div>
           <span class="mc-num">MODULE 09</span>
           <h4>Compute</h4>
           <p>Choosing where your code runs: VMs, App Service, containers, AKS, Functions and Batch.</p>
           <div class="mc-topics"><span>App Service</span><span>AKS</span><span>Functions</span></div>
-        </div>
-        <div class="module-card locked">
+        </a>
+        <a class="module-card" href="modules/10-app-architecture.html">
           <div class="mc-top">
             <span class="mc-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v10H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></span>
-            <span class="status soon">Coming soon</span>
+            <span class="status ready">Available</span>
           </div>
           <span class="mc-num">MODULE 10</span>
           <h4>Application Architecture</h4>
           <p>Messages vs events, Service Bus, Event Grid, Event Hubs, API Management and caching.</p>
           <div class="mc-topics"><span>Service Bus</span><span>Event Grid</span><span>APIM</span></div>
-        </div>
+        </a>
+        <a class="module-card" href="modules/resilience-map.html">
+          <div class="mc-top">
+            <span class="mc-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="5" rx="1"/><rect x="15" y="10" width="6" height="4" rx="1"/><rect x="15" y="17" width="6" height="4" rx="1"/><path d="M6 8v11h9M6 12h9"/></svg></span>
+            <span class="status ready">Companion</span>
+          </div>
+          <span class="mc-num">PART III MAP</span>
+          <h4>Resilience &amp; Compute Map</h4>
+          <p>Every continuity, compute and application service on one expandable tree: which vault, which compute, queue or event.</p>
+          <div class="mc-topics"><span>48 services</span><span>Keyword filter</span><span>Exam cues</span></div>
+        </a>
       </div>
     </div>
 
@@ -328,26 +348,36 @@
         <p>Networking the pieces, migrating the estate, and bringing it all together.</p>
       </div>
       <div class="module-grid">
-        <div class="module-card locked">
+        <a class="module-card" href="modules/11-networking.html">
           <div class="mc-top">
             <span class="mc-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M11 7.2L6.2 16.8M13 7.2l4.8 9.6M7.5 19h9"/></svg></span>
-            <span class="status soon">Coming soon</span>
+            <span class="status ready">Available</span>
           </div>
           <span class="mc-num">MODULE 11</span>
           <h4>Networking</h4>
           <p>Topology, hybrid connectivity, load balancing and protecting applications at the edge.</p>
           <div class="mc-topics"><span>Hub &amp; spoke</span><span>ExpressRoute</span><span>Front Door</span></div>
-        </div>
-        <div class="module-card locked">
+        </a>
+        <a class="module-card" href="modules/12-migration.html">
           <div class="mc-top">
             <span class="mc-icon tone-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="7" height="10" rx="1.5"/><rect x="15" y="7" width="7" height="10" rx="1.5"/><path d="M9 12h6M12.5 9.5L15 12l-2.5 2.5"/></svg></span>
-            <span class="status soon">Coming soon</span>
+            <span class="status ready">Available</span>
           </div>
           <span class="mc-num">MODULE 12</span>
           <h4>Migration</h4>
           <p>Moving to Azure the right way: Cloud Adoption Framework, Azure Migrate and data transfer.</p>
           <div class="mc-topics"><span>CAF</span><span>Azure Migrate</span><span>Data Box</span></div>
-        </div>
+        </a>
+        <a class="module-card" href="modules/connect-map.html">
+          <div class="mc-top">
+            <span class="mc-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="5" rx="1"/><rect x="15" y="10" width="6" height="4" rx="1"/><rect x="15" y="17" width="6" height="4" rx="1"/><path d="M6 8v11h9M6 12h9"/></svg></span>
+            <span class="status ready">Companion</span>
+          </div>
+          <span class="mc-num">PART IV MAP</span>
+          <h4>Network &amp; Migration Map</h4>
+          <p>Every networking and migration service on one expandable tree: which gateway, which load balancer, which transfer tool.</p>
+          <div class="mc-topics"><span>54 services</span><span>Keyword filter</span><span>Exam cues</span></div>
+        </a>
       </div>
     </div>
 
