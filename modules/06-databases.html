@@ -65,6 +65,7 @@
         <li><a href="#choose">Choosing the right database</a></li>
         <li><a href="#case">Meridian: the database design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -177,7 +178,7 @@
         </div>
         <div>
           <h5>Architect view</h5>
-          <p>"What's the data shape and the access pattern? What's the <strong>RPO and RTO</strong> from Module 01? Does it need to be written in more than one region? Which SQL Server features does the app really use (SQL Agent? cross-database queries?), because that decides <strong>VM vs Managed Instance vs Database</strong>. Then the smallest tier that meets the SLO, with a plan to scale."</p>
+          <p>"What's the data shape and the access pattern? What's the <strong><abbr data-g="g-rpo" title="Recovery Point Objective: The most data you can afford to lose, measured in time (for example the last 15 minutes).">RPO</abbr> and <abbr data-g="g-rto" title="Recovery Time Objective: The longest time a workload may be down after a failure.">RTO</abbr></strong> from Module 01? Does it need to be written in more than one region? Which SQL Server features does the app really use (SQL Agent? cross-database queries?), because that decides <strong>VM vs Managed Instance vs Database</strong>. Then the smallest tier that meets the <abbr data-g="g-slo" title="Service Level Objective: Your own internal target for a workload, usually stricter than the SLA you give customers.">SLO</abbr>, with a plan to scale."</p>
         </div>
       </div>
 
@@ -244,13 +245,13 @@
             <text x="700" y="262" class="t-b">"A new app built for the cloud."</text>
           </svg>
         </div>
-        <figcaption><b>Move right whenever the app allows it.</b> Every step right removes work (patching, backups, HA) and adds features (serverless, auto-tuning). You move left only for a specific feature or control the app can't live without.</figcaption>
+        <figcaption><b>Move right whenever the app allows it.</b> Every step right removes work (patching, backups, <abbr data-g="g-ha" title="High Availability: Staying up through local failures such as a server, rack or datacentre.">HA</abbr>) and adds features (serverless, auto-tuning). You move left only for a specific feature or control the app can't live without.</figcaption>
       </figure>
 
       <h4>How to pick in under a minute</h4>
       <ol class="steps">
-        <li><strong>Does the app need OS access</strong>, a SQL Server version or feature that PaaS doesn't support, or third-party software installed beside SQL? → <strong>SQL Server on Azure VM</strong>.</li>
-        <li><strong>Does it use instance-level features</strong>: SQL Agent jobs, cross-database queries, CLR, Service Broker, linked servers, Database Mail? → <strong>SQL Managed Instance</strong>.</li>
+        <li><strong>Does the app need OS access</strong>, a SQL Server version or feature that <abbr data-g="g-iaas-paas" title="Infrastructure / Platform as a Service: Renting servers you manage (IaaS) versus a platform where you manage only your code (PaaS).">PaaS</abbr> doesn't support, or third-party software installed beside SQL? → <strong>SQL Server on Azure VM</strong>.</li>
+        <li><strong>Does it use instance-level features</strong>: SQL Agent jobs, cross-database queries, <abbr data-g="g-clr" title="Common Language Runtime: Running .NET code inside SQL Server; supported on Managed Instance, not SQL Database.">CLR</abbr>, Service Broker, linked servers, Database Mail? → <strong>SQL Managed Instance</strong>.</li>
         <li><strong>Otherwise</strong>, especially for new apps or SaaS → <strong>Azure SQL Database</strong>.</li>
       </ol>
 
@@ -258,13 +259,13 @@
       <ul>
         <li><strong>Azure Hybrid Benefit</strong> lets you reuse existing SQL Server licences (with Software Assurance) to cut the vCore price of all three options significantly.</li>
         <li>SQL Server on a VM gets helpful automation from the <strong>SQL IaaS Agent extension</strong>: automated patching, automated backup and licence management.</li>
-        <li>Managed Instance sits in a <strong>dedicated subnet</strong> of your VNet. It's the most "on-prem-like" option, and its <strong>Managed Instance link</strong> can replicate from an on-prem SQL Server for migration or DR.</li>
+        <li>Managed Instance sits in a <strong>dedicated subnet</strong> of your <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr>. It's the most "on-prem-like" option, and its <strong>Managed Instance link</strong> can replicate from an on-prem SQL Server for migration or <abbr data-g="g-dr" title="Disaster Recovery: Coming back in another region after a whole region is lost.">DR</abbr>.</li>
         <li>Azure SQL Database lives on a <strong>logical server</strong> (<code>&lt;name&gt;.database.windows.net</code>), which is a management boundary for logins, firewall rules and auditing, not a machine you can log in to.</li>
       </ul>
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"Requires <strong>SQL Server Agent</strong> / <strong>cross-database queries</strong> / CLR", "<strong>minimal changes</strong> to migrate to PaaS" → <strong>SQL Managed Instance</strong>. "Requires <strong>OS-level access</strong>", "<strong>SSRS / SSIS / SSAS</strong> on the same server", "unsupported <strong>SQL Server version</strong>" → <strong>SQL Server on Azure VM</strong>. "New cloud app, <strong>minimise administration</strong>" → <strong>Azure SQL Database</strong>.</p>
+        <p>"Requires <strong>SQL Server Agent</strong> / <strong>cross-database queries</strong> / CLR", "<strong>minimal changes</strong> to migrate to PaaS" → <strong>SQL Managed Instance</strong>. "Requires <strong>OS-level access</strong>", "<strong><abbr data-g="g-ssis-ssrs-ssas" title="SQL Server Integration / Reporting / Analysis Services: SQL Server&#x27;s add-ons for data loading, reports and cubes.">SSRS</abbr> / SSIS / SSAS</strong> on the same server", "unsupported <strong>SQL Server version</strong>" → <strong>SQL Server on Azure VM</strong>. "New cloud app, <strong>minimise administration</strong>" → <strong>Azure SQL Database</strong>.</p>
       </div>
       <details class="demo" id="demo-m06-sqldb">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a free Azure SQL database with sample data</span><span class="demo-time">~5 min</span></summary>
@@ -323,7 +324,7 @@ ORDER BY Total DESC;</code></pre></li>
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure SQL Database offers two purchasing models. The <strong>DTU model</strong> bundles compute, memory and I/O into preconfigured sizes (Basic, Standard, Premium). The <strong>vCore model</strong> lets you choose compute and storage independently, in the General Purpose, Business Critical and Hyperscale service tiers, with provisioned or serverless compute.</p>
+        <p>Azure SQL Database offers two purchasing models. The <strong><abbr data-g="g-dtu" title="Database Transaction Unit: A bundled measure of compute, memory and I/O for Azure SQL&#x27;s older purchasing model.">DTU</abbr> model</strong> bundles compute, memory and I/O into preconfigured sizes (Basic, Standard, Premium). The <strong>vCore model</strong> lets you choose compute and storage independently, in the General Purpose, Business Critical and Hyperscale service tiers, with provisioned or serverless compute.</p>
       </div>
 
       <div class="callout plain">
@@ -375,15 +376,15 @@ ORDER BY Total DESC;</code></pre></li>
             <text x="696" y="270" class="t-s">snapshot backups, near-instant restore</text>
           </svg>
         </div>
-        <figcaption><b>Three architectures, not three price points.</b> General Purpose separates compute from storage. Business Critical keeps four copies on local SSD. Hyperscale splits the engine into layers so storage and replicas scale independently.</figcaption>
+        <figcaption><b>Three architectures, not three price points.</b> General Purpose separates compute from storage. Business Critical keeps four copies on local <abbr data-g="g-ssd-hdd" title="Solid-State Drive / Hard Disk Drive: Fast flash storage versus cheaper spinning disks.">SSD</abbr>. Hyperscale splits the engine into layers so storage and replicas scale independently.</figcaption>
       </figure>
 
       <div class="table-wrap min">
         <table>
           <thead><tr><th>Option</th><th>What it gives you</th><th>Choose it when</th></tr></thead>
           <tbody>
-            <tr><td><strong>General Purpose</strong></td><td>Balanced compute and remote storage; 99.99% SLA</td><td>Most business apps; cost matters</td></tr>
-            <tr><td><strong>Business Critical</strong></td><td>Local SSD, 4 replicas, a free read replica, in-memory OLTP</td><td>Low-latency OLTP, fast failover, reporting on a replica</td></tr>
+            <tr><td><strong>General Purpose</strong></td><td>Balanced compute and remote storage; 99.99% <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLA</abbr></td><td>Most business apps; cost matters</td></tr>
+            <tr><td><strong>Business Critical</strong></td><td>Local SSD, 4 replicas, a free read replica, in-memory <abbr data-g="g-oltp" title="Online Transaction Processing: The many small reads and writes of a running business, such as placing orders.">OLTP</abbr> (OLTP: the many small reads and writes of a running business, like placing orders; Module 07 compares it with analytics)</td><td>Low-latency OLTP, fast failover, reporting on a replica</td></tr>
             <tr><td><strong>Hyperscale</strong></td><td>Up to 128 TB, rapid scale, near-instant backup and restore, up to 30 named replicas</td><td>Large or fast-growing databases; heavy read scale-out</td></tr>
             <tr><td><strong>Serverless</strong> (compute option)</td><td>Auto-scales vCores within a range and bills per second; General Purpose can <strong>auto-pause</strong> when idle</td><td>Intermittent or unpredictable use: dev/test, internal tools, new apps</td></tr>
             <tr><td><strong>Elastic pool</strong></td><td>Many databases share one pool of resources</td><td>Many databases whose peaks happen at different times (SaaS)</td></tr>
@@ -399,7 +400,7 @@ ORDER BY Total DESC;</code></pre></li>
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"<strong>Unpredictable</strong> or intermittent usage", "<strong>pause</strong> when not used", "minimise cost for <strong>dev/test</strong>" → <strong>serverless</strong>. "Database will grow beyond <strong>4 TB</strong>, up to 100 TB" → <strong>Hyperscale</strong>. "<strong>Lowest latency</strong>, highest resilience, in-memory OLTP" → <strong>Business Critical</strong>. "<strong>Hundreds of databases</strong> with varying load", "multi-tenant SaaS" → <strong>elastic pool</strong>. "Reuse <strong>existing licences</strong>" → vCore with <strong>Azure Hybrid Benefit</strong>.</p>
+        <p>"<strong>Unpredictable</strong> or intermittent usage", "<strong>pause</strong> when not used", "minimise cost for <strong>dev/test</strong>" → <strong>serverless</strong>. "Database will grow beyond <strong>4 TB</strong>, up to 128 TB" → <strong>Hyperscale</strong>. "<strong>Lowest latency</strong>, highest resilience, in-memory OLTP" → <strong>Business Critical</strong>. "<strong>Hundreds of databases</strong> with varying load", "multi-tenant SaaS" → <strong>elastic pool</strong>. "Reuse <strong>existing licences</strong>" → vCore with <strong>Azure Hybrid Benefit</strong>.</p>
       </div>
       <details class="demo" id="demo-m06-tiers">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Flip through the tiers and watch the price change</span><span class="demo-time">~3 min</span></summary>
@@ -423,6 +424,10 @@ ORDER BY Total DESC;</code></pre></li>
     <section id="scale">
       <span class="sec-num">06.4</span>
       <h2>Scaling databases</h2>
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p><strong>Scaling up</strong> gives one database more compute and memory. <strong>Scaling out</strong> spreads work over several copies or databases: <strong>read scale-out</strong> sends read-only queries to replicas, an <strong>elastic pool</strong> lets many databases share one set of resources, and <strong>sharding</strong> splits one data set across several databases by a key such as tenant or region.</p>
+      </div>
       <p>In Module 01 we said: design for the load you'll have, not the load you fear. Databases give you four ways to grow, and the architect's job is to know which one fits the problem.</p>
 
       <figure class="diagram">
@@ -654,7 +659,7 @@ ORDER BY Total DESC;</code></pre></li>
             <text x="696" y="214" class="t-b">"Even the DBA can't read it."</text>
           </svg>
         </div>
-        <figcaption><b>TDE protects the disk, TLS protects the wire, Always Encrypted protects the data from everyone who doesn't hold the key</b>, including database administrators and cloud operators.</figcaption>
+        <figcaption><b><abbr data-g="g-tde" title="Transparent Data Encryption: Encrypts database files and backups at rest, with no app changes.">TDE</abbr> protects the disk, TLS protects the wire, Always Encrypted protects the data from everyone who doesn't hold the key</b>, including database administrators and cloud operators.</figcaption>
       </figure>
 
       <div class="terms">
@@ -662,13 +667,13 @@ ORDER BY Total DESC;</code></pre></li>
         <div class="term"><b>Always Encrypted</b><span>Columns are encrypted <strong>in the client driver</strong>; keys live in Key Vault, outside the database. Deterministic encryption allows equality lookups; <strong>secure enclaves</strong> add range queries and pattern matching on encrypted data.</span></div>
         <div class="term"><b>Dynamic data masking</b><span>Shows <code>XXXX-XXXX-XXXX-1234</code> to users who don't have the UNMASK permission. It's a <strong>presentation</strong> control, not encryption: the real data is unchanged.</span></div>
         <div class="term"><b>Row-level security</b><span>A predicate decides which rows each user sees, such as "store managers see only their own store".</span></div>
-        <div class="term"><b>Microsoft Entra authentication</b><span>Users, groups and managed identities sign in with Entra ID, with MFA and Conditional Access. <strong>Entra-only authentication</strong> turns SQL logins off completely.</span></div>
+        <div class="term"><b>Microsoft Entra authentication</b><span>Users, groups and managed identities sign in with Entra ID, with <abbr data-g="g-mfa" title="Multifactor Authentication: Proving who you are with more than a password, such as a phone app or security key.">MFA</abbr> and Conditional Access. <strong>Entra-only authentication</strong> turns SQL logins off completely.</span></div>
         <div class="term"><b>Auditing, Defender for SQL and ledger</b><span>Auditing records who ran what (to a workspace, storage or Event Hubs). <strong>Defender for SQL</strong> finds vulnerabilities and alerts on threats like SQL injection. <strong>Ledger</strong> makes tampering cryptographically evident.</span></div>
       </div>
 
       <div class="callout pitfall">
         <div class="c-label">Common trap</div>
-        <p>"Encrypt the credit card column so <strong>DBAs can't see it</strong>" is <strong>not</strong> TDE (DBAs see plaintext through TDE) and <strong>not</strong> masking (admins can unmask). The answer is <strong>Always Encrypted</strong>. And for real card numbers, the better PCI answer is not to store them at all: let a payment provider tokenise them.</p>
+        <p>"Encrypt the credit card column so <strong><abbr data-g="g-dba" title="Database Administrator: The person who runs and tunes databases.">DBAs</abbr> can't see it</strong>" is <strong>not</strong> TDE (DBAs see plaintext through TDE) and <strong>not</strong> masking (admins can unmask). The answer is <strong>Always Encrypted</strong>. And for real card numbers, the better PCI answer is not to store them at all: let a payment provider tokenise them.</p>
       </div>
 
       <div class="callout exam">
@@ -769,7 +774,7 @@ ORDER BY Total DESC;</code></pre></li>
 
       <h4>The four ideas you must know</h4>
       <div class="terms">
-        <div class="term"><b>Request Units (RU/s)</b><span>The currency of Cosmos DB. Reading a 1 KB item by its id and partition key costs about <strong>1 RU</strong>; writes and queries cost more. Choose <strong>provisioned</strong> (manual or <strong>autoscale</strong>) or <strong>serverless</strong> (pay per request, for spiky or small workloads).</span></div>
+        <div class="term"><b>Request Units (RU/s)</b><span>The currency of Cosmos DB. Reading a 1 KB item by its id and partition key costs about <strong>1 <abbr data-g="g-ru-s" title="Request Units per second: Cosmos DB&#x27;s currency for throughput; a 1 KB point read costs about 1 RU.">RU</abbr></strong>; writes and queries cost more. Choose <strong>provisioned</strong> (manual or <strong>autoscale</strong>) or <strong>serverless</strong> (pay per request, for spiky or small workloads).</span></div>
         <div class="term"><b>Partition key</b><span>The property that spreads your data and load across partitions, such as <code>/customerId</code>. Pick one with <strong>many distinct values</strong> that's used in most queries. A logical partition holds up to 20 GB. Changing the key later means moving the data.</span></div>
         <div class="term"><b>Global distribution</b><span>Add or remove regions at any time. Enable <strong>multi-region writes</strong> to accept writes everywhere, for up to 99.999% availability.</span></div>
         <div class="term"><b>Consistency levels</b><span>Five levels between "always the latest" and "fastest possible". This is the most-tested Cosmos DB topic. See the diagram.</span></div>
@@ -827,7 +832,7 @@ ORDER BY Total DESC;</code></pre></li>
           <thead><tr><th>API</th><th>Data model</th><th>Choose when</th></tr></thead>
           <tbody>
             <tr><td><strong>NoSQL</strong> (native)</td><td>JSON documents, SQL-like queries</td><td>New apps. Newest features first (e.g. vector search for AI apps).</td></tr>
-            <tr><td><strong>MongoDB</strong></td><td>BSON documents</td><td>Existing MongoDB apps and skills. RU-based or vCore-based options.</td></tr>
+            <tr><td><strong>MongoDB</strong></td><td><abbr data-g="g-bson" title="Binary JSON: MongoDB&#x27;s storage format for JSON-like documents.">BSON</abbr> documents</td><td>Existing MongoDB apps and skills. RU-based or vCore-based options.</td></tr>
             <tr><td><strong>Apache Cassandra</strong></td><td>Wide-column</td><td>Existing Cassandra workloads, without running clusters.</td></tr>
             <tr><td><strong>Apache Gremlin</strong></td><td>Graph</td><td>Relationships first: social networks, recommendations, fraud rings.</td></tr>
             <tr><td><strong>Table</strong></td><td>Key-value</td><td>Upgrade from Azure Table Storage with no code change.</td></tr>
@@ -837,7 +842,7 @@ ORDER BY Total DESC;</code></pre></li>
 
       <h4>Table Storage or Cosmos DB for Table?</h4>
       <div class="two-col">
-        <div><h4>Azure Table Storage</h4><p>Part of a storage account. Very cheap, simple key-value. Indexes only PartitionKey and RowKey. No latency guarantees; geo-replication through GRS only.</p></div>
+        <div><h4>Azure Table Storage</h4><p>Part of a storage account. Very cheap, simple key-value. Indexes only PartitionKey and RowKey. No latency guarantees; geo-replication through <abbr data-g="g-grs" title="Geo-Redundant Storage: LRS in the primary region plus an asynchronous LRS copy in the paired region.">GRS</abbr> only.</p></div>
         <div><h4>Cosmos DB for Table</h4><p>Same API and SDK. Single-digit millisecond latency, every property indexed automatically, throughput SLAs, turnkey global distribution and multi-region writes. Costs more.</p></div>
       </div>
 
@@ -926,7 +931,7 @@ ORDER BY Total DESC;</code></pre></li>
             <table>
               <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
               <tbody>
-                <tr><td>Online orders: checkout survives a regional outage</td><td><strong>Azure SQL Database, Business Critical, zone-redundant</strong> in Central India, in a <strong>failover group</strong> with South India; the app uses the listener names</td><td>Zones handle local failures; the failover group handles a region with RPO of seconds and no connection-string changes.</td></tr>
+                <tr><td>Online orders: checkout survives a regional outage</td><td><strong>Azure SQL Database, Business Critical, zone-redundant</strong> in Central India, in a <strong>failover group</strong> with South India; the app uses the listener names</td><td>Zones handle local failures; the failover group handles a region with an RPO of typically a few seconds (inside the agreed Tier 1 target of under 1 minute, Module 08) and no connection-string changes.</td></tr>
                 <tr><td>Merchandising ERP (SQL Agent, cross-database queries, CLR)</td><td><strong>SQL Managed Instance</strong>, General Purpose, in the Corp landing zone, with its own failover group</td><td>Near-100% compatibility means no rewrite; Meridian stops patching servers.</td></tr>
                 <tr><td>Vendor app on an unsupported SQL Server version</td><td><strong>SQL Server on Azure VM</strong> (Premium SSD v2 from Module 05) with the SQL IaaS Agent extension, until the vendor upgrades</td><td>The only option that runs it; kept on the list for modernisation.</td></tr>
                 <tr><td>180 store inventory databases</td><td><strong>Elastic pools</strong> (vCore General Purpose) in Azure SQL Database</td><td>Each store peaks at different hours; sharing resources is far cheaper than 180 separate databases.</td></tr>
@@ -934,7 +939,7 @@ ORDER BY Total DESC;</code></pre></li>
                 <tr><td>Product catalogue and carts, for shoppers across India</td><td><strong>Cosmos DB for NoSQL</strong> in Central India and South India, <strong>Session</strong> consistency, <strong>autoscale</strong> RU/s; partition keys <code>/productId</code> (catalogue) and <code>/cartId</code> (carts)</td><td>Flexible product attributes, millisecond reads, keeps working if one region fails.</td></tr>
                 <tr><td>PCI DSS and data protection</td><td>Card numbers <strong>never stored</strong> (payment-provider tokens only); <strong>TDE with customer-managed keys</strong> in Key Vault; <strong>Always Encrypted</strong> on customer phone and address columns; <strong>dynamic data masking</strong> for support staff; <strong>Entra-only authentication</strong> with managed identities (Module 03); private endpoints; <strong>Defender for SQL</strong>; auditing to <code>law-central-ind</code> (Module 04)</td><td>Shrinks PCI scope and protects data at rest, in transit and in use.</td></tr>
                 <tr><td>Recover from mistakes and meet audit retention</td><td>Point-in-time restore set to <strong>35 days</strong> on orders; <strong>long-term retention</strong> of yearly backups for 7 years</td><td>Replicas copy mistakes; backups undo them. Matches the 7-year audit rule.</td></tr>
-                <tr><td>EU data stays in the EU</td><td>Separate Azure SQL Database and Cosmos DB accounts in Germany West Central; failover partner in another EU region</td><td>Residency holds even during a disaster.</td></tr>
+                <tr><td>EU data stays in the EU</td><td>Separate Azure SQL Database and Cosmos DB accounts in Germany West Central; failover partner in <strong>Germany North</strong> (the region pair, also in Germany; it's a restricted region, so request access early)</td><td>Residency holds even during a disaster.</td></tr>
               </tbody>
             </table>
           </div>
@@ -953,7 +958,7 @@ ORDER BY Total DESC;</code></pre></li>
         <li>Tier sized for today with a scaling path: scale up, read scale-out, elastic pool or sharding.</li>
         <li>RPO and RTO written down; zone redundancy and a failover group (or geo-replication) to match.</li>
         <li>Backup retention set for mistakes (point-in-time) and compliance (long-term).</li>
-        <li>Data protected at rest (TDE, keys), in transit (TLS, private endpoints) and in use (Always Encrypted, masking, RLS).</li>
+        <li>Data protected at rest (TDE, keys), in transit (TLS, private endpoints) and in use (Always Encrypted, masking, <abbr data-g="g-rls" title="Row-Level Security: A rule that decides which rows each user can see.">RLS</abbr>).</li>
         <li>Entra authentication with managed identities; auditing and Defender switched on.</li>
         <li>For Cosmos DB: partition key, consistency level, throughput model and regions decided deliberately.</li>
       </ul>

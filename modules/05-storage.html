@@ -65,6 +65,7 @@
         <li><a href="#choose">Choosing the right storage</a></li>
         <li><a href="#case">Meridian: the storage design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -180,7 +181,7 @@
         </div>
         <div>
           <h5>Architect view</h5>
-          <p>"How much data, growing how fast? How often is each object read after the first week? Must it survive a <strong>region</strong> outage, or is a <strong>zone</strong> enough? Is any of it under legal retention? Who should reach it, and over which network? No connection strings: <strong>managed identity</strong> and RBAC."</p>
+          <p>"How much data, growing how fast? How often is each object read after the first week? Must it survive a <strong>region</strong> outage, or is a <strong>zone</strong> enough? Is any of it under legal retention? Who should reach it, and over which network? No connection strings: <strong>managed identity</strong> and <abbr data-g="g-rbac" title="Role-Based Access Control: Who (a person, group or identity) gets which role at which scope in Azure.">RBAC</abbr>."</p>
         </div>
       </div>
 
@@ -257,8 +258,8 @@
           <thead><tr><th>Type</th><th>Disk underneath</th><th>Services</th><th>Redundancy</th><th>Use it for</th></tr></thead>
           <tbody>
             <tr><td><strong>Standard general-purpose v2</strong></td><td>HDD-based</td><td>Blob, Files, Queues, Tables, Data Lake Gen2</td><td>All options</td><td>The default for almost everything</td></tr>
-            <tr><td>Premium block blobs</td><td>SSD</td><td>Block and append blobs</td><td>LRS, ZRS</td><td>Low latency, high transaction rates (IoT, AI, analytics hot paths)</td></tr>
-            <tr><td>Premium file shares</td><td>SSD</td><td>Azure Files (SMB and NFS)</td><td>LRS, ZRS</td><td>Databases on shares, heavy enterprise file workloads</td></tr>
+            <tr><td>Premium block blobs</td><td><abbr data-g="g-ssd-hdd" title="Solid-State Drive / Hard Disk Drive: Fast flash storage versus cheaper spinning disks.">SSD</abbr></td><td>Block and append blobs</td><td><abbr data-g="g-lrs" title="Locally Redundant Storage: Three copies in one datacentre.">LRS</abbr>, <abbr data-g="g-zrs" title="Zone-Redundant Storage: Three copies across three availability zones in one region.">ZRS</abbr></td><td>Low latency, high transaction rates (IoT, AI, analytics hot paths)</td></tr>
+            <tr><td>Premium file shares</td><td>SSD</td><td>Azure Files (<abbr data-g="g-smb" title="Server Message Block: The Windows file-sharing protocol behind mapped drives like S:.">SMB</abbr> and <abbr data-g="g-nfs" title="Network File System: The Linux and Unix file-sharing protocol.">NFS</abbr>)</td><td>LRS, ZRS</td><td>Databases on shares, heavy enterprise file workloads</td></tr>
             <tr><td>Premium page blobs</td><td>SSD</td><td>Page blobs only</td><td>LRS, ZRS</td><td>Special cases; managed disks cover most needs</td></tr>
           </tbody>
         </table>
@@ -302,7 +303,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Storage always keeps multiple copies of your data. The redundancy option decides <em>where</em> those copies live: in one datacentre (LRS), across availability zones in the primary region (ZRS), or additionally in a secondary region hundreds of kilometres away (GRS and GZRS). Read-access variants (RA-GRS, RA-GZRS) let you read from the secondary region at any time.</p>
+        <p>Azure Storage always keeps multiple copies of your data. The redundancy option decides <em>where</em> those copies live: in one datacentre (LRS), across availability zones in the primary region (ZRS), or additionally in a secondary region hundreds of kilometres away (<abbr data-g="g-grs" title="Geo-Redundant Storage: LRS in the primary region plus an asynchronous LRS copy in the paired region.">GRS</abbr> and <abbr data-g="g-gzrs" title="Geo-Zone-Redundant Storage: ZRS in the primary region plus an asynchronous copy in the paired region.">GZRS</abbr>). Read-access variants (<abbr data-g="g-ra-grs-ra-gzrs" title="Read-Access GRS / GZRS: Geo-redundant storage whose secondary copy can be read at any time.">RA-GRS</abbr>, RA-GZRS) let you read from the secondary region at any time.</p>
       </div>
 
       <div class="callout plain">
@@ -377,7 +378,7 @@
             <text x="875" y="312" class="t-s mid">16 nines · zone + region</text>
           </svg>
         </div>
-        <figcaption><b>Each step to the right survives a bigger disaster.</b> The copy to the secondary region is <em>asynchronous</em>, so a few minutes of the latest writes can be lost in a regional failover (Microsoft's typical target is under 15 minutes, without an SLA).</figcaption>
+        <figcaption><b>Each step to the right survives a bigger disaster.</b> The copy to the secondary region is <em>asynchronous</em>, so a few minutes of the latest writes can be lost in a regional failover (Microsoft's typical target is under 15 minutes, without an <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLA</abbr>).</figcaption>
       </figure>
 
       <div class="callout analogy">
@@ -409,7 +410,7 @@
 
       <div class="callout pitfall">
         <div class="c-label">Common trap</div>
-        <p>Redundancy is <strong>not backup</strong>. If someone deletes a blob or ransomware encrypts it, that change is faithfully replicated to all six copies within minutes. Protection against mistakes comes from soft delete, versioning, immutability and backup, which we cover in <a href="#protect">05.5</a>.</p>
+        <p>Redundancy is <strong>not backup</strong>. If someone deletes a blob or ransomware encrypts it, that change is faithfully replicated to every copy within minutes. Protection against mistakes comes from soft delete, versioning, immutability and backup, which we cover in <a href="#protect">05.5</a>.</p>
       </div>
 
       <div class="callout exam">
@@ -444,7 +445,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Blob Storage is Microsoft's object storage for massive amounts of unstructured data, such as text, images, video, backups and logs. Objects (blobs) are stored in containers and accessed over HTTP/HTTPS through REST APIs, SDKs, the Azure CLI or tools such as AzCopy and Storage Explorer.</p>
+        <p>Azure Blob Storage is Microsoft's object storage for massive amounts of unstructured data, such as text, images, video, backups and logs. Objects (blobs) are stored in containers and accessed over HTTP/HTTPS through <abbr data-g="g-rest-api" title="A web interface called with HTTP requests, which every Azure service exposes.">REST</abbr> APIs, SDKs, the Azure CLI or tools such as AzCopy and Storage Explorer.</p>
       </div>
 
       <div class="callout plain">
@@ -453,7 +454,7 @@
       </div>
 
       <div class="terms">
-        <div class="term"><b>Block blob</b><span>The normal one: files, images, video, backups. Up to about 190 TiB per blob. 99% of what you store.</span></div>
+        <div class="term"><b>Block blob</b><span>The normal one: files, images, video, backups. Up to about 190 <abbr data-g="g-tib" title="Tebibyte: The binary unit Azure uses for storage limits; 1 TiB is about 1.1 TB.">TiB</abbr> per blob (TiB, the tebibyte, is the binary unit Azure uses for storage limits: 1 TiB is about 1.1 TB). 99% of what you store.</span></div>
         <div class="term"><b>Append blob</b><span>You can only add to the end. Built for logs and audit trails.</span></div>
         <div class="term"><b>Page blob</b><span>Random read/write in 512-byte pages. What disks were built on; today you use managed disks instead.</span></div>
       </div>
@@ -527,7 +528,7 @@
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"Rarely accessed, <strong>retrieval within hours</strong> is acceptable, <strong>minimise storage cost</strong>" → <strong>Archive</strong>. "Accessed rarely but must be <strong>available immediately</strong>" → <strong>Cool</strong> or <strong>Cold</strong>. "<strong>Automatically</strong> move data to cheaper tiers as it ages" → <strong>lifecycle management policy</strong>. "Serve images to users <strong>worldwide with low latency</strong>" → Blob + <strong>Azure Front Door</strong> (CDN caching).</p>
+        <p>"Rarely accessed, <strong>retrieval within hours</strong> is acceptable, <strong>minimise storage cost</strong>" → <strong>Archive</strong>. "Accessed rarely but must be <strong>available immediately</strong>" → <strong>Cool</strong> or <strong>Cold</strong>. "<strong>Automatically</strong> move data to cheaper tiers as it ages" → <strong>lifecycle management policy</strong>. "Serve images to users <strong>worldwide with low latency</strong>" → Blob + <strong>Azure Front Door</strong> (<abbr data-g="g-cdn" title="Content Delivery Network: Servers around the world that keep copies of files close to users so pages load faster.">CDN</abbr> caching).</p>
       </div>
 
       <div class="callout note">
@@ -594,7 +595,7 @@
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"Data must be <strong>non-erasable and non-modifiable</strong>", "<strong>WORM</strong>", "SEC 17a-4 / regulatory retention" → <strong>immutable storage</strong> with time-based retention. "Keep data <strong>until litigation ends</strong>" → <strong>legal hold</strong>. "Recover from <strong>accidental deletion</strong>" → <strong>soft delete</strong>. "Recover a <strong>previous version</strong> of an overwritten file" → <strong>versioning</strong>.</p>
+        <p>"Data must be <strong>non-erasable and non-modifiable</strong>", "<strong><abbr data-g="g-worm" title="Write Once, Read Many: Data that nobody can change or delete during a retention period (immutable storage).">WORM</abbr></strong>", "SEC 17a-4 (a US financial-records rule) / regulatory retention" → <strong>immutable storage</strong> with time-based retention. "Keep data <strong>until litigation ends</strong>" → <strong>legal hold</strong>. "Recover from <strong>accidental deletion</strong>" → <strong>soft delete</strong>. "Recover a <strong>previous version</strong> of an overwritten file" → <strong>versioning</strong>.</p>
       </div>
       <details class="demo" id="demo-m05-protect">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Delete a blob, bring it back, and see a WORM policy</span><span class="demo-time">~3 min</span></summary>
@@ -685,14 +686,14 @@
           </tbody>
         </table>
       </div>
-      <p class="small muted">Newer Standard accounts can also use the provisioned (v2) billing model, where you choose capacity, IOPS and throughput up front instead of paying per transaction. Check what your region offers.</p>
+      <p class="small muted">Newer Standard accounts can also use the provisioned (v2) billing model, where you choose capacity, <abbr data-g="g-iops" title="Input/Output Operations Per Second: How many reads and writes a disk can do each second.">IOPS</abbr> and throughput up front instead of paying per transaction. Check what your region offers.</p>
 
       <h4>Facts worth remembering</h4>
       <ul>
         <li>A share can grow to <strong>100 TiB</strong>. Up to 200 <strong>share snapshots</strong> per share give users "Previous Versions" in Windows Explorer.</li>
-        <li>SMB uses <strong>port 445</strong>, which many ISPs and company firewalls block. From on-premises, use VPN or ExpressRoute with a private endpoint, or File Sync (which talks over HTTPS 443).</li>
+        <li>SMB uses <strong>port 445</strong>, which many ISPs and company firewalls block. From on-premises, use <abbr data-g="g-vpn" title="Virtual Private Network: An encrypted tunnel over the internet between sites, or from a laptop.">VPN</abbr> or ExpressRoute with a private endpoint, or File Sync (which talks over HTTPS 443).</li>
         <li>NFS shares are Premium only and are reached over a private network, not the public internet.</li>
-        <li>Identity-based access keeps your existing <strong>NTFS ACLs</strong>, so permissions migrate along with the files.</li>
+        <li>Identity-based access keeps your existing <strong><abbr data-g="g-ntfs-acl" title="Windows file and folder permissions, kept when shares move to Azure Files.">NTFS</abbr> ACLs</strong>, so permissions migrate along with the files.</li>
       </ul>
 
       <div class="lens">
@@ -852,7 +853,7 @@
             <text x="780" y="200" class="t-s">· Defender for Storage</text>
           </svg>
         </div>
-        <figcaption><b>Network, identity, data.</b> A good design closes all three. "We have a SAS token" is gate two only; anyone on the internet who gets that URL can still use it.</figcaption>
+        <figcaption><b>Network, identity, data.</b> A good design closes all three. "We have a <abbr data-g="g-sas" title="Shared Access Signature: A signed URL that gives limited, time-bound access to storage.">SAS</abbr> token" is gate two only; anyone on the internet who gets that URL can still use it.</figcaption>
       </figure>
 
       <div class="topic" style="border-top:0;padding-top:0">
@@ -884,8 +885,8 @@
       <div class="topic">
         <h3>Gates 1 and 3: network and encryption</h3>
         <ul>
-          <li><strong>Private endpoints</strong> give the account a private IP in your VNet (one per sub-service: blob, file, dfs…). Combine with <strong>public network access: Disabled</strong>. Service endpoints are the older, simpler option that keeps the public endpoint but restricts it to chosen subnets.</li>
-          <li><strong>Encryption at rest</strong> is AES-256, always on, and can't be turned off. Choose <strong>Microsoft-managed keys</strong> (default) or <strong>customer-managed keys</strong> in Key Vault or Managed HSM, accessed by the account's managed identity.</li>
+          <li><strong>Private endpoints</strong> give the account a private IP in your <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr> (one per sub-service: blob, file, dfs…). Combine with <strong>public network access: Disabled</strong>. Service endpoints are the older, simpler option that keeps the public endpoint but restricts it to chosen subnets.</li>
+          <li><strong>Encryption at rest</strong> is AES-256, always on, and can't be turned off. Choose <strong>Microsoft-managed keys</strong> (default) or <strong>customer-managed keys</strong> in Key Vault or Managed <abbr data-g="g-hsm" title="Hardware Security Module: A tamper-resistant device that stores encryption keys so they never leave it.">HSM</abbr>, accessed by the account's managed identity.</li>
           <li><strong>Infrastructure encryption</strong> adds a second layer of encryption. It can only be enabled <strong>when the account is created</strong>.</li>
           <li><strong>Microsoft Defender for Storage</strong> detects unusual access and can scan uploaded blobs for malware, which is valuable on any container that accepts uploads from outside.</li>
         </ul>
@@ -926,11 +927,11 @@
           <thead><tr><th>If the workload needs…</th><th>Choose</th><th>Remember</th></tr></thead>
           <tbody>
             <tr><td>Objects over HTTP: images, video, documents, backups</td><td><strong>Blob storage</strong></td><td>Tiers + lifecycle for cost; Front Door for global delivery</td></tr>
-            <tr><td>A big-data lake with folders and POSIX permissions</td><td><strong>Data Lake Storage Gen2</strong></td><td>Blob with hierarchical namespace; Module 07</td></tr>
+            <tr><td>A big-data lake with folders and <abbr data-g="g-posix-acl" title="Linux-style read/write/execute permissions per user and group, used by Data Lake Storage Gen2.">POSIX</abbr> permissions</td><td><strong>Data Lake Storage Gen2</strong></td><td>Blob with hierarchical namespace; Module 07</td></tr>
             <tr><td>A shared SMB/NFS folder, lift-and-shift file server</td><td><strong>Azure Files</strong> (+ File Sync)</td><td>No code change; cache at branches</td></tr>
-            <tr><td>Enterprise NAS with very high performance (SAP, HPC, Oracle on NFS)</td><td><strong>Azure NetApp Files</strong></td><td>NetApp-grade features, sub-millisecond latency</td></tr>
+            <tr><td>Enterprise NAS with very high performance (SAP, <abbr data-g="g-hpc" title="High-Performance Computing: Very large calculations spread over many machines, such as simulations or rendering.">HPC</abbr>, Oracle on NFS)</td><td><strong>Azure NetApp Files</strong></td><td>NetApp-grade features, sub-millisecond latency</td></tr>
             <tr><td>A drive for one VM (or a cluster)</td><td><strong>Managed disks</strong></td><td>Match disk type to IOPS; ZRS or shared if needed</td></tr>
-            <tr><td>SAN-style block storage shared across many workloads (iSCSI)</td><td><strong>Azure Elastic SAN</strong></td><td>Consolidates on-prem SAN; volumes for VMs, AKS, AVS</td></tr>
+            <tr><td>SAN-style block storage shared across many workloads (iSCSI)</td><td><strong>Azure Elastic <abbr data-g="g-san" title="Storage Area Network: Shared block storage for many servers; Azure Elastic SAN is the cloud version.">SAN</abbr></strong></td><td>Consolidates on-prem SAN; volumes for VMs, AKS, <abbr data-g="g-avs" title="Azure VMware Solution: VMware vSphere running on dedicated hosts in Azure, managed by Microsoft.">AVS</abbr></td></tr>
             <tr><td>Simple message queue between app components</td><td><strong>Queue storage</strong></td><td>Basic; Service Bus for enterprise messaging (Module 10)</td></tr>
             <tr><td>Cheap key-value table, simple lookups</td><td><strong>Table storage</strong></td><td>Or Cosmos DB for Table for global scale (Module 06)</td></tr>
             <tr><td>Moving tens of terabytes in with no fast network</td><td><strong>Azure Data Box</strong></td><td>Offline transfer appliance; Module 12</td></tr>
@@ -951,7 +952,7 @@
       <div class="case">
         <div class="case-head"><b>Meridian Retail</b><span>· applying Module 05</span></div>
         <div class="case-body">
-          <p>Meridian has product images and videos for the new online store, roughly 40 TB of HQ file shares, file servers in many of its 180 stores, about 200 TB of old archive shares nobody has opened in years, SQL Server VMs that won't move to PaaS straight away, and a German subsidiary whose data must stay in the EU.</p>
+          <p>Meridian has product images and videos for the new online store, roughly 40 TB of HQ file shares, file servers in many of its 180 stores, about 200 TB of old archive shares nobody has opened in years, SQL Server VMs that won't move to <abbr data-g="g-iaas-paas" title="Infrastructure / Platform as a Service: Renting servers you manage (IaaS) versus a platform where you manage only your code (PaaS).">PaaS</abbr> straight away, and a German subsidiary whose data must stay in the EU.</p>
           <div class="table-wrap min" style="margin:1em 0">
             <table>
               <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
@@ -963,7 +964,7 @@
                 <tr><td>200 TB of old archive shares</td><td>Ship with <strong>Data Box</strong> into Blob, then straight to <strong>Archive</strong></td><td>Too big for the WAN link; almost never read. Details in Module 12.</td></tr>
                 <tr><td>SQL Server VMs during migration</td><td><strong>Premium SSD v2</strong> for data and log, Premium SSD for OS, <strong>encryption at host</strong></td><td>Pay for the IOPS the database needs, not for oversized disks.</td></tr>
                 <tr><td>Security baseline</td><td>Shared key access <strong>disabled</strong>; managed identities + RBAC (Module 03); <strong>private endpoints</strong> and public access off in Corp and PCI landing zones; <strong>user delegation SAS</strong> for logistics partners uploading proof-of-delivery photos; <strong>Defender for Storage</strong> malware scanning on that upload container; <strong>customer-managed keys</strong> for PCI-scope accounts</td><td>Closes all three gates; partners get narrow, expiring access.</td></tr>
-                <tr><td>EU data stays in the EU</td><td>Separate accounts in Germany West Central with ZRS (GZRS only where needed, as the pair, Germany North, is also in Germany); "Allowed locations" policy from Module 02</td><td>Residency is enforced by policy and by the account's region, not by trust.</td></tr>
+                <tr><td>EU data stays in the EU</td><td>Separate accounts in Germany West Central with ZRS by default; GZRS only where a regional copy is required (its secondary, Germany North, is also in Germany, so residency still holds); "Allowed locations" policy from Module 02</td><td>Residency is enforced by policy and by the account's region, not by trust.</td></tr>
               </tbody>
             </table>
           </div>

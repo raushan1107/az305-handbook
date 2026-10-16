@@ -63,6 +63,7 @@
         <li><a href="#patterns">Disaster recovery patterns</a></li>
         <li><a href="#case">Meridian: the continuity design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -73,7 +74,7 @@
     <section id="map">
       <span class="sec-num">08.0</span>
       <h2>The mental map</h2>
-      <p>Every continuity design answers three questions, at three different scales. <strong>Stay up</strong> when a server or a datacentre fails (high availability). <strong>Come back</strong> when a whole region fails (disaster recovery). <strong>Go back in time</strong> when data itself is damaged, deleted or encrypted (backup). Two numbers, RTO and RPO, decide how much you spend on each.</p>
+      <p>Every continuity design answers three questions, at three different scales. <strong>Stay up</strong> when a server or a datacentre fails (high availability). <strong>Come back</strong> when a whole region fails (disaster recovery). <strong>Go back in time</strong> when data itself is damaged, deleted or encrypted (backup). Two numbers, <abbr data-g="g-rto" title="Recovery Time Objective: The longest time a workload may be down after a failure.">RTO</abbr> and <abbr data-g="g-rpo" title="Recovery Point Objective: The most data you can afford to lose, measured in time (for example the last 15 minutes).">RPO</abbr>, decide how much you spend on each.</p>
 
       <figure class="diagram">
         <div class="frame">
@@ -191,7 +192,7 @@
             <tr><td><strong>Protects against</strong></td><td>Server, rack, datacentre (zone) failure</td><td>Loss of a whole region</td><td>Deletion, corruption, ransomware, bad deployments</td></tr>
             <tr><td><strong>Typical RTO</strong></td><td>Seconds, automatic</td><td>Minutes to hours</td><td>Hours (depends on size)</td></tr>
             <tr><td><strong>Typical RPO</strong></td><td>Zero (synchronous copies)</td><td>Seconds to minutes (asynchronous)</td><td>Hours to a day (last backup)</td></tr>
-            <tr><td><strong>Azure tools</strong></td><td>Sets, zones, ZRS, zone-redundant PaaS</td><td>Site Recovery, geo-replication, failover groups, GRS</td><td>Azure Backup, PITR, soft delete, versioning</td></tr>
+            <tr><td><strong>Azure tools</strong></td><td>Sets, zones, <abbr data-g="g-zrs" title="Zone-Redundant Storage: Three copies across three availability zones in one region.">ZRS</abbr>, zone-redundant <abbr data-g="g-iaas-paas" title="Infrastructure / Platform as a Service: Renting servers you manage (IaaS) versus a platform where you manage only your code (PaaS).">PaaS</abbr></td><td>Site Recovery, geo-replication, failover groups, <abbr data-g="g-grs" title="Geo-Redundant Storage: LRS in the primary region plus an asynchronous LRS copy in the paired region.">GRS</abbr></td><td>Azure Backup, <abbr data-g="g-pitr" title="Point-In-Time Restore: Restoring a database to any moment within its retention period, as a new database.">PITR</abbr>, soft delete, versioning</td></tr>
             <tr><td><strong>Copies the damage?</strong></td><td><strong>Yes</strong>, instantly</td><td><strong>Yes</strong>, within seconds</td><td>No: older copies stay clean</td></tr>
           </tbody>
         </table>
@@ -279,7 +280,7 @@
             <text x="500" y="284" class="t-s mid">Bigger blast radius survived → more distance → more latency between copies → more cost</text>
           </svg>
         </div>
-        <figcaption><b>Match the failure you must survive to the spread you pay for.</b> The SLA numbers are for two or more VMs; a single VM with Premium SSD or better on every disk gets 99.9%.</figcaption>
+        <figcaption><b>Match the failure you must survive to the spread you pay for.</b> The <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLA</abbr> numbers are for two or more VMs; a single VM with Premium <abbr data-g="g-ssd-hdd" title="Solid-State Drive / Hard Disk Drive: Fast flash storage versus cheaper spinning disks.">SSD</abbr> or better on every disk gets 99.9%.</figcaption>
       </figure>
 
       <h4>Facts worth remembering</h4>
@@ -345,7 +346,7 @@
         <table>
           <thead><tr><th>Vault</th><th>Protects</th><th>Notes</th></tr></thead>
           <tbody>
-            <tr><td><strong>Recovery Services vault</strong></td><td>Azure VMs · SQL Server and SAP HANA in Azure VMs · Azure Files · on-premises files and folders (MARS agent) · on-premises workloads via MABS or DPM</td><td>The original vault. Also the home of Azure Site Recovery replication.</td></tr>
+            <tr><td><strong>Recovery Services vault</strong></td><td>Azure VMs · SQL Server and SAP HANA in Azure VMs · Azure Files · on-premises files and folders (<abbr data-g="g-mars" title="Microsoft Azure Recovery Services agent: Backs up files and folders from on-premises Windows machines to Azure.">MARS</abbr> agent) · on-premises workloads via MABS or DPM</td><td>The original vault. Also the home of Azure Site Recovery replication.</td></tr>
             <tr><td><strong>Backup vault</strong></td><td>Azure Blobs · Azure Disks · Azure Database for PostgreSQL (flexible server) · AKS clusters · newer workloads</td><td>The newer vault type. New datasources tend to arrive here first.</td></tr>
           </tbody>
         </table>
@@ -386,7 +387,7 @@
 
       <h4>Facts worth remembering</h4>
       <ul>
-        <li><strong>Vault storage redundancy</strong> (LRS, ZRS or GRS) must be chosen <strong>before</strong> the first item is protected. Turn on <strong>Cross Region Restore</strong> on a GRS vault to restore in the paired region whenever you choose, not only when Microsoft declares a disaster.</li>
+        <li><strong>Vault storage redundancy</strong> (<abbr data-g="g-lrs" title="Locally Redundant Storage: Three copies in one datacentre.">LRS</abbr>, ZRS or GRS) must be chosen <strong>before</strong> the first item is protected. Turn on <strong>Cross Region Restore</strong> on a GRS vault to restore in the paired region whenever you choose, not only when Microsoft declares a disaster.</li>
         <li>The vault must be in the <strong>same region</strong> as the resources it protects. Multi-region estate = one vault per region.</li>
         <li>VM policies: <strong>Standard</strong> (once a day) or <strong>Enhanced</strong> (several times a day, down to every 4 hours, longer snapshot retention, and required for Trusted Launch VMs).</li>
         <li>For <strong>SQL Server in a VM</strong>, Azure Backup takes full, differential and <strong>log backups every 15 minutes</strong>: point-in-time restore inside a VM.</li>
@@ -484,7 +485,7 @@
         <div class="term"><b>Soft delete</b><span>Deleted backup data is kept for 14 days by default, and can be extended with <strong>enhanced soft delete</strong>. Set it to <strong>always on</strong> so it can't be switched off.</span></div>
         <div class="term"><b>Immutable vault</b><span>Recovery points can't be deleted or shortened before they expire. Once the setting is <strong>locked</strong>, nobody (not even Microsoft support for you) can turn it off.</span></div>
         <div class="term"><b>Multi-user authorisation (MUA)</b><span>Critical operations (disable soft delete, reduce retention, stop protection) need approval through a <strong>Resource Guard</strong> owned by a different team, ideally in a different subscription or tenant.</span></div>
-        <div class="term"><b>Encryption and private access</b><span>Data is encrypted at rest (customer-managed keys optional), backup traffic can use <strong>private endpoints</strong>, and vault access follows Azure RBAC roles like <strong>Backup Operator</strong>.</span></div>
+        <div class="term"><b>Encryption and private access</b><span>Data is encrypted at rest (customer-managed keys optional), backup traffic can use <strong>private endpoints</strong>, and vault access follows Azure <abbr data-g="g-rbac" title="Role-Based Access Control: Who (a person, group or identity) gets which role at which scope in Azure.">RBAC</abbr> roles like <strong>Backup Operator</strong>.</span></div>
       </div>
 
       <figure class="diagram">
@@ -559,7 +560,7 @@
         <table>
           <thead><tr><th>Workload</th><th>Built-in protection</th><th>What you add</th></tr></thead>
           <tbody>
-            <tr><td><strong>Azure VMs</strong></td><td>None by default (disks are LRS/ZRS copies, not backups)</td><td>Azure Backup (Recovery Services vault); Site Recovery for DR</td></tr>
+            <tr><td><strong>Azure VMs</strong></td><td>None by default (disks are LRS/ZRS copies, not backups)</td><td>Azure Backup (Recovery Services vault); Site Recovery for <abbr data-g="g-dr" title="Disaster Recovery: Coming back in another region after a whole region is lost.">DR</abbr></td></tr>
             <tr><td><strong>Managed disks</strong></td><td>Snapshots on demand</td><td>Azure Disk Backup (Backup vault): incremental snapshots on a schedule</td></tr>
             <tr><td><strong>SQL Server in a VM</strong></td><td>None</td><td>Azure Backup for SQL in VM: 15-minute log backups, point-in-time restore</td></tr>
             <tr><td><strong>Azure SQL Database / Managed Instance</strong></td><td>Automatic full, differential and log backups; <strong>PITR 1–35 days</strong> (7 by default)</td><td><strong>Long-term retention</strong> (weekly/monthly/yearly, up to 10 years); geo-redundant backup storage; failover groups for DR</td></tr>
@@ -568,7 +569,7 @@
             <tr><td><strong>Azure Files</strong></td><td>Share snapshots on demand</td><td>Azure Backup for Files (snapshots on a policy, and vaulted backup to the vault)</td></tr>
             <tr><td><strong>AKS</strong></td><td>None for app state</td><td>Azure Backup for AKS (cluster state and persistent volumes)</td></tr>
             <tr><td><strong>Key Vault</strong></td><td>Soft delete (always on), purge protection</td><td>Purge protection on; back up individual keys only if a process needs it</td></tr>
-            <tr><td><strong>App Service</strong></td><td>Automatic backups of app content (Basic tier and above)</td><td>Custom backups including a linked database; really, keep code in Git and config in IaC</td></tr>
+            <tr><td><strong>App Service</strong></td><td>Automatic backups of app content (Basic tier and above)</td><td>Custom backups including a linked database; really, keep code in Git and config in <abbr data-g="g-iac" title="Infrastructure as Code: Describing resources in files (Bicep, Terraform) that a pipeline deploys.">IaC</abbr></td></tr>
           </tbody>
         </table>
       </div>
@@ -580,7 +581,7 @@
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"Keep Azure SQL backups for <strong>7 years</strong>" → <strong>long-term retention (LTR)</strong>. "Restore Cosmos DB to <strong>any second</strong> in the last 30 days" → <strong>continuous backup</strong>. "Back up <strong>managed disks</strong> with minimal impact" → <strong>Azure Disk Backup</strong> (incremental snapshots, Backup vault).</p>
+        <p>"Keep Azure SQL backups for <strong>7 years</strong>" → <strong>long-term retention (<abbr data-g="g-ltr" title="Long-Term Retention: Keeping weekly, monthly or yearly database backups for up to 10 years.">LTR</abbr>)</strong>. "Restore Cosmos DB to <strong>any second</strong> in the last 30 days" → <strong>continuous backup</strong>. "Back up <strong>managed disks</strong> with minimal impact" → <strong>Azure Disk Backup</strong> (incremental snapshots, Backup vault).</p>
       </div>
       <details class="demo" id="demo-m08-blob-backup">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Protect blobs two ways in a Backup vault: operational and vaulted</span><span class="demo-time">~3 min</span></summary>
@@ -608,7 +609,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Site Recovery (ASR) is a disaster recovery service that continuously replicates workloads running on physical servers, VMware and Hyper-V VMs, and Azure VMs from a primary site to a secondary location. When an outage occurs you <strong>fail over</strong> to the secondary, and <strong>fail back</strong> when the primary is restored. <strong>Recovery plans</strong> orchestrate the order, scripts and manual steps of a failover.</p>
+        <p>Azure Site Recovery (<abbr data-g="g-asr" title="Azure Site Recovery: Replicates VMs to another location and fails them over in order on a bad day.">ASR</abbr>) is a disaster recovery service that continuously replicates workloads running on physical servers, VMware and Hyper-V VMs, and Azure VMs from a primary site to a secondary location. When an outage occurs you <strong>fail over</strong> to the secondary, and <strong>fail back</strong> when the primary is restored. <strong>Recovery plans</strong> orchestrate the order, scripts and manual steps of a failover.</p>
       </div>
 
       <div class="callout plain">
@@ -653,8 +654,9 @@
       <h4>Facts worth remembering</h4>
       <ul>
         <li>Azure-to-Azure: <strong>crash-consistent</strong> recovery points every few minutes; <strong>app-consistent</strong> points on a schedule you set (hours). RPO is typically measured in minutes, not seconds.</li>
+        <li><strong>Crash-consistent</strong> = the disks as they were at one instant, like pulling the power plug: the OS boots, but an app may need to recover half-finished writes. <strong>App-consistent</strong> = the app (for example SQL Server) was asked to flush its data first, like saving before shutting down. Databases prefer app-consistent points.</li>
         <li>Scenarios: <strong>Azure → Azure</strong> (region to region, or <strong>zone to zone</strong> in the same region), <strong>VMware / physical → Azure</strong>, <strong>Hyper-V → Azure</strong>. ASR is also how many teams first rehearse a migration (Module 12).</li>
-        <li><strong>Test failover</strong> into an isolated VNet costs only the test VMs' running time. Do it after every major change, and at least twice a year.</li>
+        <li><strong>Test failover</strong> into an isolated <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr> costs only the test VMs' running time. Do it after every major change, and at least twice a year.</li>
         <li>Billing is per protected instance (the first 31 days of each instance are free) plus storage in the target region.</li>
         <li>ASR replicates <strong>VMs</strong>. PaaS services use their own geo features: SQL failover groups, Cosmos DB multi-region, GRS storage, Front Door for traffic.</li>
       </ul>
@@ -745,7 +747,7 @@
       <ol class="steps">
         <li><strong>Traffic:</strong> a global entry point that can move users (Front Door or Traffic Manager, Module 11).</li>
         <li><strong>Compute:</strong> already running (active), scaled down (warm), or created by ASR or IaC (pilot light, backup).</li>
-        <li><strong>Data:</strong> geo-replicated with a known RPO: SQL failover groups, Cosmos DB multi-region, GZRS storage.</li>
+        <li><strong>Data:</strong> geo-replicated with a known RPO: SQL failover groups, Cosmos DB multi-region, <abbr data-g="g-gzrs" title="Geo-Zone-Redundant Storage: ZRS in the primary region plus an asynchronous copy in the paired region.">GZRS</abbr> storage.</li>
         <li><strong>Dependencies:</strong> identity, DNS, Key Vault, secrets and messaging must exist in the secondary too.</li>
         <li><strong>Decision and drill:</strong> who declares the disaster, the runbook, and a test date in the calendar.</li>
       </ol>
@@ -774,12 +776,12 @@
               <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
               <tbody>
                 <tr><td>Agreed numbers per workload</td><td><strong>Tier 1</strong> checkout and orders: RTO 15 min, RPO under 1 min. <strong>Tier 2</strong> merchandising ERP, store systems: RTO 4 h, RPO 15 min. <strong>Tier 3</strong> reporting, internal apps: RTO 24 h, RPO 24 h</td><td>Spend follows business impact; nobody pays Tier 1 prices for the canteen menu app.</td></tr>
-                <tr><td>Checkout survives a regional outage</td><td><strong>Warm standby</strong> in South India: zone-redundant web tier running at reduced scale, SQL <strong>failover group</strong> (Module 06), RA-GZRS images (Module 05), <strong>Front Door</strong> health probes move traffic</td><td>RTO in minutes without paying for full capacity twice.</td></tr>
+                <tr><td>Checkout survives a regional outage</td><td><strong>Warm standby</strong> in South India: zone-redundant web tier running at reduced scale, SQL <strong>failover group</strong> (Module 06), <abbr data-g="g-ra-grs-ra-gzrs" title="Read-Access GRS / GZRS: Geo-redundant storage whose secondary copy can be read at any time.">RA-GZRS</abbr> images (Module 05), <strong>Front Door</strong> health probes move traffic</td><td>RTO in minutes without paying for full capacity twice.</td></tr>
                 <tr><td>Stay up through a datacentre failure</td><td>Availability zones everywhere they exist: zone-redundant SQL Business Critical, zone-redundant App Service and storage, VMs spread across zones</td><td>A zone failure becomes a non-event for Tier 1 and Tier 2.</td></tr>
                 <tr><td>Remaining IaaS (vendor SQL VM, ERP app servers)</td><td><strong>Azure Site Recovery</strong> Central India → South India; recovery plans (database, then app, then web); <strong>test failover every quarter</strong> into an isolated VNet</td><td>Tier 2 RTO met with no running VMs in the secondary.</td></tr>
                 <tr><td>Backups for VMs, SQL in VM and file shares</td><td><strong>Recovery Services vault</strong> per region, <strong>GRS with Cross Region Restore</strong>; Enhanced policy every 4 hours for PCI VMs; SQL log backups every 15 minutes; Azure Files backup for the HQ shares</td><td>Meets Tier 2 RPO and lets us restore in South India on our own decision.</td></tr>
                 <tr><td>Blobs and disks</td><td><strong>Backup vault</strong>: operational backup for blobs (in-account PITR) plus vaulted backup for invoices; Azure Disk Backup for standalone data disks</td><td>Covers both "undo a mistake" and "the account itself was deleted".</td></tr>
-                <tr><td>Ransomware cannot remove backups</td><td>Soft delete <strong>always on</strong>; <strong>immutable vaults, locked</strong> after a month of checks; <strong>multi-user authorisation</strong> with a Resource Guard in the security team's subscription, approved via PIM (Module 03)</td><td>A stolen backup-admin account can't delete or shorten retention.</td></tr>
+                <tr><td>Ransomware cannot remove backups</td><td>Soft delete <strong>always on</strong>; <strong>immutable vaults, locked</strong> after a month of checks; <strong>multi-user authorisation</strong> with a Resource Guard in the security team's subscription, approved via <abbr data-g="g-pim" title="Privileged Identity Management: Admin roles made eligible, then activated just in time with MFA, approval and a time limit.">PIM</abbr> (Module 03)</td><td>A stolen backup-admin account can't delete or shorten retention.</td></tr>
                 <tr><td>Databases' long-term retention</td><td>Azure SQL PITR 35 days and <strong>LTR yearly for 7 years</strong> (Module 06); Cosmos DB <strong>continuous backup</strong> (30 days)</td><td>Audit and PCI retention without separate tools.</td></tr>
                 <tr><td>Nothing goes unprotected</td><td>Azure Policy (DeployIfNotExists) enables backup for VMs tagged <code>Environment=Prod</code>; <strong>Business Continuity Center</strong> and backup alerts to the ops action group (Module 04)</td><td>Protection is enforced, not remembered.</td></tr>
                 <tr><td>EU data stays in the EU</td><td>EU vaults in Germany West Central with GRS to <strong>Germany North</strong> (its pair); EU DR stays inside Germany</td><td>Recovery copies respect the same residency rules as the data.</td></tr>
@@ -798,11 +800,11 @@
       <h3>Architect's continuity checklist</h3>
       <ul class="checklist">
         <li>RTO and RPO agreed per workload with the business owner, and written down.</li>
-        <li>HA, DR and backup treated as three separate layers, each sized to the numbers.</li>
+        <li><abbr data-g="g-ha" title="High Availability: Staying up through local failures such as a server, rack or datacentre.">HA</abbr>, DR and backup treated as three separate layers, each sized to the numbers.</li>
         <li>Availability zones (or sets where zones don't exist) for anything Tier 1 or Tier 2.</li>
         <li>A DR pattern chosen per workload, with traffic, compute, data and dependencies covered.</li>
         <li>Vaults per region, redundancy set before the first backup, Cross Region Restore where needed.</li>
-        <li>Soft delete always on, immutability locked, MUA with a Resource Guard owned by another team.</li>
+        <li>Soft delete always on, immutability locked, <abbr data-g="g-mua" title="Multi-User Authorisation: Critical backup operations need approval through a Resource Guard owned by another team.">MUA</abbr> with a Resource Guard owned by another team.</li>
         <li>Default PaaS retention checked; LTR or continuous backup added where audits need it.</li>
         <li>Restores and failovers tested on a calendar, with a stopwatch.</li>
       </ul>

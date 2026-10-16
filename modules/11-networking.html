@@ -64,6 +64,7 @@
         <li><a href="#edge">Protecting the edge</a></li>
         <li><a href="#case">Meridian: the network design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -74,7 +75,7 @@
     <section id="map">
       <span class="sec-num">11.0</span>
       <h2>The mental map</h2>
-      <p>Think of an Azure network as a city. <strong>Virtual networks</strong> are gated colonies with their own streets (subnets). <strong>Peering</strong> and a central <strong>hub</strong> are the ring road. <strong>VPN and ExpressRoute</strong> are the highway to your old office. <strong>Private endpoints</strong> bring PaaS services inside the colony walls. At the city gates, <strong>Front Door, Application Gateway and Azure Firewall</strong> decide who gets in and where they go.</p>
+      <p>Think of an Azure network as a city. <strong>Virtual networks</strong> are gated colonies with their own streets (subnets). <strong>Peering</strong> and a central <strong>hub</strong> are the ring road. <strong><abbr data-g="g-vpn" title="Virtual Private Network: An encrypted tunnel over the internet between sites, or from a laptop.">VPN</abbr> and ExpressRoute</strong> are the highway to your old office. <strong>Private endpoints</strong> bring <abbr data-g="g-iaas-paas" title="Infrastructure / Platform as a Service: Renting servers you manage (IaaS) versus a platform where you manage only your code (PaaS).">PaaS</abbr> services inside the colony walls. At the city gates, <strong>Front Door, Application Gateway and Azure Firewall</strong> decide who gets in and where they go.</p>
 
       <figure class="diagram">
         <div class="frame">
@@ -165,7 +166,7 @@
       <div class="lens">
         <div>
           <h5>Developer view</h5>
-          <p>"I'll create a VNet with the default 10.0.0.0/16 and put everything in it. We can sort out the network later."</p>
+          <p>"I'll create a <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr> with the default 10.0.0.0/16 and put everything in it. We can sort out the network later."</p>
         </div>
         <div>
           <h5>Architect view</h5>
@@ -190,7 +191,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>An Azure Virtual Network (VNet) is a logically isolated private network in one region and one subscription, defined by one or more <strong>address spaces</strong> (CIDR ranges) and divided into <strong>subnets</strong>. Resources in a VNet communicate privately with each other by default and can be connected to other VNets (peering) and to on-premises networks (VPN, ExpressRoute).</p>
+        <p>An Azure Virtual Network (VNet) is a logically isolated private network in one region and one subscription, defined by one or more <strong>address spaces</strong> (<abbr data-g="g-cidr" title="Classless Inter-Domain Routing: The way address ranges are written, such as 10.10.0.0/16 (65,536 addresses).">CIDR</abbr> ranges) and divided into <strong>subnets</strong>. Resources in a VNet communicate privately with each other by default and can be connected to other VNets (peering) and to on-premises networks (VPN, ExpressRoute).</p>
       </div>
 
       <div class="callout plain">
@@ -201,10 +202,10 @@
       <h4>Facts worth remembering</h4>
       <ul>
         <li>Azure <strong>reserves 5 addresses</strong> in every subnet (first four and the last). A /29 gives you only 3 usable.</li>
-        <li>Some services need a <strong>dedicated subnet</strong> with a fixed name: <code>GatewaySubnet</code> (VPN/ExpressRoute, /27 or larger), <code>AzureFirewallSubnet</code> (/26), <code>AzureBastionSubnet</code> (/26 or larger). Others need a <strong>delegated</strong> subnet (App Service VNet integration, Container Apps, SQL MI).</li>
+        <li>Some services need a <strong>dedicated subnet</strong> with a fixed name: <code>GatewaySubnet</code> (VPN/ExpressRoute, /27 or larger), <code>AzureFirewallSubnet</code> (/26), <code>AzureBastionSubnet</code> (/26 or larger). Others need a <strong>delegated</strong> subnet (App Service VNet integration, Container Apps, SQL <abbr data-g="g-mi" title="SQL Managed Instance: Azure SQL Managed Instance: near-100% SQL Server compatibility as a PaaS service.">MI</abbr>).</li>
         <li><strong>Address spaces must not overlap</strong> with peered VNets or on-premises ranges you connect to. This is the most expensive mistake to fix later.</li>
         <li>Plan for growth: a /16 per region hub-and-spokes, carved into /22–/24 spokes, leaves room for years.</li>
-        <li>Outbound internet: Microsoft is retiring <strong>default outbound access</strong> for new subnets, so plan explicit egress with <strong>NAT Gateway</strong> or a firewall.</li>
+        <li>Outbound internet: since 31 March 2026, new virtual networks use <strong>private subnets</strong> by default, with no implicit internet access (the old <strong>default outbound access</strong>). Plan explicit egress with <strong><abbr data-g="g-nat-snat-dnat" title="Network / Source / Destination Address Translation: Rewriting addresses: SNAT for outbound traffic from private IPs, DNAT to publish an inside service.">NAT</abbr> Gateway</strong>, a firewall or Load Balancer outbound rules.</li>
       </ul>
 
       <div class="callout pitfall">
@@ -243,7 +244,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>A <strong>network security group (NSG)</strong> contains prioritised allow and deny rules that filter inbound and outbound traffic by source, destination, port and protocol (layer 3–4). It can be associated with a <strong>subnet</strong> or a <strong>network interface</strong>. An <strong>application security group (ASG)</strong> groups VMs by role (for example "web" or "db") so NSG rules can refer to the group instead of IP addresses.</p>
+        <p>A <strong>network security group (<abbr data-g="g-nsg" title="Network Security Group: Allow and deny rules by IP, port and protocol on a subnet or network card.">NSG</abbr>)</strong> contains prioritised allow and deny rules that filter inbound and outbound traffic by source, destination, port and protocol (layer 3–4). It can be associated with a <strong>subnet</strong> or a <strong>network interface</strong>. An <strong>application security group (<abbr data-g="g-asg" title="Application Security Group: A role label for VMs (web, db) that NSG rules can use instead of IP addresses.">ASG</abbr>)</strong> groups VMs by role (for example "web" or "db") so NSG rules can refer to the group instead of IP addresses.</p>
       </div>
 
       <div class="callout plain">
@@ -255,7 +256,7 @@
         <li>Every NSG has <strong>default rules</strong>: allow VNet-to-VNet, allow from Azure Load Balancer, deny all other inbound; allow outbound to the internet.</li>
         <li><strong>Service tags</strong> (<code>Internet</code>, <code>VirtualNetwork</code>, <code>Storage.CentralIndia</code>, <code>AzureLoadBalancer</code>) stand for Microsoft-maintained IP ranges.</li>
         <li><strong>Effective security rules</strong> and <strong>IP flow verify</strong> (Network Watcher) show why a packet was allowed or denied.</li>
-        <li>NSG <strong>flow logs</strong> are moving to <strong>VNet flow logs</strong>, which cover a whole VNet; send them to Log Analytics with Traffic Analytics (Module 04).</li>
+        <li>NSG <strong>flow logs</strong> can't be created any more (since June 2025) and retire on 30 September 2027. Use <strong>VNet flow logs</strong>, which cover a whole VNet; send them to Log Analytics with Traffic Analytics (Module 04).</li>
       </ul>
 
       <div class="callout exam">
@@ -289,7 +290,9 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p><strong>VNet peering</strong> connects two VNets (in the same or different regions) over the Microsoft backbone with low latency; peering is <strong>not transitive</strong>. In a <strong>hub-and-spoke</strong> topology, a central hub VNet hosts shared services (firewall, gateways, Bastion, DNS) and is peered with workload spoke VNets; <strong>user-defined routes</strong> send traffic through the hub's firewall. <strong>Azure Virtual WAN</strong> is a Microsoft-managed networking service that provides hubs with built-in routing, VPN, ExpressRoute, and optional Azure Firewall ("secured hubs"), with any-to-any connectivity across hubs.</p>
+        <p><strong>VNet peering</strong> connects two VNets (same or different regions) over the Microsoft backbone with low latency. Peering is <strong>not transitive</strong>: A↔B and B↔C does not give A↔C.</p>
+        <p>In a <strong>hub-and-spoke</strong> topology, a central hub VNet hosts shared services (firewall, gateways, Bastion, DNS) and is peered with workload spoke VNets; <strong>user-defined routes</strong> (route tables you write) send traffic through the hub's firewall.</p>
+        <p><strong>Azure Virtual WAN</strong> is a Microsoft-managed networking service whose hubs come with built-in routing, VPN, ExpressRoute and optional Azure Firewall ("secured hubs"), giving any-to-any connectivity across hubs.</p>
       </div>
 
       <div class="callout plain">
@@ -335,9 +338,9 @@
         <table>
           <thead><tr><th></th><th>Hub and spoke</th><th>Virtual WAN</th></tr></thead>
           <tbody>
-            <tr><td><strong>Who builds the hub</strong></td><td>You (a VNet with gateways, firewall, UDRs)</td><td>Microsoft (a managed hub resource)</td></tr>
-            <tr><td><strong>Transit between spokes</strong></td><td>Through a firewall or NVA with UDRs</td><td>Built in (any-to-any), optionally via secured hub</td></tr>
-            <tr><td><strong>Branch sites</strong></td><td>Tens of site-to-site tunnels per gateway</td><td>Hundreds to <strong>thousands</strong> of sites, SD-WAN partner integration</td></tr>
+            <tr><td><strong>Who builds the hub</strong></td><td>You (a VNet with gateways, firewall, <abbr data-g="g-udr" title="User-Defined Route: A route table you write to override Azure&#x27;s routing, such as sending traffic via a firewall.">UDRs</abbr>)</td><td>Microsoft (a managed hub resource)</td></tr>
+            <tr><td><strong>Transit between spokes</strong></td><td>Through a firewall or <abbr data-g="g-nva" title="Network Virtual Appliance: A third-party firewall or router running as a VM.">NVA</abbr> with UDRs</td><td>Built in (any-to-any), optionally via secured hub</td></tr>
+            <tr><td><strong>Branch sites</strong></td><td>Tens of site-to-site tunnels per gateway</td><td>Hundreds to <strong>thousands</strong> of sites, <abbr data-g="g-sd-wan" title="Software-Defined Wide Area Network: Branch networking that picks the best link automatically; integrates with Virtual WAN.">SD-WAN</abbr> partner integration</td></tr>
             <tr><td><strong>Best for</strong></td><td>One or two regions, custom routing, NVAs</td><td>Many regions and branches, global transit</td></tr>
           </tbody>
         </table>
@@ -381,11 +384,11 @@
       <div class="two-col">
         <div>
           <h4>VPN Gateway</h4>
-          <p>An encrypted <strong>IPsec tunnel over the public internet</strong>. <strong>Site-to-site</strong> links an office or datacentre; <strong>point-to-site</strong> links individual laptops; <strong>VNet-to-VNet</strong> links VNets. Quick to set up, cheap, bandwidth up to a few Gbps (by SKU), latency as good as the internet that day.</p>
+          <p>An encrypted <strong>IPsec tunnel over the public internet</strong>. <strong>Site-to-site</strong> links an office or datacentre; <strong>point-to-site</strong> links individual laptops; <strong>VNet-to-VNet</strong> links VNets. Quick to set up, cheap, bandwidth up to about 10 Gbps depending on the gateway <abbr data-g="g-sku" title="Stock Keeping Unit: In Azure, a specific size or tier of a service, such as a VM size or the Premium tier. In retail, one product line, such as KURTA-M.">SKU</abbr>, latency as good as the internet that day.</p>
         </div>
         <div>
           <h4>ExpressRoute</h4>
-          <p>A <strong>private connection</strong> through a connectivity provider (or directly at a peering location with ExpressRoute Direct) into Microsoft's network. <strong>Does not traverse the internet.</strong> Predictable latency, bandwidth from 50 Mbps to 10 Gbps per circuit (100 Gbps with Direct), built-in redundancy (two connections), financially backed SLA.</p>
+          <p>A <strong>private connection</strong> through a connectivity provider (or directly at a peering location with ExpressRoute Direct) into Microsoft's network. <strong>Does not traverse the internet.</strong> Predictable latency, bandwidth from 50 Mbps to 10 Gbps per circuit (100 Gbps with Direct), built-in redundancy (two connections), financially backed <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLA</abbr>.</p>
         </div>
       </div>
 
@@ -441,7 +444,7 @@
 
       <div class="callout pitfall">
         <div class="c-label">Common trap</div>
-        <p>"ExpressRoute is encrypted." It's <strong>private</strong>, not encrypted. If a regulator says "encrypted in transit", add <strong>MACsec</strong> (ExpressRoute Direct) or run <strong>IPsec over ExpressRoute</strong> (VPN over the private peering), or rely on TLS at the application layer.</p>
+        <p>"ExpressRoute is encrypted." It's <strong>private</strong>, not encrypted. If a regulator says "encrypted in transit", add <strong><abbr data-g="g-macsec" title="Encryption on the physical link, available with ExpressRoute Direct.">MACsec</abbr></strong> (ExpressRoute Direct) or run <strong>IPsec over ExpressRoute</strong> (VPN over the private peering), or rely on TLS at the application layer.</p>
       </div>
 
       <div class="callout exam">
@@ -575,7 +578,7 @@
             <text x="370" y="148" class="t-b mid">one region's web apps</text>
             <rect x="580" y="44" width="380" height="118" rx="14" class="s-rose"/>
             <text x="770" y="78" class="t-h mid">Azure Front Door</text>
-            <text x="770" y="104" class="t-s mid">global anycast edge, CDN caching, WAF</text>
+            <text x="770" y="104" class="t-s mid">nearest edge location, caching, WAF</text>
             <text x="770" y="124" class="t-s mid">instant failover between regions</text>
             <text x="770" y="148" class="t-b mid">worldwide web apps, multi-region</text>
             <rect x="180" y="174" width="380" height="118" rx="14" class="s-blue"/>
@@ -597,8 +600,8 @@
         <table>
           <thead><tr><th>Service</th><th>Layer and scope</th><th>Pick it when the question says…</th></tr></thead>
           <tbody>
-            <tr><td><strong>Load Balancer</strong> (Standard)</td><td>L4, regional (a cross-region tier exists)</td><td>"TCP/UDP", "non-HTTP", "internal load balancer", "high performance, low latency", "HA ports for NVAs"</td></tr>
-            <tr><td><strong>Application Gateway</strong> (v2)</td><td>L7, regional</td><td>"URL path-based routing", "TLS/SSL offload", "WAF in the region", "multiple sites on one gateway", "cookie-based affinity"</td></tr>
+            <tr><td><strong>Load Balancer</strong> (Standard)</td><td><abbr data-g="g-l4-l7" title="Layer 4 / Layer 7: Load balancing by IP and port (L4) versus by HTTP details such as the URL path (L7).">L4</abbr>, regional (a cross-region tier exists)</td><td>"TCP/UDP", "non-HTTP", "internal load balancer", "high performance, low latency", "HA ports for NVAs" (HA ports = balance every port at once, used in front of firewall appliances)</td></tr>
+            <tr><td><strong>Application Gateway</strong> (v2)</td><td>L7, regional</td><td>"URL path-based routing", "TLS/SSL offload", "<abbr data-g="g-waf-web-application-firewall" title="Web Application Firewall: Protects web apps from attacks such as SQL injection; runs on Front Door or Application Gateway.">WAF</abbr> in the region", "multiple sites on one gateway", "cookie-based affinity"</td></tr>
             <tr><td><strong>Front Door</strong> (Standard / Premium)</td><td>L7, global</td><td>"global users", "multi-region failover", "edge caching/CDN", "WAF at the edge", "Private Link to origins" (Premium)</td></tr>
             <tr><td><strong>Traffic Manager</strong></td><td>DNS, global</td><td>"DNS-based", "non-HTTP global", "geographic routing", "on-premises endpoints too"</td></tr>
           </tbody>
@@ -607,7 +610,7 @@
 
       <div class="callout note">
         <div class="c-label">Name check</div>
-        <p><strong>Basic Load Balancer</strong> and <strong>Basic public IPs</strong> are retired: use Standard. <strong>Application Gateway v1</strong> is retired: use v2. <strong>Front Door (classic)</strong> and <strong>Azure CDN from Microsoft (classic)</strong> are being replaced by <strong>Front Door Standard/Premium</strong>. Older questions may still mention the classic names.</p>
+        <p><strong>Basic Load Balancer</strong> and <strong>Basic public IPs</strong> are retired: use Standard. <strong>Application Gateway v1</strong> is retired: use v2. <strong>Front Door (classic)</strong> and <strong>Azure <abbr data-g="g-cdn" title="Content Delivery Network: Servers around the world that keep copies of files close to users so pages load faster.">CDN</abbr> from Microsoft (classic)</strong> are being replaced by <strong>Front Door Standard/Premium</strong> (Front Door classic retires on 31 March 2027, CDN classic on 30 September 2027). Older questions may still mention the classic names.</p>
       </div>
 
       <div class="callout exam">
@@ -641,7 +644,7 @@
         </div>
         <div class="callout definition">
           <div class="c-label">Definition</div>
-          <p>Azure Firewall is a cloud-native, stateful network firewall as a service with built-in high availability and autoscaling. It filters east-west and north-south traffic with <strong>network rules</strong>, <strong>application rules (FQDNs)</strong> and <strong>DNAT rules</strong>, uses Microsoft <strong>threat intelligence</strong>, and is managed through <strong>Firewall Policy</strong>. SKUs: <strong>Basic</strong> (small businesses), <strong>Standard</strong>, and <strong>Premium</strong> (adds TLS inspection, IDPS, URL filtering and web categories).</p>
+          <p>Azure Firewall is a cloud-native, stateful network firewall as a service with built-in high availability and autoscaling. It filters east-west and north-south traffic with <strong>network rules</strong>, <strong>application rules (FQDNs)</strong> and <strong>DNAT rules</strong>, uses Microsoft <strong>threat intelligence</strong>, and is managed through <strong>Firewall Policy</strong>. SKUs: <strong>Basic</strong> (small businesses), <strong>Standard</strong>, and <strong>Premium</strong> (adds TLS inspection, <abbr data-g="g-idps" title="Intrusion Detection and Prevention System: Spots and blocks known attack patterns in traffic; in Azure Firewall Premium.">IDPS</abbr>, URL filtering and web categories).</p>
         </div>
         <div class="callout plain">
           <div class="c-label">In plain words</div>
@@ -653,12 +656,12 @@
         <table>
           <thead><tr><th>Guard</th><th>What it does</th><th>Exam words</th></tr></thead>
           <tbody>
-            <tr><td><strong>NSG</strong></td><td>L3–4 allow/deny per subnet or NIC</td><td>"port", "subnet", "IP range"</td></tr>
+            <tr><td><strong>NSG</strong></td><td>L3–4 allow/deny per subnet or <abbr data-g="g-nic" title="Network Interface Card: A VM&#x27;s network card; in Azure, a resource with its own IP addresses.">NIC</abbr></td><td>"port", "subnet", "IP range"</td></tr>
             <tr><td><strong>Azure Firewall</strong></td><td>Central stateful firewall, FQDN and threat-intel filtering, logging</td><td>"centrally", "FQDN", "outbound filtering", "spoke-to-spoke inspection"</td></tr>
-            <tr><td><strong>Web Application Firewall</strong></td><td>L7 protection against SQL injection, XSS and the OWASP top 10; runs on <strong>Front Door</strong> or <strong>Application Gateway</strong></td><td>"OWASP", "SQL injection", "protect the web app"</td></tr>
-            <tr><td><strong>DDoS Protection</strong></td><td>Infrastructure protection is free for all; <strong>DDoS Network Protection</strong> (per VNet) or <strong>IP Protection</strong> (per public IP) adds adaptive tuning, telemetry, rapid response and cost protection</td><td>"volumetric attack", "DDoS", "cost protection"</td></tr>
+            <tr><td><strong>Web Application Firewall</strong></td><td>L7 protection against SQL injection, <abbr data-g="g-xss" title="Cross-Site Scripting: An attack that injects malicious script into a web page other users see.">XSS</abbr> and the <abbr data-g="g-owasp" title="Open Worldwide Application Security Project: A community that publishes the top web-app attack types that WAF rules block.">OWASP</abbr> top 10; runs on <strong>Front Door</strong> or <strong>Application Gateway</strong></td><td>"OWASP", "SQL injection", "protect the web app"</td></tr>
+            <tr><td><strong><abbr data-g="g-ddos" title="Distributed Denial of Service: Flooding a service with traffic from many machines to knock it offline.">DDoS</abbr> Protection</strong></td><td>Infrastructure protection is free for all; <strong>DDoS Network Protection</strong> (per VNet) or <strong>IP Protection</strong> (per public IP) adds adaptive tuning, telemetry, rapid response and cost protection</td><td>"volumetric attack", "DDoS", "cost protection"</td></tr>
             <tr><td><strong>Azure Bastion</strong></td><td>Browser-based RDP/SSH to VMs over TLS, with <strong>no public IP</strong> on the VMs</td><td>"no public IP", "secure RDP/SSH", "jump box"</td></tr>
-            <tr><td><strong>NAT Gateway</strong></td><td>Outbound internet for a subnet through a fixed set of public IPs, at scale</td><td>"outbound", "fixed egress IP", "SNAT port exhaustion"</td></tr>
+            <tr><td><strong>NAT Gateway</strong></td><td>Outbound internet for a subnet through a fixed set of public IPs, at scale</td><td>"outbound", "fixed egress IP", "SNAT port exhaustion" (each outbound connection borrows a source port on a public IP; too many connections run the ports out)</td></tr>
           </tbody>
         </table>
       </div>
@@ -670,7 +673,7 @@
         </div>
         <div>
           <h5>Architect view</h5>
-          <p>"No management ports on the internet, ever. Admins come through <strong>Bastion</strong> with Entra sign-in and PIM (Module 03), or <strong>just-in-time</strong> access from Defender for Cloud. One open RDP port is the most common way in for ransomware."</p>
+          <p>"No management ports on the internet, ever. Admins come through <strong>Bastion</strong> with Entra sign-in and <abbr data-g="g-pim" title="Privileged Identity Management: Admin roles made eligible, then activated just in time with MFA, approval and a time limit.">PIM</abbr> (Module 03), or <strong>just-in-time</strong> access from Defender for Cloud. One open RDP port is the most common way in for ransomware."</p>
         </div>
       </div>
 
@@ -713,10 +716,10 @@
             <table>
               <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
               <tbody>
-                <tr><td>One address plan</td><td>Non-overlapping ranges agreed up front: <code>10.10.0.0/16</code> Central India, <code>10.20.0.0/16</code> South India, <code>10.30.0.0/16</code> Germany West Central; on-premises and stores kept out of <code>10.0.0.0/12</code>; IPAM pools in <strong>Virtual Network Manager</strong></td><td>Anything can be peered or connected later without re-addressing.</td></tr>
+                <tr><td>One address plan</td><td>Non-overlapping ranges agreed up front: <code>10.10.0.0/16</code> Central India, <code>10.20.0.0/16</code> South India, <code>10.30.0.0/16</code> Germany West Central; on-premises and stores kept out of <code>10.0.0.0/10</code> (10.0 to 10.63, which covers all three Azure ranges with room to grow); IPAM pools in <strong>Virtual Network Manager</strong></td><td>Anything can be peered or connected later without re-addressing.</td></tr>
                 <tr><td>Connect 180 stores, three regions and the datacentre</td><td><strong>Azure Virtual WAN</strong> (Standard) with <strong>secured hubs</strong> in Central India, South India and Germany West Central; stores connect by <strong>SD-WAN / site-to-site VPN</strong> to the nearest hub; spokes (Corp, Online, PCI, Online-EU) attach to their regional hub. The "hub network" locked in Module 02 is these hubs</td><td>A self-built VPN gateway can't take 180 sites per region; Virtual WAN gives any-to-any transit and scales to thousands of branches.</td></tr>
                 <tr><td>Fast, private link to the datacentre during migration</td><td><strong>ExpressRoute</strong> Standard, 1 Gbps, from a Chennai peering location into the Central India hub; a <strong>site-to-site VPN</strong> as backup path</td><td>Predictable bandwidth for Azure Migrate replication and Data Factory (Modules 07, 12); the VPN covers a circuit failure.</td></tr>
-                <tr><td>Inspect traffic, isolate PCI</td><td><strong>Azure Firewall Premium</strong> in each secured hub (TLS inspection and IDPS for PCI flows); routing intent sends spoke-to-spoke and internet traffic through it; the PCI spoke accepts traffic only from the Online spoke's checkout subnet</td><td>PCI DSS asks for segmentation and inspection; one policy, applied centrally.</td></tr>
+                <tr><td>Inspect traffic, isolate PCI</td><td><strong>Azure Firewall Premium</strong> in each secured hub (TLS inspection and IDPS for PCI flows); <strong>routing intent</strong> (a Virtual WAN setting that forces traffic through the hub firewall) sends spoke-to-spoke and internet traffic through it; the PCI spoke accepts traffic only from the Online spoke's checkout subnet</td><td>PCI DSS asks for segmentation and inspection; one policy, applied centrally.</td></tr>
                 <tr><td>Databases and storage never on the internet</td><td><strong>Private endpoints</strong> for SQL, Cosmos DB, Storage, Key Vault, Service Bus and Redis; public access disabled; <strong>private DNS zones</strong> in the Connectivity subscription with Policy auto-registration; <strong>DNS Private Resolver</strong> for the datacentre</td><td>Matches the security decisions of Modules 05, 06 and 10; on-premises resolves the same names.</td></tr>
                 <tr><td>Shoppers across India, checkout that survives a region</td><td><strong>Front Door Premium</strong> with <strong>WAF</strong> (OWASP rules, bot protection, rate limits) in front of App Service in both regions, connecting to origins over <strong>Private Link</strong>; caching for product images (Module 05)</td><td>Global edge, instant failover for the warm-standby design (Module 08), and no public origins.</td></tr>
                 <tr><td>Internal apps and the ERP</td><td>Internal <strong>Application Gateway v2</strong> with WAF in the Corp spoke for HTTP apps; <strong>internal Standard Load Balancer</strong> for the ERP's TCP services</td><td>Layer 7 where it's web, layer 4 where it isn't.</td></tr>

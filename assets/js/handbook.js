@@ -123,6 +123,51 @@
       if (filter) filter.addEventListener("input", runFilter);
     }
 
+    // ----- Glossary terms: tap or click an underlined term for its meaning -----
+    var pop = null;
+    function closePop() { if (pop) { pop.remove(); pop = null; } }
+    document.addEventListener("click", function (ev) {
+      var ab = ev.target.closest && ev.target.closest("abbr[data-g]");
+      if (!ab) { if (pop && !pop.contains(ev.target)) closePop(); return; }
+      ev.preventDefault();
+      closePop();
+      pop = document.createElement("div");
+      pop.className = "abbr-pop";
+      pop.setAttribute("role", "tooltip");
+      var head = document.createElement("b"); head.textContent = ab.textContent;
+      var text = document.createElement("span"); text.textContent = ab.getAttribute("title");
+      var link = document.createElement("a"); link.href = "glossary.html#" + ab.getAttribute("data-g"); link.textContent = "Open in glossary →";
+      pop.appendChild(head); pop.appendChild(text); pop.appendChild(document.createElement("br")); pop.appendChild(link);
+      document.body.appendChild(pop);
+      var r = ab.getBoundingClientRect();
+      var left = Math.max(16, Math.min(r.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - pop.offsetWidth - 16));
+      pop.style.left = left + "px";
+      pop.style.top = (r.bottom + window.scrollY + 6) + "px";
+    });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape") closePop();
+      if (ev.key === "Enter" && document.activeElement && document.activeElement.matches("abbr[data-g]")) document.activeElement.click();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("abbr[data-g]"), function (ab) { ab.tabIndex = 0; });
+
+    // ----- Glossary page: keyword filter -----
+    var gf = document.querySelector("[data-gloss-filter]");
+    if (gf) {
+      var gItems = Array.prototype.slice.call(document.querySelectorAll(".g-item"));
+      var gGroups = Array.prototype.slice.call(document.querySelectorAll(".g-group"));
+      var gStatus = document.querySelector("[data-gloss-status]");
+      gf.addEventListener("input", function () {
+        var q = gf.value.trim().toLowerCase(), shown = 0;
+        gItems.forEach(function (it) {
+          var hit = !q || it.textContent.toLowerCase().indexOf(q) !== -1;
+          it.classList.toggle("g-hide", !hit);
+          if (hit) shown++;
+        });
+        gGroups.forEach(function (g) { g.classList.toggle("g-hide", !g.querySelector(".g-item:not(.g-hide)")); });
+        if (gStatus) gStatus.textContent = q ? shown + (shown === 1 ? " term matches" : " terms match") + " “" + gf.value.trim() + "”" : gItems.length + " terms";
+      });
+    }
+
     // ----- TOC: open on desktop, highlight current section -----
     var tocDetails = document.querySelector(".toc details");
     if (tocDetails && window.matchMedia("(min-width: 1021px)").matches) tocDetails.open = true;

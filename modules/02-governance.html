@@ -65,6 +65,7 @@
         <li><a href="#lz">Azure landing zones</a></li>
         <li><a href="#case">Meridian: the governance design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -375,7 +376,7 @@
       <ul>
         <li>A resource group has a <strong>location</strong>, but that is only where its <em>metadata</em> is stored. Resources inside it can be in other regions.</li>
         <li>Many resource types can be <strong>moved</strong> between resource groups and subscriptions; not all can, so check before you promise.</li>
-        <li>Resource groups are a natural scope for <strong>RBAC</strong>: "the checkout team is Contributor on <code>rg-checkout-prod</code>".</li>
+        <li>Resource groups are a natural scope for <strong><abbr data-g="g-rbac" title="Role-Based Access Control: Who (a person, group or identity) gets which role at which scope in Azure.">RBAC</abbr></strong>: "the checkout team is Contributor on <code>rg-checkout-prod</code>".</li>
       </ul>
       <details class="demo" id="demo-m02-rg">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Create a resource group the architect's way</span><span class="demo-time">~3 min</span></summary>
@@ -483,7 +484,7 @@
         <div class="term"><b>Initiative</b><span>A named bundle of definitions with a shared goal, e.g. "PCI DSS v4" or "Microsoft cloud security benchmark".</span></div>
         <div class="term"><b>Assignment</b><span>Attaching a definition or initiative to a <em>scope</em>: management group, subscription, resource group or resource.</span></div>
         <div class="term"><b>Exclusion / exemption</b><span>Carving out a child scope from an assignment, or a time-bound, documented waiver for a specific resource.</span></div>
-        <div class="term"><b>Remediation task</b><span>Fixes <em>existing</em> non-compliant resources for Modify and DeployIfNotExists effects, using a managed identity.</span></div>
+        <div class="term"><b>Remediation task</b><span>Fixes <em>existing</em> non-compliant resources for Modify and DeployIfNotExists effects, using a managed identity (an identity Azure creates and manages for a resource; Module 03).</span></div>
         <div class="term"><b>Compliance view</b><span>A dashboard of what is and isn't compliant, at every scope, refreshed automatically.</span></div>
       </div>
 
@@ -492,7 +493,7 @@
         <table>
           <thead><tr><th>Effect</th><th>What it does</th><th>Use it when…</th></tr></thead>
           <tbody>
-            <tr><td>Deny</td><td>Blocks the create or update request.</td><td>The rule is non-negotiable: allowed regions, banned SKUs, no public endpoints.</td></tr>
+            <tr><td>Deny</td><td>Blocks the create or update request.</td><td>The rule is non-negotiable: allowed regions, banned <abbr data-g="g-sku" title="Stock Keeping Unit: In Azure, a specific size or tier of a service, such as a VM size or the Premium tier. In retail, one product line, such as KURTA-M.">SKUs</abbr>, no public endpoints.</td></tr>
             <tr><td>Audit</td><td>Allows it, but marks the resource non-compliant.</td><td>You want visibility first, or you're testing a rule before switching to Deny.</td></tr>
             <tr><td>AuditIfNotExists</td><td>Flags a resource when a related resource is missing.</td><td>"VMs without the monitoring agent extension."</td></tr>
             <tr><td>DeployIfNotExists</td><td>Deploys the missing related resource automatically.</td><td>"Every new SQL server gets diagnostic settings sending logs to Log Analytics."</td></tr>
@@ -505,7 +506,7 @@
       </div>
 
       <h3>Where Policy sits in a deployment</h3>
-      <p>Every create, update or delete in Azure goes through <strong>Azure Resource Manager (ARM)</strong>. That's what makes Policy so powerful: it doesn't matter if you used the portal, CLI, Bicep, Terraform or a pipeline. Everyone passes the same checkpoint.</p>
+      <p>Every create, update or delete in Azure goes through <strong>Azure Resource Manager (<abbr data-g="g-arm" title="Azure Resource Manager: The deployment and management layer every Azure request passes through, whatever tool sent it.">ARM</abbr>)</strong>. That's what makes Policy so powerful: it doesn't matter if you used the portal, CLI, Bicep, Terraform or a pipeline. Everyone passes the same checkpoint.</p>
 
       <figure class="diagram">
         <div class="frame">
@@ -578,7 +579,7 @@
 
       <div class="callout note">
         <div class="c-label">What about Azure Blueprints?</div>
-        <p>Older material uses <strong>Azure Blueprints</strong> to package role assignments, policies and templates together. Blueprints has been deprecated, with retirement scheduled for July 2026. The modern replacement is <strong>Template Specs</strong> and <strong>Deployment Stacks</strong> for the infrastructure, plus <strong>Azure Policy</strong> for the rules. If an exam question offers both, prefer the modern combination unless the wording clearly points to Blueprints.</p>
+        <p>Older material uses <strong>Azure Blueprints</strong> to package role assignments, policies and templates together. Blueprints is being retired in phases: no new blueprint definitions since 31 July 2026, and full retirement on 31 January 2027, when anything not exported is deleted. The modern replacement is <strong>Template Specs</strong> and <strong>Deployment Stacks</strong> for the infrastructure, plus <strong>Azure Policy</strong> for the rules. If an exam question offers both, prefer the modern combination unless the wording clearly points to Blueprints.</p>
       </div>
       <details class="demo" id="demo-m02-policy">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Assign “Allowed locations” and watch it block a deployment</span><span class="demo-time">~6 min</span></summary>
@@ -832,7 +833,7 @@
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"Provide a <strong>repeatable, governed environment</strong> for new workloads", "<strong>enterprise-scale</strong> foundation", or "prepare the environment <strong>before migration</strong>" → Azure landing zones (CAF Ready phase).</p>
+        <p>"Provide a <strong>repeatable, governed environment</strong> for new workloads", "<strong>enterprise-scale</strong> foundation", or "prepare the environment <strong>before migration</strong>" → Azure landing zones (<abbr data-g="g-caf" title="Cloud Adoption Framework: Microsoft&#x27;s guidance for adopting Azure as an organisation: strategy, plan, ready, adopt, govern, secure, manage.">CAF</abbr> Ready phase).</p>
       </div>
       <details class="demo" id="demo-m02-lz">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Peek inside the landing zone accelerator</span><span class="demo-time">~2 min</span></summary>
@@ -896,7 +897,7 @@
       <div class="quiz">
         <details>
           <summary>1. You must ensure resources in all current and future subscriptions can only be deployed to two specific regions. Where and how?</summary>
-          <div><p>Assign the built-in <strong>Allowed locations</strong> policy with a <strong>Deny</strong> effect at the <strong>management group</strong> that contains those subscriptions (or the intermediate root). New subscriptions placed under it inherit the rule automatically.</p></div>
+          <div><p>Assign the built-in <strong>Allowed locations</strong> policy with a <strong>Deny</strong> effect at the <strong>management group</strong> that contains those subscriptions (or the top-level company management group, such as Meridian). New subscriptions placed under it inherit the rule automatically.</p></div>
         </details>
         <details>
           <summary>2. Finance wants a monthly cost report per cost centre. Resources for one cost centre are spread across several resource groups. What do you recommend?</summary>

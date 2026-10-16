@@ -65,6 +65,7 @@
         <li><a href="#choose">Choosing the right compute</a></li>
         <li><a href="#case">Meridian: the compute design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -176,7 +177,7 @@
 
             <text x="545" y="28" class="t-b mid">AKS</text>
             <rect x="480" y="38" width="130" height="38" rx="6" class="s-amber"/><rect x="480" y="84" width="130" height="38" rx="6" class="s-amber"/><rect x="480" y="130" width="130" height="38" rx="6" class="s-amber"/><rect x="480" y="176" width="130" height="38" rx="6" class="s-blue"/><rect x="480" y="222" width="130" height="38" rx="6" class="s-blue"/>
-            <text x="545" y="200" class="t-s mid">node images patched</text>
+            <text x="545" y="200" class="t-s mid">OS patched for you</text>
 
             <text x="705" y="28" class="t-b mid">App Service</text>
             <rect x="640" y="38" width="130" height="38" rx="6" class="s-amber"/><rect x="640" y="84" width="130" height="38" rx="6" class="s-surface2"/><rect x="640" y="130" width="130" height="38" rx="6" class="s-blue"/><rect x="640" y="176" width="130" height="38" rx="6" class="s-blue"/><rect x="640" y="222" width="130" height="38" rx="6" class="s-blue"/>
@@ -190,7 +191,7 @@
             <rect x="620" y="276" width="18" height="14" rx="3" class="s-surface2"/><text x="646" y="288" class="t-s">shared</text>
           </svg>
         </div>
-        <figcaption><b>Your code and data are always yours.</b> Everything below them is a choice: each amber box you keep is a patch cycle, an on-call rota and a capacity plan.</figcaption>
+        <figcaption><b>Your code and data are always yours.</b> Everything below them is a choice: each amber box you keep is a patch cycle, an on-call rota and a capacity plan. On AKS, Azure applies the node OS security patches, but node image upgrades, reboots and Kubernetes version upgrades stay with you.</figcaption>
       </figure>
 
       <div class="lens">
@@ -239,7 +240,7 @@
             <tr><td><strong>E</strong> / <strong>M</strong> (memory)</td><td>High memory per vCPU (M is very large)</td><td>Databases, SAP HANA, in-memory caches</td></tr>
             <tr><td><strong>F</strong> (compute)</td><td>High CPU per GB of memory</td><td>Batch, gaming servers, analytics workers</td></tr>
             <tr><td><strong>L</strong> (storage)</td><td>Fast local NVMe storage</td><td>NoSQL databases, data warehousing</td></tr>
-            <tr><td><strong>N</strong> (GPU) / <strong>H</strong> (HPC)</td><td>GPUs, or fast interconnect for HPC</td><td>AI training and inference, rendering, simulations</td></tr>
+            <tr><td><strong>N</strong> (GPU) / <strong>H</strong> (<abbr data-g="g-hpc" title="High-Performance Computing: Very large calculations spread over many machines, such as simulations or rendering.">HPC</abbr>)</td><td>GPUs, or fast interconnect for HPC</td><td>AI training and inference, rendering, simulations</td></tr>
           </tbody>
         </table>
       </div>
@@ -345,12 +346,12 @@
 
       <div class="callout pitfall">
         <div class="c-label">Common trap</div>
-        <p>Autoscaling a VM that keeps <strong>state on its local disk</strong> (sessions, uploaded files). The new instances don't have it and scale-in deletes it. Make instances stateless first: sessions in Redis (Module 10), files in Blob or Azure Files.</p>
+        <p>Autoscaling a VM that keeps <strong>state on its local disk</strong> (sessions, uploaded files). A <strong>stateless</strong> instance keeps nothing it needs between requests, so any instance can serve any user and can be removed at any time. The new instances don't have it and scale-in deletes it. Make instances stateless first: sessions in Redis (Module 10), files in Blob or Azure Files.</p>
       </div>
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"<strong>Automatically scale</strong> identical VMs", "hundreds of VMs from <strong>one image</strong>", "IaaS with <strong>autoscale</strong>" → <strong>Virtual Machine Scale Sets</strong>. "Mix <strong>Spot and regular</strong> VMs", "spread across zones" → <strong>flexible orchestration</strong>.</p>
+        <p>"<strong>Automatically scale</strong> identical VMs", "hundreds of VMs from <strong>one image</strong>", "<abbr data-g="g-iaas-paas" title="Infrastructure / Platform as a Service: Renting servers you manage (IaaS) versus a platform where you manage only your code (PaaS).">IaaS</abbr> with <strong>autoscale</strong>" → <strong>Virtual Machine Scale Sets</strong>. "Mix <strong>Spot and regular</strong> VMs", "spread across zones" → <strong>flexible orchestration</strong>.</p>
       </div>
       <details class="demo" id="demo-m09-vmss">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Write autoscale rules for a scale set, then cancel</span><span class="demo-time">~3 min</span></summary>
@@ -378,7 +379,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure App Service is a fully managed HTTP-based platform for hosting web applications, REST APIs and mobile back ends in .NET, Java, Node.js, Python and PHP, or as custom containers, on Windows or Linux. Apps run in an <strong>App Service plan</strong>, which defines the region, the instance size and count, and the features available, and provides built-in autoscale, deployment slots, authentication and patching.</p>
+        <p>Azure App Service is a fully managed HTTP-based platform for hosting web applications, <abbr data-g="g-rest-api" title="A web interface called with HTTP requests, which every Azure service exposes.">REST</abbr> APIs and mobile back ends in .NET, Java, Node.js, Python and PHP, or as custom containers, on Windows or Linux. Apps run in an <strong>App Service plan</strong>, which defines the region, the instance size and count, and the features available, and provides built-in autoscale, deployment slots, authentication and patching.</p>
       </div>
 
       <div class="callout plain">
@@ -390,11 +391,11 @@
         <table>
           <thead><tr><th>Plan tier</th><th>What you get</th><th>Use it for</th></tr></thead>
           <tbody>
-            <tr><td><strong>Free / Shared</strong></td><td>Shared hardware, no SLA, no custom scale</td><td>Learning and quick prototypes</td></tr>
+            <tr><td><strong>Free / Shared</strong></td><td>Shared hardware, no <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLA</abbr>, no custom scale</td><td>Learning and quick prototypes</td></tr>
             <tr><td><strong>Basic</strong></td><td>Dedicated instances, manual scale, custom domains and TLS</td><td>Dev/test, low-traffic sites</td></tr>
             <tr><td><strong>Standard</strong></td><td>Autoscale, <strong>deployment slots</strong>, daily backups</td><td>Production web apps</td></tr>
             <tr><td><strong>Premium (v3 and newer)</strong></td><td>Faster hardware, more slots and instances, <strong>zone redundancy</strong></td><td>Busy or business-critical production</td></tr>
-            <tr><td><strong>Isolated v2</strong> (App Service Environment v3)</td><td>A <strong>single-tenant</strong> deployment inside your VNet, very high scale</td><td>Strict isolation and compliance, internal-only apps at scale</td></tr>
+            <tr><td><strong>Isolated v2</strong> (App Service Environment v3)</td><td>A <strong>single-tenant</strong> deployment inside your <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr>, very high scale</td><td>Strict isolation and compliance, internal-only apps at scale</td></tr>
           </tbody>
         </table>
       </div>
@@ -464,7 +465,7 @@
     <section id="containers">
       <span class="sec-num">09.5</span>
       <h2>Containers without Kubernetes</h2>
-      <p>A <strong>container</strong> packages an app with everything it needs (runtime, libraries, config) into one image that runs the same on a laptop and in the cloud. Images live in a registry: <strong>Azure Container Registry</strong> (ACR). The question is what runs them. Two Azure services do it without asking you to operate a cluster.</p>
+      <p>A <strong>container</strong> packages an app with everything it needs (runtime, libraries, config) into one image that runs the same on a laptop and in the cloud. Images live in a registry: <strong>Azure Container Registry</strong> (<abbr data-g="g-acr" title="Azure Container Registry: Azure&#x27;s private store for container images.">ACR</abbr>). The question is what runs them. Two Azure services do it without asking you to operate a cluster.</p>
 
       <div class="callout analogy">
         <div class="c-label">Imagine this</div>
@@ -493,7 +494,7 @@
         </div>
         <div class="callout definition">
           <div class="c-label">Definition</div>
-          <p>Azure Container Apps is a serverless platform for running containerised applications and microservices. It is built on Kubernetes and open-source projects (KEDA for event-driven autoscaling, Dapr for service-to-service building blocks, Envoy for ingress) but does not expose the Kubernetes API. Apps scale on HTTP traffic, CPU, memory or events, including <strong>scale to zero</strong>, and support revisions for traffic splitting and container <strong>jobs</strong> for scheduled or event-triggered tasks.</p>
+          <p>Azure Container Apps is a serverless platform for running containerised applications and microservices. It is built on Kubernetes and open-source projects (<abbr data-g="g-keda" title="Kubernetes Event-Driven Autoscaling: Scales containers on events such as queue length, including down to zero.">KEDA</abbr> for event-driven autoscaling, Dapr for service-to-service building blocks, Envoy for ingress) but does not expose the Kubernetes API. Apps scale on HTTP traffic, CPU, memory or events, including <strong>scale to zero</strong>, and support revisions for traffic splitting and container <strong>jobs</strong> for scheduled or event-triggered tasks.</p>
         </div>
         <div class="callout plain">
           <div class="c-label">In plain words</div>
@@ -506,9 +507,9 @@
           <thead><tr><th></th><th>Container Instances</th><th>Container Apps</th><th>AKS</th></tr></thead>
           <tbody>
             <tr><td><strong>You manage</strong></td><td>One container group</td><td>Apps and their scale rules</td><td>The cluster, node pools, upgrades, add-ons</td></tr>
-            <tr><td><strong>Autoscale</strong></td><td>No</td><td>Yes, incl. scale to zero on events (KEDA)</td><td>Yes (HPA, KEDA, cluster autoscaler)</td></tr>
+            <tr><td><strong>Autoscale</strong></td><td>No</td><td>Yes, incl. scale to zero on events (KEDA)</td><td>Yes (<abbr data-g="g-hpa" title="Horizontal Pod Autoscaler: Kubernetes&#x27; built-in rule that adds or removes pods on CPU or memory.">HPA</abbr>, KEDA, cluster autoscaler)</td></tr>
             <tr><td><strong>Kubernetes API</strong></td><td>No</td><td>No</td><td>Yes, full</td></tr>
-            <tr><td><strong>Best for</strong></td><td>Simple, short-lived or one-off tasks</td><td>Microservices, APIs, event-driven workers</td><td>Complex platforms, full control, existing K8s skills</td></tr>
+            <tr><td><strong>Best for</strong></td><td>Simple, short-lived or one-off tasks</td><td>Microservices, APIs, event-driven workers</td><td>Complex platforms, full control, existing <abbr data-g="g-k8s" title="Kubernetes: The open-source system that runs and scales containers across a fleet of servers.">K8s</abbr> skills</td></tr>
           </tbody>
         </table>
       </div>
@@ -616,7 +617,7 @@
       <ul>
         <li>Pricing tiers for the control plane: <strong>Free</strong> (no SLA, for dev/test), <strong>Standard</strong> (financially backed uptime SLA, for production) and <strong>Premium</strong> (adds long-term support for Kubernetes versions).</li>
         <li><strong>Workload identity</strong> lets a pod use an Entra identity to reach Key Vault or Storage, with no secrets in the cluster.</li>
-        <li>Networking: <strong>Azure CNI Overlay</strong> is the common default (pods get IPs from a private overlay range, saving VNet addresses).</li>
+        <li>Networking: <strong>Azure <abbr data-g="g-cni" title="Container Network Interface: How pods get network addresses in Kubernetes, for example Azure CNI Overlay.">CNI</abbr> Overlay</strong> is the common default (pods get IPs from a private overlay range, saving VNet addresses).</li>
         <li>You must <strong>upgrade Kubernetes versions</strong> regularly; each version is supported for about a year. Plan for it like patching.</li>
       </ul>
 
@@ -678,9 +679,11 @@
         </table>
       </div>
 
+      <p><strong>Cold start</strong> is the delay when the first request has to wake up an app that had scaled to zero: Azure finds an instance, loads the runtime and your code, then runs it. Seconds don't matter for a nightly job; they do for a checkout API. Premium (pre-warmed instances) and Flex Consumption (always-ready instances) remove most of it.</p>
+
       <div class="callout note">
         <div class="c-label">Name check</div>
-        <p>Microsoft now points new Linux serverless apps to <strong>Flex Consumption</strong>; the classic Linux Consumption plan is on a retirement path. On the exam, "<strong>Consumption</strong>" still means "pay only when it runs, scales to zero, short executions", and "<strong>Premium</strong>" still means "no cold start, VNet, longer runs".</p>
+        <p>Microsoft now points new Linux serverless apps to <strong>Flex Consumption</strong>; the classic Linux Consumption plan stopped getting new features in September 2025 and retires on 30 September 2028 (Windows Consumption isn't affected). On the exam, "<strong>Consumption</strong>" still means "pay only when it runs, scales to zero, short executions", and "<strong>Premium</strong>" still means "no cold start, VNet, longer runs".</p>
       </div>
 
       <h4>Durable Functions in one picture</h4>
@@ -741,9 +744,9 @@
       </div>
 
       <ul>
-        <li>Fits <strong>embarrassingly parallel</strong> work: rendering frames, Monte Carlo risk models, genome analysis, transcoding video, processing millions of images.</li>
+        <li>Fits work that splits into thousands of <strong>independent pieces</strong> that never need to talk to each other: rendering frames, Monte Carlo risk models, genome analysis, transcoding video, processing millions of images.</li>
         <li>Pools can autoscale with a formula, and mix dedicated nodes with <strong>Spot</strong> nodes for big savings.</li>
-        <li>Tightly coupled HPC (nodes talking constantly, MPI) uses <strong>H-series</strong> VMs with InfiniBand.</li>
+        <li>Tightly coupled HPC (nodes talking constantly, <abbr data-g="g-mpi" title="Message Passing Interface: A standard that lets HPC nodes talk to each other constantly during one calculation.">MPI</abbr>) uses <strong>H-series</strong> VMs with InfiniBand.</li>
       </ul>
 
       <div class="callout exam">
@@ -850,9 +853,9 @@
               <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
               <tbody>
                 <tr><td>Online storefront and checkout API</td><td><strong>App Service</strong> Premium v3, <strong>zone redundant</strong>, in Central India; a smaller warm copy in South India; <strong>deployment slots</strong> for zero-downtime releases; autoscale with a <strong>schedule</strong> for sale days</td><td>A web app with no OS needs; slots and autoscale come built in; fits the warm-standby pattern.</td></tr>
-                <tr><td>Order, stock and loyalty microservices</td><td><strong>Azure Container Apps</strong> in a VNet-integrated environment; scale on Service Bus queue length (Module 10) and to zero for low-traffic services; images in <strong>Container Registry</strong></td><td>Microservice features without a Kubernetes platform team. AKS was reviewed and <strong>rejected for now</strong>: no K8s skills, no K8s-only requirement. Recorded in an ADR.</td></tr>
+                <tr><td>Order, stock and loyalty microservices</td><td><strong>Azure Container Apps</strong> in a VNet-integrated environment; scale on Service Bus queue length (Module 10) and to zero for low-traffic services; images in <strong>Container Registry</strong></td><td>Microservice features without a Kubernetes platform team. AKS was reviewed and <strong>rejected for now</strong>: no K8s skills, no K8s-only requirement. Recorded in an <abbr data-g="g-adr" title="Architecture Decision Record: A one-page note of a design decision: context, options, the choice and its consequences.">ADR</abbr>.</td></tr>
                 <tr><td>Product image thumbnails and supplier file checks</td><td><strong>Azure Functions</strong> on <strong>Flex Consumption</strong>, triggered by blob-created events through Event Grid</td><td>Spiky, short, event-driven work: pay only when suppliers upload.</td></tr>
-                <tr><td>Merchandising ERP app tier and the vendor SQL VM</td><td><strong>VMs</strong> (D-series) across zones; <strong>Azure Hybrid Benefit</strong> for Windows and SQL licences; <strong>3-year reservations</strong> for the steady baseline; protected by Backup and ASR (Module 08)</td><td>The vendor supports only Windows Server VMs; licences already owned.</td></tr>
+                <tr><td>Merchandising ERP app tier and the vendor SQL VM</td><td><strong>VMs</strong> (D-series) across zones; <strong>Azure Hybrid Benefit</strong> for Windows and SQL licences; <strong>3-year reservations</strong> for the steady baseline; protected by Backup and <abbr data-g="g-asr" title="Azure Site Recovery: Replicates VMs to another location and fails them over in order on a bad day.">ASR</abbr> (Module 08)</td><td>The vendor supports only Windows Server VMs; licences already owned.</td></tr>
                 <tr><td>Monthly invoice PDFs and price recalculation for 180 stores</td><td><strong>Azure Batch</strong> pool with mostly <strong>Spot</strong> nodes, scaling to zero between runs</td><td>A few hours of heavy parallel work a month; Spot cuts the cost, retries cover evictions.</td></tr>
                 <tr><td>Dev and test</td><td>B-series VMs with <strong>auto-shutdown</strong> at 8 p.m.; Basic App Service plans; Container Apps on Consumption</td><td>Dev costs a fraction of prod; nothing runs overnight.</td></tr>
                 <tr><td>Predictable cost per business unit</td><td>An <strong>Azure savings plan</strong> bought centrally for the flexible part; reservations scoped to each BU's subscription; tags (Module 02) for showback</td><td>Discounts without locking teams into a single size or region.</td></tr>

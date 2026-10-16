@@ -66,6 +66,7 @@
         <li><a href="#others">Other signals worth knowing</a></li>
         <li><a href="#case">Meridian: the monitoring design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -195,7 +196,7 @@
         </div>
         <div>
           <h5>Architect view</h5>
-          <p>"Monitoring is how we <strong>prove</strong> the SLO from Module 01, <strong>detect</strong> failures before customers do, <strong>audit</strong> the identity controls from Module 03, and <strong>control cost</strong>. It's designed in, with an owner, a budget and a retention policy."</p>
+          <p>"Monitoring is how we <strong>prove</strong> the <abbr data-g="g-slo" title="Service Level Objective: Your own internal target for a workload, usually stricter than the SLA you give customers.">SLO</abbr> from Module 01, <strong>detect</strong> failures before customers do, <strong>audit</strong> the identity controls from Module 03, and <strong>control cost</strong>. It's designed in, with an owner, a budget and a retention policy."</p>
         </div>
       </div>
 
@@ -233,7 +234,7 @@
             <tr><td>Guest OS</td><td>Windows events, Syslog, performance counters inside the VM</td><td>Azure Monitor Agent + data collection rule</td><td>No, install the agent</td></tr>
             <tr><td>Azure resource</td><td><strong>Platform metrics</strong> (automatic) and <strong>resource logs</strong> (e.g. Key Vault reads, SQL audit)</td><td>Metrics: automatic. Resource logs: diagnostic settings</td><td>Metrics yes; resource logs <strong>no</strong></td></tr>
             <tr><td>Subscription</td><td>Activity log: control-plane changes, service health events</td><td>Automatic (90 days); diagnostic setting to keep longer</td><td>Yes, 90 days</td></tr>
-            <tr><td>Tenant</td><td>Entra sign-in logs, audit logs</td><td>Entra diagnostic settings</td><td>Short retention in portal only</td></tr>
+            <tr><td>Tenant</td><td>Entra sign-in logs, audit logs</td><td>Entra diagnostic settings</td><td>Kept in the portal for 7 days (Free) or 30 days (P1/P2); route to a workspace to keep longer</td></tr>
           </tbody>
         </table>
       </div>
@@ -298,10 +299,10 @@
         <table>
           <thead><tr><th></th><th>Metrics</th><th>Logs</th></tr></thead>
           <tbody>
-            <tr><td>Shape</td><td>Numeric values with a timestamp and a few dimensions</td><td>Records with many fields, structured or semi-structured</td></tr>
-            <tr><td>Speed</td><td>Near real-time, ideal for fast alerts and autoscale</td><td>Seconds to minutes of ingestion delay</td></tr>
+            <tr><td>Shape</td><td>Numeric values with a timestamp and a few dimensions (labels you can split by, such as instance or status code)</td><td>Records with many fields, structured or semi-structured</td></tr>
+            <tr><td>Speed</td><td>Near real-time, ideal for fast alerts and autoscale</td><td>Seconds to minutes of ingestion delay (the time to collect and index the data)</td></tr>
             <tr><td>Retention</td><td>Platform metrics kept 93 days</td><td>Set per workspace and table, from days to 12 years</td></tr>
-            <tr><td>Query tool</td><td>Metrics explorer</td><td>Log Analytics with KQL</td></tr>
+            <tr><td>Query tool</td><td>Metrics explorer</td><td>Log Analytics with <abbr data-g="g-kql" title="Kusto Query Language: The query language for Log Analytics, Data Explorer, Sentinel and Resource Graph.">KQL</abbr></td></tr>
             <tr><td>Use for</td><td>"CPU above 80% for 10 minutes", scaling, health</td><td>Root cause, security investigation, audit, correlation across sources</td></tr>
           </tbody>
         </table>
@@ -386,7 +387,7 @@
         </div>
         <div class="callout definition">
           <div class="c-label">Definition</div>
-          <p>The Azure Monitor Agent (AMA) collects monitoring data from the guest operating system of Azure and hybrid machines. What it collects and where it sends the data is defined centrally in data collection rules (DCRs).</p>
+          <p>The Azure Monitor Agent (<abbr data-g="g-ama" title="Azure Monitor Agent: The agent that collects data from inside VMs and Arc servers. Replaced the old Log Analytics agent (MMA).">AMA</abbr>) collects monitoring data from the guest operating system of Azure and hybrid machines. What it collects and where it sends the data is defined centrally in data collection rules (<abbr data-g="g-dcr" title="Data Collection Rule: Central rule that tells the Azure Monitor Agent what to collect and where to send it.">DCRs</abbr>).</p>
         </div>
         <ul>
           <li>AMA replaces the legacy <strong>Log Analytics agent</strong> (MMA/OMS), which was retired in August 2024. If an answer mentions installing the legacy agent for a new design, that's a red flag.</li>
@@ -495,7 +496,7 @@
 
       <h4>Design decisions inside a workspace</h4>
       <div class="terms">
-        <div class="term"><b>Access control mode</b><span><strong>Resource-context</strong> lets people query logs only for resources they have access to, without workspace-wide rights. <strong>Table-level RBAC</strong> restricts sensitive tables (e.g. security events).</span></div>
+        <div class="term"><b>Access control mode</b><span><strong>Resource-context</strong> lets people query logs only for resources they have access to, without workspace-wide rights. <strong>Table-level <abbr data-g="g-rbac" title="Role-Based Access Control: Who (a person, group or identity) gets which role at which scope in Azure.">RBAC</abbr></strong> restricts sensitive tables (e.g. security events).</span></div>
         <div class="term"><b>Retention</b><span>Interactive (queryable) retention defaults to 30 days and can be extended to 2 years. Long-term retention keeps data cheaply for up to <strong>12 years</strong>, with search jobs or restore to bring it back.</span></div>
         <div class="term"><b>Table plans</b><span><strong>Analytics</strong> for full query and alerting. <strong>Basic</strong> and <strong>Auxiliary</strong> for high-volume, rarely-queried logs at a much lower price, with limited query features.</span></div>
         <div class="term"><b>Cost controls</b><span><strong>Commitment tiers</strong> discount predictable daily volumes. A <strong>daily cap</strong> stops runaway cost (but drops data). DCR transformations filter noise before it's billed.</span></div>
@@ -544,7 +545,7 @@ AzureDiagnostics
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Application Insights is the application performance monitoring (APM) feature of Azure Monitor. It collects requests, dependencies, exceptions, traces and custom telemetry from live applications, and stores them in a Log Analytics workspace.</p>
+        <p>Application Insights is the application performance monitoring (<abbr data-g="g-apm" title="Application Performance Monitoring: Watching an app from the inside: requests, dependencies, failures, response times.">APM</abbr>) feature of Azure Monitor. It collects requests, dependencies, exceptions, traces and custom telemetry from live applications, and stores them in a Log Analytics workspace.</p>
       </div>
 
       <div class="callout plain">
@@ -726,7 +727,7 @@ AzureDiagnostics
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Data Explorer (ADX) is a fully managed, high-performance analytics platform for large volumes of streaming data such as logs, telemetry and time series. It's queried with KQL, the same language as Log Analytics, and delivers interactive results across billions of records.</p>
+        <p>Azure Data Explorer (<abbr data-g="g-adx" title="Azure Data Explorer: A fast analytics engine for huge volumes of logs and time series, queried with KQL.">ADX</abbr>) is a fully managed, high-performance analytics platform for large volumes of streaming data such as logs, telemetry and time series. It's queried with KQL, the same language as Log Analytics, and delivers interactive results across billions of records.</p>
       </div>
 
       <div class="callout plain">
@@ -788,10 +789,10 @@ AzureDiagnostics
           <tbody>
             <tr><td>Azure Service Health</td><td>"Is <em>Azure</em> having a problem in my regions, or is planned maintenance coming?"</td></tr>
             <tr><td>Resource Health</td><td>"Is <em>my specific</em> resource healthy, and was a past outage on Azure's side?"</td></tr>
-            <tr><td>Azure Advisor</td><td>"What should I improve?" Recommendations across the five WAF pillars.</td></tr>
+            <tr><td>Azure Advisor</td><td>"What should I improve?" Recommendations across the five <abbr data-g="g-waf-well-architected-framework" title="Well-Architected Framework: Microsoft&#x27;s guidance for designing one workload, in five pillars: reliability, security, cost, operations, performance.">WAF</abbr> pillars.</td></tr>
             <tr><td>Network Watcher</td><td>"Why can't VM A reach VM B?" Connection troubleshoot, flow logs, packet capture.</td></tr>
-            <tr><td>Change Analysis / Resource Graph</td><td>"What changed just before it broke?" and "What do we have, everywhere?"</td></tr>
-            <tr><td>Microsoft Sentinel</td><td>"Are we under attack?" Cloud SIEM and SOAR on top of a Log Analytics workspace.</td></tr>
+            <tr><td>Resource Graph (incl. change analysis)</td><td>"What changed just before it broke?" and "What do we have, everywhere?"</td></tr>
+            <tr><td>Microsoft Sentinel</td><td>"Are we under attack?" Cloud <abbr data-g="g-siem" title="Security Information and Event Management: A system that collects security logs and detects attacks, such as Microsoft Sentinel.">SIEM</abbr> (security information and event management) and <abbr data-g="g-soar" title="Security Orchestration, Automation and Response: Automatic responses to security incidents, such as disabling a user.">SOAR</abbr> (automated response) on top of a Log Analytics workspace.</td></tr>
             <tr><td>Defender for Cloud</td><td>"How secure is our posture, and are workloads being attacked?"</td></tr>
           </tbody>
         </table>

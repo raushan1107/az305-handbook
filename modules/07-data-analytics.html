@@ -65,6 +65,7 @@
         <li><a href="#choose">Choosing the right service</a></li>
         <li><a href="#case">Meridian: the analytics design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -277,7 +278,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
             <path d="M780 170 H806" class="s-arrow" marker-end="url(#ah)"/>
           </svg>
         </div>
-        <figcaption><b>ELT keeps the raw data.</b> When the business changes a rule ("returns now count against the store"), you re-run the transformation over the raw history instead of asking every source system for the data again.</figcaption>
+        <figcaption><b><abbr data-g="g-etl-elt" title="Extract, Transform, Load / Extract, Load, Transform: Clean data before loading it (ETL) or load it raw and transform it inside the lake (ELT).">ELT</abbr> keeps the raw data.</b> When the business changes a rule ("returns now count against the store"), you re-run the transformation over the raw history instead of asking every source system for the data again.</figcaption>
       </figure>
 
       <div class="callout exam">
@@ -302,7 +303,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
 
       <div class="callout plain">
         <div class="c-label">In plain words</div>
-        <p>ADLS Gen2 is <strong>Blob storage with real folders</strong>. In plain Blob, a "folder" is just part of a file name, so renaming a folder of a million files means copying a million files. With the hierarchical namespace switched on, renaming the folder is one instant operation, and you can set permissions per folder. Big-data engines love both.</p>
+        <p><abbr data-g="g-adls-gen2" title="Azure Data Lake Storage Gen2: A storage account with the hierarchical namespace switched on: Blob with real folders and ACLs.">ADLS</abbr> Gen2 is <strong>Blob storage with real folders</strong>. In plain Blob, a "folder" is just part of a file name, so renaming a folder of a million files means copying a million files. With the hierarchical namespace switched on, renaming the folder is one instant operation, and you can set permissions per folder. Big-data engines love both.</p>
       </div>
 
       <h3>The medallion pattern: bronze, silver, gold</h3>
@@ -360,7 +361,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
       <h4>Facts worth remembering</h4>
       <ul>
         <li>The hierarchical namespace is a <strong>checkbox on the storage account</strong> (Standard GPv2 or Premium block blob). An existing account can be upgraded to it, but it can't be switched off again.</li>
-        <li>Access is controlled by <strong>Azure RBAC</strong> (coarse, for the whole account or container) <strong>plus ACLs</strong> (fine-grained, per directory and file). RBAC is evaluated first.</li>
+        <li>Access is controlled by <strong>Azure <abbr data-g="g-rbac" title="Role-Based Access Control: Who (a person, group or identity) gets which role at which scope in Azure.">RBAC</abbr></strong> (coarse, for the whole account or container) <strong>plus ACLs</strong> (fine-grained, per directory and file). RBAC is evaluated first.</li>
         <li>Everything from Module 05 still applies: redundancy, tiers, lifecycle management, private endpoints, encryption with your own keys.</li>
         <li>Engines use the <code>abfss://container@<wbr>account.dfs.core.windows.net/<wbr>path</code> address. Note <code>dfs</code>, not <code>blob</code>.</li>
       </ul>
@@ -372,7 +373,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"Store <strong>large volumes</strong> of structured and unstructured data for <strong>big-data analytics</strong>", "<strong>hierarchical</strong> file system", "<strong>POSIX ACLs</strong>", "<strong>Hadoop-compatible</strong>" → <strong>ADLS Gen2</strong>. "Grant a team access to <strong>one folder only</strong>" → <strong>ACLs</strong> on that directory.</p>
+        <p>"Store <strong>large volumes</strong> of structured and unstructured data for <strong>big-data analytics</strong>", "<strong>hierarchical</strong> file system", "<strong><abbr data-g="g-posix-acl" title="Linux-style read/write/execute permissions per user and group, used by Data Lake Storage Gen2.">POSIX</abbr> ACLs</strong>", "<strong>Hadoop-compatible</strong>" → <strong>ADLS Gen2</strong>. "Grant a team access to <strong>one folder only</strong>" → <strong>ACLs</strong> on that directory.</p>
       </div>
       <details class="demo" id="demo-m07-adls">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Turn on the hierarchical namespace and build bronze, silver, gold</span><span class="demo-time">~4 min</span></summary>
@@ -403,7 +404,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Data Factory (ADF) is a fully managed, serverless cloud service for data integration. It creates data-driven workflows (pipelines) that orchestrate data movement and transformation at scale, with more than 90 built-in connectors, code-free mapping data flows, scheduling and event triggers, and monitoring.</p>
+        <p>Azure Data Factory (<abbr data-g="g-adf" title="Azure Data Factory: Azure&#x27;s service for building and scheduling data pipelines.">ADF</abbr>) is a fully managed, serverless cloud service for data integration. It creates data-driven workflows (pipelines) that orchestrate data movement and transformation at scale, with more than 90 built-in connectors, code-free mapping data flows, scheduling and event triggers, and monitoring.</p>
       </div>
 
       <div class="callout plain">
@@ -463,9 +464,9 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
         <table>
           <thead><tr><th>Integration runtime</th><th>Runs where</th><th>Use it when</th></tr></thead>
           <tbody>
-            <tr><td><strong>Azure IR</strong></td><td>Microsoft-managed compute in Azure (optionally in a managed VNet with private endpoints)</td><td>Cloud-to-cloud copies and data flows</td></tr>
+            <tr><td><strong>Azure <abbr data-g="g-ir" title="Integration Runtime: Where a Data Factory pipeline physically runs: Azure, self-hosted on-premises, or Azure-SSIS.">IR</abbr></strong></td><td>Microsoft-managed compute in Azure (optionally in a managed <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr> with private endpoints)</td><td>Cloud-to-cloud copies and data flows</td></tr>
             <tr><td><strong>Self-hosted IR</strong></td><td>Software you install on a Windows machine on-premises or in your VNet</td><td>The source is <strong>on-premises</strong> or behind a firewall or private network</td></tr>
-            <tr><td><strong>Azure-SSIS IR</strong></td><td>A managed cluster that runs SQL Server Integration Services</td><td><strong>Lift and shift existing SSIS packages</strong> without rewriting them</td></tr>
+            <tr><td><strong>Azure-SSIS IR</strong></td><td>A managed cluster that runs SQL Server Integration Services</td><td><strong>Lift and shift existing <abbr data-g="g-ssis-ssrs-ssas" title="SQL Server Integration / Reporting / Analysis Services: SQL Server&#x27;s add-ons for data loading, reports and cubes.">SSIS</abbr> packages</strong> without rewriting them</td></tr>
           </tbody>
         </table>
       </div>
@@ -477,7 +478,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
         </div>
         <div>
           <h5>Architect view</h5>
-          <p>"A script has no retries, no lineage, no monitoring and one person who understands it. ADF gives us <strong>managed retries</strong>, <strong>alerts on failure</strong>, Git-based CI/CD, Key Vault for secrets, and a <strong>managed identity</strong> to reach the lake without passwords."</p>
+          <p>"A script has no retries, no lineage, no monitoring and one person who understands it. ADF gives us <strong>managed retries</strong>, <strong>alerts on failure</strong>, Git-based <abbr data-g="g-ci-cd" title="Continuous Integration / Continuous Delivery: Automatically building, testing and deploying code through a pipeline on every change.">CI/CD</abbr>, Key Vault for secrets, and a <strong>managed identity</strong> to reach the lake without passwords."</p>
         </div>
       </div>
 
@@ -530,7 +531,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Databricks is a unified, open analytics platform for building, deploying and maintaining data, analytics and AI solutions at scale, built on Apache Spark. It provides collaborative notebooks, managed Spark clusters and serverless compute, SQL warehouses, Delta Lake for reliable tables on the data lake, Unity Catalog for governance, and MLflow for the machine learning lifecycle.</p>
+        <p>Azure Databricks is an analytics and AI platform built on Apache Spark. Data engineers and data scientists use it to clean large data sets and train machine learning models together in shared notebooks, using Delta Lake tables, Unity Catalog for governance and MLflow for the machine learning lifecycle.</p>
       </div>
 
       <div class="callout plain">
@@ -589,7 +590,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Synapse Analytics is an enterprise analytics service that brings together data warehousing and big-data analytics. A Synapse workspace offers <strong>dedicated SQL pools</strong> (provisioned massively parallel data warehousing), a <strong>serverless SQL pool</strong> for querying files in the data lake, <strong>Apache Spark pools</strong>, Synapse pipelines (the Data Factory engine) and Synapse Link, all managed in Synapse Studio.</p>
+        <p>Azure Synapse Analytics is an enterprise analytics service that combines data warehousing and big-data analytics in one workspace: <strong>dedicated SQL pools</strong> (a provisioned data warehouse), a <strong>serverless SQL pool</strong> (SQL over files in the lake), <strong>Apache Spark pools</strong> and pipelines, all managed in Synapse Studio.</p>
       </div>
 
       <div class="callout plain">
@@ -601,8 +602,8 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
         <table>
           <thead><tr><th></th><th>Dedicated SQL pool</th><th>Serverless SQL pool</th><th>Apache Spark pool</th></tr></thead>
           <tbody>
-            <tr><td>What it is</td><td>A provisioned MPP data warehouse (formerly SQL DW)</td><td>On-demand SQL over files in the lake</td><td>Managed Spark clusters</td></tr>
-            <tr><td>You pay for</td><td>Data Warehouse Units (DWUs) per hour, <strong>can be paused</strong></td><td>Data <strong>processed per TB</strong>; nothing when idle</td><td>Node-hours while the pool runs</td></tr>
+            <tr><td>What it is</td><td>A provisioned <abbr data-g="g-mpp" title="Massively Parallel Processing: Splitting one query over many workers at once, as Synapse dedicated SQL pools do.">MPP</abbr> data warehouse (formerly SQL DW)</td><td>On-demand SQL over files in the lake</td><td>Managed Spark clusters</td></tr>
+            <tr><td>You pay for</td><td>Data Warehouse Units (<abbr data-g="g-dwu" title="Data Warehouse Unit: The size and price unit of a Synapse dedicated SQL pool.">DWUs</abbr>) per hour, <strong>can be paused</strong></td><td>Data <strong>processed per TB</strong>; nothing when idle</td><td>Node-hours while the pool runs</td></tr>
             <tr><td>Data lives</td><td>In the pool's own managed storage, spread over 60 distributions</td><td>Stays in ADLS (CSV, Parquet, Delta)</td><td>In ADLS</td></tr>
             <tr><td>Best for</td><td>Large, predictable, high-concurrency BI on modelled data</td><td>Exploration, ad hoc queries, logical data warehouse views</td><td>Data engineering and ML in Spark</td></tr>
           </tbody>
@@ -611,7 +612,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
 
       <h4>Facts worth remembering</h4>
       <ul>
-        <li>Dedicated pool tables pick a <strong>distribution</strong>: <strong>hash</strong> for big fact tables, <strong>replicated</strong> for small dimension tables, <strong>round-robin</strong> for staging.</li>
+        <li>Dedicated pool tables pick a <strong>distribution</strong>: <strong>hash</strong> for big fact tables, <strong>replicated</strong> for small dimension tables, <strong>round-robin</strong> for staging. (A dedicated pool splits every table into 60 slices, called distributions, so 60 workers can scan in parallel. <strong>Fact tables</strong> hold the events you count, like sales lines; <strong>dimension tables</strong> describe them, like stores and products.)</li>
         <li><strong>Pause</strong> a dedicated pool at night or at weekends: compute billing stops, and storage is still charged.</li>
         <li><strong>Synapse Link</strong> gives near-real-time analytics over operational data (Cosmos DB, Azure SQL, Dataverse) without building ETL and without loading the source.</li>
       </ul>
@@ -623,7 +624,7 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"<strong>Enterprise data warehouse</strong>", "<strong>MPP</strong>", "petabyte-scale SQL", "<strong>pause</strong> compute to save cost" → <strong>dedicated SQL pool</strong>. "Query <strong>Parquet/CSV files in the lake</strong> with T-SQL", "<strong>no infrastructure</strong>", "<strong>pay per query</strong>" → <strong>serverless SQL pool</strong>. "Analyse <strong>Cosmos DB</strong> data without affecting the app" → <strong>Synapse Link</strong> (or Fabric mirroring).</p>
+        <p>"<strong>Enterprise data warehouse</strong>", "<strong>MPP</strong>", "petabyte-scale SQL", "<strong>pause</strong> compute to save cost" → <strong>dedicated SQL pool</strong>. "Query <strong>Parquet/CSV files in the lake</strong> with <abbr data-g="g-t-sql" title="Transact-SQL: Microsoft&#x27;s dialect of the SQL query language used by SQL Server and Azure SQL.">T-SQL</abbr>", "<strong>no infrastructure</strong>", "<strong>pay per query</strong>" → <strong>serverless SQL pool</strong>. "Analyse <strong>Cosmos DB</strong> data without affecting the app" → <strong>Synapse Link</strong> (or Fabric mirroring).</p>
       </div>
       <details class="demo" id="demo-m07-synapse">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Query the lake with T-SQL, with nothing to provision</span><span class="demo-time">~6 min</span></summary>
@@ -835,7 +836,7 @@ GROUP BY StoreId, TumblingWindow(minute, 5)</code></pre></li>
             <tr><td><strong>Synapse dedicated SQL</strong></td><td>Warehouse</td><td>T-SQL on an MPP engine</td><td>"enterprise data warehouse", "petabytes", "pause compute"</td></tr>
             <tr><td><strong>Synapse serverless SQL</strong></td><td>Query the lake</td><td>T-SQL over files</td><td>"query files in place", "pay per query", "explore"</td></tr>
             <tr><td><strong>Stream Analytics</strong></td><td>Process streams</td><td>SQL with time windows</td><td>"real time", "IoT", "every N minutes", "live dashboard"</td></tr>
-            <tr><td><strong>Data Explorer</strong> (Module 04)</td><td>Interactive telemetry analytics</td><td>KQL</td><td>"logs and time series", "billions of rows in seconds"</td></tr>
+            <tr><td><strong>Data Explorer</strong> (Module 04)</td><td>Interactive telemetry analytics</td><td><abbr data-g="g-kql" title="Kusto Query Language: The query language for Log Analytics, Data Explorer, Sentinel and Resource Graph.">KQL</abbr></td><td>"logs and time series", "billions of rows in seconds"</td></tr>
             <tr><td><strong>Fabric</strong></td><td>All of the above as SaaS</td><td>Mixed</td><td>"single unified platform", "OneLake", "capacity-based"</td></tr>
             <tr><td><strong>Purview</strong></td><td>Govern</td><td>Catalogue and lineage</td><td>"catalogue", "lineage", "classify across sources"</td></tr>
           </tbody>
@@ -861,10 +862,10 @@ GROUP BY StoreId, TumblingWindow(minute, 5)</code></pre></li>
               <thead><tr><th>Requirement</th><th>Design decision</th><th>Why</th></tr></thead>
               <tbody>
                 <tr><td>Bring together store, online and logistics data nightly</td><td><strong>Azure Data Factory</strong> pipelines on a schedule; a <strong>self-hosted IR</strong> in the Bengaluru datacentre for systems not yet migrated; Azure IR for Azure SQL and Cosmos DB; <strong>storage event triggers</strong> for supplier files</td><td>One orchestrator with retries, alerts and lineage, which works during the hybrid migration period.</td></tr>
-                <tr><td>One place for all analytical data</td><td><strong>ADLS Gen2</strong> in Central India (ZRS) with <strong>bronze / silver / gold</strong> containers in Parquet and Delta; lifecycle rules on bronze (Module 05)</td><td>Cheap, keeps the raw history, and every engine can read it.</td></tr>
+                <tr><td>One place for all analytical data</td><td><strong>ADLS Gen2</strong> in Central India (<abbr data-g="g-zrs" title="Zone-Redundant Storage: Three copies across three availability zones in one region.">ZRS</abbr>) with <strong>bronze / silver / gold</strong> containers in Parquet and Delta; lifecycle rules on bronze (Module 05)</td><td>Cheap, keeps the raw history, and every engine can read it.</td></tr>
                 <tr><td>Clean data and forecast demand</td><td><strong>Azure Databricks</strong> (Premium, VNet-injected, Unity Catalog) on <strong>job clusters</strong> with auto-termination; forecasting models tracked in MLflow</td><td>The data team works in Python; Spark handles years of sales history.</td></tr>
                 <tr><td>Trusted dashboards by 7 a.m., per business unit</td><td>Gold tables exposed through <strong>Synapse serverless SQL</strong> views to <strong>Power BI</strong>, with row-level security per business unit</td><td>No warehouse to run around the clock; analysts keep using SQL. A dedicated pool is added only if concurrency demands it.</td></tr>
-                <tr><td>Know about stock-outs within minutes</td><td>Online orders and store POS events into <strong>Event Hubs</strong> → <strong>Stream Analytics</strong>: a 5-minute <strong>tumbling</strong> window per store and SKU, joined with reference stock levels → Power BI live tiles and an alert (Module 10 picks up the messaging)</td><td>Real-time answers without waiting for the nightly batch.</td></tr>
+                <tr><td>Know about stock-outs within minutes</td><td>Online orders and store POS events into <strong>Event Hubs</strong> → <strong>Stream Analytics</strong>: a 5-minute <strong>tumbling</strong> window per store and <abbr data-g="g-sku" title="Stock Keeping Unit: In Azure, a specific size or tier of a service, such as a VM size or the Premium tier. In retail, one product line, such as KURTA-M.">SKU</abbr>, joined with reference stock levels → Power BI live tiles and an alert (Module 10 picks up the messaging)</td><td>Real-time answers without waiting for the nightly batch.</td></tr>
                 <tr><td>Know what data exists, and where personal data is</td><td><strong>Microsoft Purview</strong> scans the lake, Azure SQL and Cosmos DB; classifies PII; shows lineage from POS to report</td><td>GDPR and PCI questions are answered from the catalogue, not from memory.</td></tr>
                 <tr><td>Security</td><td>Managed identities for ADF, Databricks and Synapse to the lake; Entra groups mapped to <strong>ACLs</strong> (engineers: bronze/silver; analysts: gold read only); private endpoints; Key Vault-backed linked services</td><td>Least privilege on the lake, and no passwords in pipelines.</td></tr>
                 <tr><td>EU data stays in the EU</td><td>A separate lake and pipelines in Germany West Central; only <strong>aggregated, anonymised</strong> gold data is shared with the India platform</td><td>Group-level reporting without moving personal data out of the EU.</td></tr>
@@ -883,7 +884,7 @@ GROUP BY StoreId, TumblingWindow(minute, 5)</code></pre></li>
       <h2>Recap and self-check</h2>
       <h3>Architect's analytics checklist</h3>
       <ul class="checklist">
-        <li>Operational (OLTP) and analytical (OLAP) workloads separated.</li>
+        <li>Operational (<abbr data-g="g-oltp" title="Online Transaction Processing: The many small reads and writes of a running business, such as placing orders.">OLTP</abbr>) and analytical (<abbr data-g="g-olap" title="Online Analytical Processing: Few, huge queries over history to understand the business, such as sales by store by year.">OLAP</abbr>) workloads separated.</li>
         <li>Batch vs streaming decided per question, based on how fresh the answer must be.</li>
         <li>A data lake on ADLS Gen2 with bronze, silver and gold layers, and ACLs per layer.</li>
         <li>Pipelines orchestrated by Data Factory, with the right integration runtime for each source.</li>

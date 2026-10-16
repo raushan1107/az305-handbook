@@ -67,6 +67,7 @@
         <li><a href="#iac">Automated deployment</a></li>
         <li><a href="#case">Meridian: the application design</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -206,7 +207,7 @@
         </div>
         <div>
           <h5>Architect view</h5>
-          <p>"Four synchronous calls means four SLAs multiplied together (Module 01's composite SLA) and the slowest one sets the response time. I keep the <strong>call</strong> only where the user must wait for the answer (payment), and turn the rest into <strong>messages and events</strong>."</p>
+          <p>"Four synchronous calls means four <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLAs</abbr> multiplied together (Module 01's composite SLA) and the slowest one sets the response time. I keep the <strong>call</strong> only where the user must wait for the answer (payment), and turn the rest into <strong>messages and events</strong>."</p>
         </div>
       </div>
 
@@ -244,7 +245,8 @@
         <div class="term"><b>Competing consumers</b><span>Several workers read the same queue; each message goes to one of them. Add workers to go faster.</span></div>
         <div class="term"><b>Publish / subscribe</b><span>One message or event, many independent subscribers, each getting its own copy. Service Bus topics, Event Grid.</span></div>
         <div class="term"><b>Retry and circuit breaker</b><span>Retry transient failures with back-off; stop calling a failing service for a while so it can recover.</span></div>
-        <div class="term"><b>Dead-letter queue</b><span>Messages that can't be processed after N tries are parked for a human to inspect, instead of blocking the line.</span></div>
+        <div class="term"><b>Dead-letter queue</b><span>Messages that can't be processed after N tries (often a <strong>poison message</strong>: bad data that fails every time) are parked for a human to inspect, instead of blocking the line.</span></div>
+        <div class="term"><b>Idempotent handler</b><span>Processing the same message twice gives the same result as once (for example "set stock to 5", not "subtract 1"). Needed because most queues deliver at least once.</span></div>
         <div class="term"><b>Cache-aside</b><span>Read from the cache; on a miss, read the database and put the result in the cache for next time.</span></div>
       </div>
 
@@ -274,14 +276,14 @@
       </div>
 
       <ul>
-        <li>Messages are <strong>hidden</strong> while a worker processes them (visibility timeout) and reappear if the worker crashes: <strong>at-least-once</strong> delivery.</li>
+        <li>Messages are <strong>hidden</strong> while a worker processes them (visibility timeout) and reappear if the worker crashes: <strong>at-least-once</strong> delivery. A message can therefore arrive twice, so the worker must be safe to run twice on the same message (<strong>idempotent</strong>).</li>
         <li>Default time-to-live is 7 days (configurable, including never expire).</li>
         <li>Pick it when you need a backlog of <strong>more than 80 GB</strong>, want <strong>progress tracking</strong> on a message, or need server-side logs of every transaction.</li>
       </ul>
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"<strong>Simple</strong> queue", "<strong>lowest cost</strong>", "more than <strong>80 GB</strong> of messages", "messages up to 64 KB", "already using a <strong>storage account</strong>" → <strong>Queue Storage</strong>. Anything about FIFO, sessions, duplicate detection, topics or transactions → Service Bus.</p>
+        <p>"<strong>Simple</strong> queue", "<strong>lowest cost</strong>", "more than <strong>80 GB</strong> of messages", "messages up to 64 KB", "already using a <strong>storage account</strong>" → <strong>Queue Storage</strong>. Anything about <abbr data-g="g-fifo" title="First In, First Out: Messages are processed in the order they arrived.">FIFO</abbr>, sessions, duplicate detection, topics or transactions → Service Bus.</p>
       </div>
       <details class="demo" id="demo-m10-queue">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Add, peek and dequeue messages in a storage queue</span><span class="demo-time">~3 min</span></summary>
@@ -309,7 +311,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Service Bus is a fully managed enterprise message broker with <strong>queues</strong> (point-to-point) and <strong>publish-subscribe topics</strong>. It supports ordered delivery with <strong>sessions</strong>, <strong>duplicate detection</strong>, <strong>dead-letter queues</strong>, scheduled and deferred messages, <strong>transactions</strong>, and the AMQP 1.0 protocol, so applications and services can be decoupled reliably.</p>
+        <p>Azure Service Bus is a fully managed enterprise message broker with <strong>queues</strong> (point-to-point) and <strong>publish-subscribe topics</strong>. It supports ordered delivery with <strong>sessions</strong>, <strong>duplicate detection</strong>, <strong>dead-letter queues</strong>, scheduled and deferred messages, <strong>transactions</strong>, and the <abbr data-g="g-amqp" title="Advanced Message Queuing Protocol: The open messaging protocol Service Bus speaks.">AMQP</abbr> 1.0 protocol, so applications and services can be decoupled reliably.</p>
       </div>
 
       <div class="callout plain">
@@ -406,7 +408,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure Event Grid is a highly scalable, fully managed publish-subscribe service for <strong>event routing</strong>. Sources (Azure services through <strong>system topics</strong>, or your apps through <strong>custom topics</strong>) publish events; <strong>event subscriptions</strong> filter them and <strong>push</strong> them to handlers such as Functions, webhooks, Service Bus, Storage queues, Event Hubs and Logic Apps, with retries and dead-lettering. It supports the CloudEvents schema, and namespaces add MQTT and pull delivery.</p>
+        <p>Azure Event Grid is a fully managed publish-subscribe service that routes <strong>events</strong> (such as "a blob was created") from Azure services or your own apps to subscribers. It filters each event and <strong>pushes</strong> it to handlers such as Functions, webhooks or queues, with retries and dead-lettering.</p>
       </div>
 
       <div class="callout plain">
@@ -445,6 +447,15 @@
         </div>
         <figcaption><b>Reactive, not polling.</b> The source doesn't know who's listening, handlers don't know about each other, and you pay per operation (the first 100,000 a month are free).</figcaption>
       </figure>
+
+      <h4>Facts worth remembering</h4>
+      <ul>
+        <li><strong>System topics</strong> carry events from Azure services (Storage, resource groups, Key Vault…); <strong>custom topics</strong> carry your own app's events.</li>
+        <li>An <strong>event subscription</strong> picks the events (by type and subject filters) and the handler that receives them.</li>
+        <li>Events use the Event Grid schema or the open <strong>CloudEvents</strong> standard, up to 1 MB each.</li>
+        <li>Failed deliveries are retried for up to 24 hours, then dead-lettered to storage if you configured it.</li>
+        <li><strong>Namespaces</strong> add an <abbr data-g="g-mqtt" title="Message Queuing Telemetry Transport: A lightweight messaging protocol for devices; supported by Event Grid namespaces.">MQTT</abbr> broker for devices and pull delivery for apps that prefer to fetch events.</li>
+      </ul>
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
@@ -527,7 +538,7 @@
             <tr><td><strong>Delivery</strong></td><td>Pull</td><td>Pull (and push via SDK)</td><td><strong>Push</strong> (pull in namespaces)</td><td>Pull, replayable</td></tr>
             <tr><td><strong>Ordering</strong></td><td>No guarantee</td><td>FIFO with sessions</td><td>No</td><td>Per partition</td></tr>
             <tr><td><strong>Fan-out</strong></td><td>No</td><td>Topics and subscriptions</td><td>Many subscriptions</td><td>Consumer groups</td></tr>
-            <tr><td><strong>Stand-out features</strong></td><td>Cheapest, 80 GB+ backlogs</td><td>Transactions, dedupe, DLQ, scheduled</td><td>Filters, Azure system events, retries</td><td>Kafka, Capture, millions/sec</td></tr>
+            <tr><td><strong>Stand-out features</strong></td><td>Cheapest, 80 GB+ backlogs</td><td>Transactions, dedupe, <abbr data-g="g-dlq" title="Dead-Letter Queue: Where messages that keep failing are parked for a human to inspect.">DLQ</abbr>, scheduled</td><td>Filters, Azure system events, retries</td><td>Kafka, Capture, millions/sec</td></tr>
             <tr><td><strong>Analogy</strong></td><td>Order rail</td><td>Registered post</td><td>WhatsApp group</td><td>CCTV tape</td></tr>
           </tbody>
         </table>
@@ -555,7 +566,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>Azure API Management (APIM) is a hybrid, multicloud platform for managing APIs. It has three parts: the <strong>API gateway</strong>, which accepts calls, enforces <strong>policies</strong> (authentication, rate limits, quotas, caching, transformation) and routes to back ends; the <strong>management plane</strong>, for defining APIs, products and policies; and the <strong>developer portal</strong>, where consumers discover APIs, read documentation and get subscription keys.</p>
+        <p>Azure API Management (<abbr data-g="g-apim" title="Azure API Management: A gateway in front of your APIs that adds security, limits, versions and a developer portal.">APIM</abbr>) is a hybrid, multicloud platform for managing APIs. It has three parts: the <strong>API gateway</strong>, which accepts calls, enforces <strong>policies</strong> (authentication, rate limits, quotas, caching, transformation) and routes to back ends; the <strong>management plane</strong>, for defining APIs, products and policies; and the <strong>developer portal</strong>, where consumers discover APIs, read documentation and get subscription keys.</p>
       </div>
 
       <div class="callout plain">
@@ -604,7 +615,7 @@
           <tbody>
             <tr><td><strong>Consumption</strong></td><td>Serverless, pay per call, scales automatically; fewer features. Good for light or spiky APIs.</td></tr>
             <tr><td><strong>Developer</strong></td><td>All features, <strong>no SLA</strong>. For development and evaluation only.</td></tr>
-            <tr><td><strong>Basic / Standard</strong> (classic and v2)</td><td>Production with an SLA. The v2 tiers deploy faster and Standard v2 can reach back ends in a VNet.</td></tr>
+            <tr><td><strong>Basic / Standard</strong> (classic and v2)</td><td>Production with an SLA. The v2 tiers deploy faster and Standard v2 can reach back ends in a <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr>.</td></tr>
             <tr><td><strong>Premium</strong> (classic and v2)</td><td><strong>Multi-region</strong> gateways (classic), <strong>VNet injection</strong>, availability zones, <strong>self-hosted gateways</strong>, highest scale.</td></tr>
           </tbody>
         </table>
@@ -612,7 +623,7 @@
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>"<strong>Publish APIs</strong> to partners", "<strong>developer portal</strong>", "<strong>rate limiting</strong> / <strong>throttling</strong>", "<strong>validate JWT</strong>", "transform <strong>SOAP to REST</strong>", "<strong>version</strong> APIs", "one endpoint for many back ends" → <strong>API Management</strong>. "Gateway <strong>on-premises</strong> or in another cloud" → <strong>self-hosted gateway</strong>. "<strong>Multi-region</strong> gateway", "<strong>internal VNet</strong>" → <strong>Premium</strong>. "Pay per call", "serverless" → <strong>Consumption</strong>.</p>
+        <p>"<strong>Publish APIs</strong> to partners", "<strong>developer portal</strong>", "<strong>rate limiting</strong> / <strong>throttling</strong>", "<strong>validate <abbr data-g="g-jwt" title="JSON Web Token: The signed token format Entra ID issues; APIs check it to know who&#x27;s calling.">JWT</abbr></strong>", "transform <strong><abbr data-g="g-soap" title="Simple Object Access Protocol: An older XML-based API style; APIM can expose it as REST.">SOAP</abbr> to <abbr data-g="g-rest-api" title="A web interface called with HTTP requests, which every Azure service exposes.">REST</abbr></strong>", "<strong>version</strong> APIs", "one endpoint for many back ends" → <strong>API Management</strong>. "Gateway <strong>on-premises</strong> or in another cloud" → <strong>self-hosted gateway</strong>. "<strong>Multi-region</strong> gateway", "<strong>internal VNet</strong>" → <strong>Premium</strong>. "Pay per call", "serverless" → <strong>Consumption</strong>.</p>
       </div>
       <details class="demo" id="demo-m10-apim">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Put an API behind API Management and add a rate limit</span><span class="demo-time">~6 min</span></summary>
@@ -651,7 +662,7 @@
       </div>
 
       <ul>
-        <li><strong>Cache-aside</strong> is the default pattern: read cache; on a miss, read the database and write the result to the cache with an expiry (TTL).</li>
+        <li><strong>Cache-aside</strong> is the default pattern: read cache; on a miss, read the database and write the result to the cache with an expiry (<abbr data-g="g-ttl" title="Time To Live: How long a cached item or message is kept before it expires.">TTL</abbr>).</li>
         <li><strong>Session state</strong> in Redis makes web servers stateless, so they can scale out and in (Module 09).</li>
         <li>Also used for leaderboards (sorted sets), rate limiting counters and short-lived locks.</li>
         <li>The hard part is <strong>invalidation</strong>: decide how stale data may be, and set TTLs accordingly.</li>
@@ -659,7 +670,7 @@
 
       <div class="callout note">
         <div class="c-label">Name check</div>
-        <p><strong>Azure Cache for Redis</strong> (Basic, Standard, Premium, Enterprise tiers) is being retired in favour of <strong>Azure Managed Redis</strong>. Older questions may say "Azure Cache for Redis"; the answer pattern (cache-aside, sessions, sub-millisecond reads) is the same.</p>
+        <p><strong>Azure Cache for Redis</strong> is being retired in favour of <strong>Azure Managed Redis</strong>: the Enterprise tiers in March 2027, and Basic, Standard and Premium on 30 September 2028. Older questions may say "Azure Cache for Redis"; the answer pattern (cache-aside, sessions, sub-millisecond reads) is the same.</p>
       </div>
 
       <div class="callout exam">
@@ -734,7 +745,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p><strong>Infrastructure as code (IaC)</strong> describes resources in declarative files that are version-controlled and deployed by a pipeline. On Azure the native options are <strong>ARM templates</strong> (JSON) and <strong>Bicep</strong> (a simpler language that compiles to ARM); <strong>Terraform</strong> is the common multicloud option. <strong>Template specs</strong> store approved templates as Azure resources, and <strong>deployment stacks</strong> manage a set of resources as one unit, with deny settings and clean-up of resources removed from the template.</p>
+        <p><strong>Infrastructure as code (<abbr data-g="g-iac" title="Infrastructure as Code: Describing resources in files (Bicep, Terraform) that a pipeline deploys.">IaC</abbr>)</strong> describes resources in declarative files that are version-controlled and deployed by a pipeline. On Azure the native options are <strong><abbr data-g="g-arm" title="Azure Resource Manager: The deployment and management layer every Azure request passes through, whatever tool sent it.">ARM</abbr> templates</strong> (JSON) and <strong>Bicep</strong> (a simpler language that compiles to ARM); <strong>Terraform</strong> is the common multicloud option. <strong>Template specs</strong> store approved templates as Azure resources, and <strong>deployment stacks</strong> manage a set of resources as one unit, with deny settings and clean-up of resources removed from the template.</p>
       </div>
 
       <div class="callout plain">
@@ -749,7 +760,7 @@
             <tr><td><strong>Bicep</strong></td><td>Azure-only estate; day-one support for new Azure features; no state file to manage</td></tr>
             <tr><td><strong>ARM templates</strong></td><td>Existing JSON templates; anything Bicep compiles to</td></tr>
             <tr><td><strong>Terraform</strong></td><td>Multicloud, or a team that already uses it; needs a <strong>state file</strong> stored safely (for example in a storage account)</td></tr>
-            <tr><td><strong>Template specs</strong></td><td>A platform team shares approved, versioned templates with RBAC</td></tr>
+            <tr><td><strong>Template specs</strong></td><td>A platform team shares approved, versioned templates with <abbr data-g="g-rbac" title="Role-Based Access Control: Who (a person, group or identity) gets which role at which scope in Azure.">RBAC</abbr></td></tr>
             <tr><td><strong>Deployment stacks</strong></td><td>Manage a group of resources as one unit; <strong>deny</strong> manual changes; delete resources removed from the template. The successor to Blueprints' locking idea</td></tr>
           </tbody>
         </table>
@@ -801,12 +812,12 @@
               <tbody>
                 <tr><td>Checkout must not wait for slow systems</td><td>Checkout API takes payment synchronously, then puts an order on a <strong>Service Bus Premium</strong> queue <code>orders</code> (<strong>sessions</strong> by order ID, <strong>duplicate detection</strong>, dead-letter alerts to ops)</td><td>The user waits only for what they must; the rest is buffered. Premium for private endpoints and zones.</td></tr>
                 <tr><td>Billing, logistics and loyalty each react to an order</td><td>Topic <code>order-events</code> with subscriptions per team; logistics filters by region; Container Apps workers scale on subscription length (Module 09)</td><td>Each team gets its own copy and can be slow, down or redeployed independently.</td></tr>
-                <tr><td>React to uploads and Azure changes</td><td><strong>Event Grid</strong> system topics: blob created → thumbnail Function; supplier file → ADF trigger (Module 07); Key Vault near-expiry → ops</td><td>No polling; lightweight, filtered, push-based.</td></tr>
+                <tr><td>React to uploads and Azure changes</td><td><strong>Event Grid</strong> system topics: blob created → thumbnail Function; supplier file → <abbr data-g="g-adf" title="Azure Data Factory: Azure&#x27;s service for building and scheduling data pipelines.">ADF</abbr> trigger (Module 07); Key Vault near-expiry → ops</td><td>No polling; lightweight, filtered, push-based.</td></tr>
                 <tr><td>Store and online telemetry for real-time analytics</td><td><strong>Event Hubs</strong> (Standard, 8 partitions keyed by store ID) with <strong>Capture</strong> to the bronze layer; Stream Analytics in its own consumer group (Module 07)</td><td>A replayable stream that feeds both live alerts and the lake.</td></tr>
                 <tr><td>Partners call Meridian's APIs safely</td><td><strong>API Management Premium</strong> with a gateway in Central India and one in South India; JWT validation with Entra ID, per-partner products and <strong>rate limits</strong>, developer portal; back ends private in the VNet</td><td>One controlled front door; survives the regional failover like checkout does.</td></tr>
                 <tr><td>Fast catalogue and stateless web tier</td><td><strong>Azure Managed Redis</strong> (Balanced, zone-redundant) for cache-aside on catalogue reads and for <strong>session state</strong>; active geo-replication to South India</td><td>Cuts Cosmos DB reads at peak and lets App Service scale out freely.</td></tr>
                 <tr><td>No big-bang releases</td><td><strong>App Configuration</strong> with <strong>feature flags</strong> (Diwali banner, new loyalty flow) and Key Vault references; App Service <strong>slots</strong> and Container Apps <strong>revisions</strong> for gradual rollout</td><td>Turn features on and off without deploying; roll back by flipping a flag.</td></tr>
-                <tr><td>Repeatable environments</td><td><strong>Bicep</strong> in Git, deployed by <strong>GitHub Actions</strong> with a workload identity; the platform team publishes <strong>template specs</strong> and manages landing-zone resources with <strong>deployment stacks</strong> (deny settings on hub resources)</td><td>Dev, test, prod and the DR region are built the same way; manual drift is blocked.</td></tr>
+                <tr><td>Repeatable environments</td><td><strong>Bicep</strong> in Git, deployed by <strong>GitHub Actions</strong> with a workload identity; the platform team publishes <strong>template specs</strong> and manages landing-zone resources with <strong>deployment stacks</strong> (deny settings on hub resources)</td><td>Dev, test, prod and the <abbr data-g="g-dr" title="Disaster Recovery: Coming back in another region after a whole region is lost.">DR</abbr> region are built the same way; manual drift is blocked.</td></tr>
               </tbody>
             </table>
           </div>
@@ -842,7 +853,7 @@
         </details>
         <details>
           <summary>3. 50,000 sensors send readings every second. Several teams must read the same stream independently, and data must also land in the data lake. Design?</summary>
-          <div><p><strong>Event Hubs</strong> with a <strong>consumer group</strong> per team, and <strong>Capture</strong> to ADLS Gen2.</p></div>
+          <div><p><strong>Event Hubs</strong> with a <strong>consumer group</strong> per team, and <strong>Capture</strong> to <abbr data-g="g-adls-gen2" title="Azure Data Lake Storage Gen2: A storage account with the hierarchical namespace switched on: Blob with real folders and ACLs.">ADLS</abbr> Gen2.</p></div>
         </details>
         <details>
           <summary>4. A company wants to publish APIs to partners with a self-service portal, per-partner rate limits and token validation. Which service?</summary>

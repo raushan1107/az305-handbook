@@ -65,6 +65,7 @@
         <li><a href="#exam">Reading an AZ-305 question</a></li>
         <li><a href="#case">Meet Meridian Retail</a></li>
         <li><a href="#recap">Recap and self-check</a></li>
+        <li class="toc-gloss"><a href="glossary.html">Glossary of terms</a></li>
       </ol>
     </details>
   </aside>
@@ -165,13 +166,13 @@
           <thead><tr><th>Lens</th><th>First instinct</th><th>What they might miss</th></tr></thead>
           <tbody>
             <tr><td>Developer</td><td>"Let me profile the code. Probably a slow SQL query or a missing index."</td><td>It might not be the code at all. And fixing one query doesn't stop the next Friday surprise.</td></tr>
-            <tr><td>Operations</td><td>"Add more VMs. Bigger SKU on the database."</td><td>Cost doubles for a problem that lasts three hours a week. Scaling the wrong layer changes nothing.</td></tr>
+            <tr><td>Operations</td><td>"Add more VMs. Bigger <abbr data-g="g-sku" title="Stock Keeping Unit: In Azure, a specific size or tier of a service, such as a VM size or the Premium tier. In retail, one product line, such as KURTA-M.">SKU</abbr> on the database."</td><td>Cost doubles for a problem that lasts three hours a week. Scaling the wrong layer changes nothing.</td></tr>
             <tr><td>Solution architect</td><td>"How slow, for whom, and what does it cost us? Is it a predictable peak? What does 'good' look like, in numbers?"</td><td>Nothing yet, because the architect hasn't decided anything. They're still collecting the facts the decision depends on.</td></tr>
           </tbody>
         </table>
       </div>
 
-      <p>The architect will probably end up with a mix: autoscale rules tied to the Friday pattern, a cache in front of the product catalogue, a CDN for images, an alert when page response crosses a threshold, and a monthly review of the cost. But they got there by asking questions, not by guessing a fix.</p>
+      <p>The architect will probably end up with a mix: autoscale rules tied to the Friday pattern, a cache in front of the product catalogue, a <abbr data-g="g-cdn" title="Content Delivery Network: Servers around the world that keep copies of files close to users so pages load faster.">CDN</abbr> (content delivery network: copies of images kept close to users) for images, an alert when page response crosses a threshold, and a monthly review of the cost. But they got there by asking questions, not by guessing a fix.</p>
 
       <div class="lens">
         <div>
@@ -227,7 +228,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p><strong>Functional requirements</strong> describe what a system must <em>do</em>. <strong>Non-functional requirements</strong> (NFRs, also called quality attributes) describe how well it must do it: availability, performance, security, compliance, cost, recoverability and so on.</p>
+        <p><strong>Functional requirements</strong> describe what a system must <em>do</em>. <strong>Non-functional requirements</strong> (<abbr data-g="g-nfr" title="Non-functional requirement: How well a system must work (availability, security, cost, performance), as opposed to what it does.">NFRs</abbr>, also called quality attributes) describe how well it must do it: availability, performance, security, compliance, cost, recoverability and so on.</p>
       </div>
 
       <p>Business people talk almost entirely in functional requirements: "customers should be able to search, pay and track orders". Those are the tip of the iceberg. The bulk of an architect's work, and nearly all of the AZ-305 exam, lives <em>below the waterline</em>.</p>
@@ -298,7 +299,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>The Azure Well-Architected Framework (WAF) is a set of guiding tenets for building high-quality workloads, organised into five pillars: Reliability, Security, Cost Optimization, Operational Excellence and Performance Efficiency.</p>
+        <p>The Azure Well-Architected Framework (<abbr data-g="g-waf-well-architected-framework" title="Well-Architected Framework: Microsoft&#x27;s guidance for designing one workload, in five pillars: reliability, security, cost, operations, performance.">WAF</abbr>) is a set of guiding tenets for building high-quality workloads, organised into five pillars: Reliability, Security, Cost Optimization, Operational Excellence and Performance Efficiency.</p>
       </div>
 
       <div class="callout plain">
@@ -366,9 +367,9 @@
           <thead><tr><th>Pillar</th><th>The question it asks</th><th>Typical Azure levers</th></tr></thead>
           <tbody>
             <tr><td>Reliability</td><td>What happens when a component, zone or region fails?</td><td>Availability zones, multi-region, backups, Site Recovery, health probes, retries</td></tr>
-            <tr><td>Security</td><td>Who can reach what, and how do we know?</td><td>Entra ID, Conditional Access, RBAC, Key Vault, private endpoints, Defender for Cloud</td></tr>
+            <tr><td>Security</td><td>Who can reach what, and how do we know?</td><td>Entra ID, Conditional Access, <abbr data-g="g-rbac" title="Role-Based Access Control: Who (a person, group or identity) gets which role at which scope in Azure.">RBAC</abbr>, Key Vault, private endpoints, Defender for Cloud</td></tr>
             <tr><td>Cost Optimization</td><td>Are we paying for value or for waste?</td><td>Right-sizing, reservations and savings plans, autoscale, budgets, tags, Azure Advisor</td></tr>
-            <tr><td>Operational Excellence</td><td>Can we change and run it safely and repeatably?</td><td>Infrastructure as Code, CI/CD, Azure Policy, Azure Monitor, runbooks</td></tr>
+            <tr><td>Operational Excellence</td><td>Can we change and run it safely and repeatably?</td><td>Infrastructure as Code, <abbr data-g="g-ci-cd" title="Continuous Integration / Continuous Delivery: Automatically building, testing and deploying code through a pipeline on every change.">CI/CD</abbr>, Azure Policy, Azure Monitor, runbooks</td></tr>
             <tr><td>Performance Efficiency</td><td>Does it meet response targets as load changes?</td><td>Autoscale, caching, CDN, right data store, load testing</td></tr>
           </tbody>
         </table>
@@ -424,10 +425,10 @@
 
       <div class="terms">
         <div class="term"><b>SLA (Service Level Agreement)</b><span>A provider's <em>contractual</em> commitment, e.g. "99.99% uptime per month, or we refund service credits". Microsoft publishes one per service.</span></div>
-        <div class="term"><b>SLO (Service Level Objective)</b><span>Your <em>internal target</em> for your own workload, e.g. "99.9% of checkout requests succeed". Usually set tighter than your SLA to customers.</span></div>
+        <div class="term"><b>SLO (Service Level Objective)</b><span>Your <em>internal target</em> for your own workload, e.g. "99.9% of checkout requests succeed". Usually set tighter than your <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLA</abbr> to customers.</span></div>
         <div class="term"><b>SLI (Service Level Indicator)</b><span>The actual <em>measurement</em>: what percentage of requests really did succeed last month.</span></div>
         <div class="term"><b>RTO (Recovery Time Objective)</b><span>The maximum acceptable time the workload can be <em>down</em> after a disaster.</span></div>
-        <div class="term"><b>RPO (Recovery Point Objective)</b><span>The maximum acceptable amount of <em>data loss</em>, measured in time. "RPO 15 min" = we can lose at most the last 15 minutes of data.</span></div>
+        <div class="term"><b>RPO (Recovery Point Objective)</b><span>The maximum acceptable amount of <em>data loss</em>, measured in time. "<abbr data-g="g-rpo" title="Recovery Point Objective: The most data you can afford to lose, measured in time (for example the last 15 minutes).">RPO</abbr> 15 min" = we can lose at most the last 15 minutes of data.</span></div>
       </div>
 
       <figure class="diagram">
@@ -458,7 +459,7 @@
             <text x="600" y="68" class="t-s mid">how long we're down (look forward)</text>
           </svg>
         </div>
-        <figcaption><b>RPO looks backwards, RTO looks forwards.</b> Smaller numbers on either side mean more money: more frequent backups or replication for RPO, warmer standby environments for RTO.</figcaption>
+        <figcaption><b>RPO looks backwards, <abbr data-g="g-rto" title="Recovery Time Objective: The longest time a workload may be down after a failure.">RTO</abbr> looks forwards.</b> Smaller numbers on either side mean more money: more frequent backups or replication for RPO, warmer standby environments for RTO.</figcaption>
       </figure>
 
       <div class="callout analogy">
@@ -473,7 +474,7 @@
           <thead><tr><th>Availability</th><th>Downtime per month</th><th>Downtime per year</th><th>Feels like</th></tr></thead>
           <tbody>
             <tr><td>99%</td><td>~7.2 hours</td><td>~3.65 days</td><td>Fine for internal tools</td></tr>
-            <tr><td>99.9%</td><td>~43 minutes</td><td>~8.8 hours</td><td>Typical single-instance PaaS</td></tr>
+            <tr><td>99.9%</td><td>~43 minutes</td><td>~8.8 hours</td><td>Typical single-instance <abbr data-g="g-iaas-paas" title="Infrastructure / Platform as a Service: Renting servers you manage (IaaS) versus a platform where you manage only your code (PaaS).">PaaS</abbr></td></tr>
             <tr><td>99.95%</td><td>~22 minutes</td><td>~4.4 hours</td><td>A well-built single-region app</td></tr>
             <tr><td>99.99%</td><td>~4.3 minutes</td><td>~53 minutes</td><td>Zones or multiple regions, serious money</td></tr>
             <tr><td>99.999%</td><td>~26 seconds</td><td>~5.3 minutes</td><td>Multi-region active-active, rare and expensive</td></tr>
@@ -544,7 +545,7 @@
 
       <div class="callout exam">
         <div class="c-label">Exam cue</div>
-        <p>SLA questions are quick wins if you remember two rules: <strong>multiply</strong> for dependencies, <strong>1 − (failure × failure)</strong> for redundancy. Also remember that most single-instance SLAs only apply when you follow the documented configuration, e.g. VMs need premium SSD or two or more instances across zones or an availability set to get their higher SLA.</p>
+        <p>SLA questions are quick wins if you remember two rules: <strong>multiply</strong> for dependencies, <strong>1 − (failure × failure)</strong> for redundancy. Also remember that most single-instance SLAs only apply when you follow the documented configuration, e.g. VMs need premium <abbr data-g="g-ssd-hdd" title="Solid-State Drive / Hard Disk Drive: Fast flash storage versus cheaper spinning disks.">SSD</abbr> or two or more instances across zones or an availability set to get their higher SLA.</p>
       </div>
       <details class="demo" id="demo-m01-pricing">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Price one design two ways, then find its SLA</span><span class="demo-time">~5 min</span></summary>
@@ -584,7 +585,7 @@
       <p>Notice how many of the one-way doors are exactly what Part I of this handbook covers: governance, identity and the foundation. That's not an accident. Get these wrong and everything built on top inherits the mistake.</p>
 
       <h3>Write it down: the decision record</h3>
-      <p>Good architects leave a trail. A lightweight <strong>Architecture Decision Record (ADR)</strong> is enough. Months later, when someone asks "why on earth did we pick this?", the answer is there, with the context that made it sensible at the time.</p>
+      <p>Good architects leave a trail. A lightweight <strong>Architecture Decision Record (<abbr data-g="g-adr" title="Architecture Decision Record: A one-page note of a design decision: context, options, the choice and its consequences.">ADR</abbr>)</strong> is enough. Months later, when someone asks "why on earth did we pick this?", the answer is there, with the context that made it sensible at the time.</p>
       <div class="callout note">
         <div class="c-label">A one-page ADR template</div>
         <ol>
@@ -618,7 +619,7 @@
         <div class="term"><b>Well-Architected Review</b><span>A free self-assessment questionnaire that scores a workload against the five pillars.</span></div>
         <div class="term"><b>Azure Advisor</b><span>Personalised recommendations from your actual environment, grouped by the same five pillars.</span></div>
         <div class="term"><b>Pricing Calculator &amp; TCO Calculator</b><span>Estimate run cost before you build, and compare against on-premises total cost of ownership.</span></div>
-        <div class="term"><b>Cloud Adoption Framework (CAF)</b><span>The organisation-level playbook: strategy, plan, ready, adopt, govern, manage. WAF is per workload; CAF is per organisation.</span></div>
+        <div class="term"><b>Cloud Adoption Framework (CAF)</b><span>The organisation-level playbook: strategy, plan, ready, adopt, govern, secure, manage. WAF is per workload; <abbr data-g="g-caf" title="Cloud Adoption Framework: Microsoft&#x27;s guidance for adopting Azure as an organisation: strategy, plan, ready, adopt, govern, secure, manage.">CAF</abbr> is per organisation.</span></div>
         <div class="term"><b>Azure landing zones</b><span>A ready-made, opinionated foundation for subscriptions, identity, network and policy. We'll meet them in Module 02.</span></div>
       </div>
 
@@ -648,12 +649,12 @@
           <thead><tr><th>When the question says…</th><th>It's usually pushing you towards…</th></tr></thead>
           <tbody>
             <tr><td>"Minimise administrative effort"</td><td>PaaS or managed services over IaaS; built-in features over custom scripts.</td></tr>
-            <tr><td>"Minimise cost"</td><td>The cheapest option that still meets <em>every</em> requirement, never the cheapest overall.</td></tr>
+            <tr><td>"Minimise cost"</td><td>The cheapest option that still meets <em>every</em> requirement. Not simply the cheapest option on the list.</td></tr>
             <tr><td>"Without modifying the application code"</td><td>Lift-and-shift, platform-level features, configuration rather than refactoring.</td></tr>
             <tr><td>"Must remain available if a region fails"</td><td>Multi-region deployment plus geo-replicated data and a global entry point.</td></tr>
             <tr><td>"Must remain available if a datacentre fails"</td><td>Availability zones (zone-redundant services) in one region.</td></tr>
             <tr><td>"Ensure compliance" / "prevent"</td><td>Azure Policy with a deny-type effect, not a report after the fact.</td></tr>
-            <tr><td>"Least privilege"</td><td>The narrowest built-in role at the narrowest scope, ideally time-bound (PIM).</td></tr>
+            <tr><td>"Least privilege"</td><td>The narrowest built-in role at the narrowest scope, ideally time-bound (<abbr data-g="g-pim" title="Privileged Identity Management: Admin roles made eligible, then activated just in time with MFA, approval and a time limit.">PIM</abbr>).</td></tr>
             <tr><td>"No credentials stored in code"</td><td>Managed identity, with Key Vault for anything that genuinely must be a secret.</td></tr>
           </tbody>
         </table>
@@ -662,7 +663,7 @@
       <div class="callout exam">
         <div class="c-label">Try one</div>
         <p><em>"A company runs a stateless web app in one Azure region. It must stay available if a single datacentre fails. The solution must minimise cost. What should you recommend?"</em></p>
-        <p>Underline: <strong>datacentre</strong> (not region) and <strong>minimise cost</strong>. A second region would work but is over-engineered and pricier. The answer is to <strong>deploy across availability zones</strong> in the existing region.</p>
+        <p>Underline: <strong>datacentre</strong> (not region) and <strong>minimise cost</strong>. A second region would work but is over-engineered and pricier. The answer is to <strong>deploy across availability zones</strong> (physically separate datacentres within one region, covered in Module 08) in the existing region.</p>
       </div>
       <details class="demo" id="demo-m01-zones">
         <summary><span class="demo-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M10 9l4 2.5-4 2.5z"/></svg>Portal demo</span><span class="demo-title">Where availability zones appear when you create things</span><span class="demo-time">~2 min</span></summary>
@@ -706,7 +707,7 @@
           <thead><tr><th>Pain point</th><th>Module that fixes it</th></tr></thead>
           <tbody>
             <tr><td>"Nobody knows who owns what", "cost per business unit"</td><td><a href="02-governance.html">02 · Governance</a></td></tr>
-            <tr><td>"Admins share accounts", "PCI audit", "EU partners need access"</td><td><a href="03-identity.html">03 · Identity &amp; Access</a></td></tr>
+            <tr><td>"Admins share accounts", "PCI audit", "Logistics partners and the German team need access"</td><td><a href="03-identity.html">03 · Identity &amp; Access</a></td></tr>
             <tr><td>"Customers find outages before we do"</td><td><a href="04-monitoring.html">04 · Monitoring &amp; Logging</a></td></tr>
           </tbody>
         </table>
