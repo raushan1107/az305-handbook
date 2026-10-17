@@ -448,6 +448,11 @@
         <p>A Log Analytics workspace is a unique environment for log data from Azure Monitor and other Azure services such as Microsoft Sentinel and Defender for Cloud. Each workspace has its own data repository, region, configuration, retention and access control, and is queried with Kusto Query Language (KQL).</p>
       </div>
 
+      <div class="callout plain">
+        <div class="c-label">KQL in plain words</div>
+        <p><strong>KQL (Kusto Query Language)</strong> is a read-only query language designed for logs and time-series data — think of it as SQL for logs. You name a table, then pipe it through a chain of operations: <code>AzureActivity | where Level == "Error" | summarize count() by ResourceGroup</code>. The table comes first, steps are joined by <code>|</code>, and you never write UPDATE or DELETE. If you can read SQL, KQL will feel familiar within minutes.</p>
+      </div>
+
       <div class="callout analogy">
         <div class="c-label">Imagine this</div>
         <p>A workspace is a <strong>library building</strong>. It stands in one city (region), has its own membership rules (access), its own policy on how long books are kept (retention), and its own running costs (billing). You can build one big central library or several branch libraries. Neither is wrong; it depends on who needs to read what, and where the books are legally allowed to be.</p>

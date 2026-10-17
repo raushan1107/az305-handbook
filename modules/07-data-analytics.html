@@ -231,11 +231,42 @@ S003,Pune,DUPATTA,5,2495,2026-10-02</code></pre>and <code>orders.json</code>:<pr
         <div class="term"><b>Streaming</b><span>Process each event within seconds of it happening: "alert when a store's card terminal fails five times in a minute".</span></div>
         <div class="term"><b>ETL</b><span>Extract, <strong>Transform</strong>, then Load. Clean the data on the way in, in a separate engine. The classic warehouse approach.</span></div>
         <div class="term"><b>ELT</b><span>Extract, <strong>Load</strong> raw data first, then Transform inside the lake or warehouse with its own compute. The modern cloud default.</span></div>
-        <div class="term"><b>Data warehouse</b><span>Clean, structured, modelled data (often a star schema) for SQL reporting. Fast and trusted, but rigid.</span></div>
+        <div class="term"><b>Data warehouse</b><span>Clean, structured, modelled data (often a <strong>star schema</strong> — see below) for SQL reporting. Fast and trusted, but rigid.</span></div>
         <div class="term"><b>Data lake</b><span>Cheap storage for any data in its raw form: CSV, JSON, Parquet, images, logs. Flexible, but it can become a swamp without governance.</span></div>
         <div class="term"><b>Lakehouse</b><span>A lake with warehouse behaviour: table formats like <strong>Delta Lake</strong> add transactions, schema and versioning to files in the lake.</span></div>
         <div class="term"><b>Parquet / Delta</b><span>Column-based file formats. Analytics reads a few columns from millions of rows, so they are much faster and cheaper than CSV.</span></div>
       </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 760 220" role="img" aria-labelledby="sst ssd">
+            <title id="sst">Star schema</title>
+            <desc id="ssd">A fact table in the centre labelled "Fact: Sales" with columns OrderID, StoreID, ProductID, Quantity, Revenue. Two dimension tables branch off it: "Dim: Store" with StoreID, City, Region, Manager; and "Dim: Product" with ProductID, Name, Category, Price. Arrows point from the fact table to each dimension, showing a join. A note reads: fact tables hold the events you measure; dimension tables describe them.</desc>
+
+            <rect x="270" y="50" width="220" height="120" rx="12" class="s-blue"/>
+            <text x="380" y="78" class="t-b mid">Fact: Sales</text>
+            <text x="380" y="100" class="t-s mid">OrderID · StoreID · ProductID</text>
+            <text x="380" y="118" class="t-s mid">Quantity · Revenue · Date</text>
+            <text x="380" y="138" class="t-m mid t-blue">events you measure</text>
+
+            <rect x="20" y="66" width="200" height="88" rx="12" class="s-amber"/>
+            <text x="120" y="93" class="t-b mid">Dim: Store</text>
+            <text x="120" y="113" class="t-s mid">StoreID · City</text>
+            <text x="120" y="131" class="t-s mid">Region · Manager</text>
+
+            <rect x="540" y="66" width="200" height="88" rx="12" class="s-teal"/>
+            <text x="640" y="93" class="t-b mid">Dim: Product</text>
+            <text x="640" y="113" class="t-s mid">ProductID · Name</text>
+            <text x="640" y="131" class="t-s mid">Category · Price</text>
+
+            <path d="M270 110 H224" class="s-arrow" marker-end="url(#ah)"/>
+            <path d="M490 110 H536" class="s-arrow" marker-end="url(#ah)"/>
+
+            <text x="380" y="196" class="t-s mid">Dimension tables describe the facts — they answer "which store?" and "which product?"</text>
+          </svg>
+        </div>
+        <figcaption><b>Star schema at a glance.</b> The fact table is in the centre; dimension tables branch off it like points of a star. SQL joins the two to answer business questions: "total revenue by city this quarter".</figcaption>
+      </figure>
 
       <figure class="diagram">
         <div class="frame">

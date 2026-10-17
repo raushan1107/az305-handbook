@@ -332,6 +332,11 @@ ORDER BY Total DESC;</code></pre></li>
         <p><strong>DTU</strong> is a thali: one price, a fixed mix of everything. <strong>vCore</strong> is ordering à la carte: choose how much compute, how much storage, and pay for each. Microsoft recommends vCore for most new designs, because it maps to real hardware, supports Azure Hybrid Benefit and reserved capacity, and makes comparisons with on-prem servers easy.</p>
       </div>
 
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p>"Simple bundled pricing", "small workload", "migrate existing DTU database" → stay on <strong>DTU</strong>. "Azure Hybrid Benefit", "predictable resource sizing", "map to on-premises cores", "new design" → use <strong>vCore</strong>. <strong>Serverless</strong> is a compute option inside the vCore General Purpose tier (auto-scales and auto-pauses), not a separate tier.</p>
+      </div>
+
       <figure class="diagram">
         <div class="frame">
           <svg viewBox="0 0 1000 300" role="img" aria-labelledby="tst tsd">

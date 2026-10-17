@@ -78,6 +78,11 @@
       <h2>The mental map</h2>
       <p>Everything in Azure governance hangs off <strong>one hierarchy</strong>. If you can draw this picture from memory, you can answer most governance questions in the exam. Settings applied at a higher level <em>flow down</em> to everything below.</p>
 
+      <div class="callout definition">
+        <div class="c-label">Two words before the diagram</div>
+        <p>A <strong>tenant</strong> is your organisation's dedicated instance of Microsoft Entra ID (formerly Azure Active Directory) — your company's account with Microsoft. Every subscription, user and directory object you create lives inside exactly one tenant. A <strong>subscription</strong> is a billing and resource container inside that tenant. Every other layer in the hierarchy below is inside a subscription or sits above it to group subscriptions together.</p>
+      </div>
+
       <figure class="diagram">
         <div class="frame">
           <svg viewBox="0 0 1080 440" role="img" aria-labelledby="g0t g0d">
