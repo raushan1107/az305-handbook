@@ -168,6 +168,51 @@
       });
     }
 
+    // ----- Cross-cloud map: keyword filter, "I know" column order, only-differences toggle -----
+    var xp = document.querySelector("[data-xc-page]");
+    if (xp) {
+      var xRows = Array.prototype.slice.call(xp.querySelectorAll(".xc-row:not(.xc-head)"));
+      var xSecs = Array.prototype.slice.call(xp.querySelectorAll(".xc-sec"));
+      var xf = xp.querySelector("[data-xc-filter]");
+      var xd = xp.querySelector("[data-xc-diff]");
+      var xStatus = xp.querySelector("[data-xc-status]");
+      var xBtns = Array.prototype.slice.call(xp.querySelectorAll("[data-xc-first]"));
+      xRows.forEach(function (r) { r._t = r.textContent.toLowerCase(); });
+
+      var runX = function () {
+        var words = xf.value.toLowerCase().split(/\s+/).filter(Boolean), onlyDiff = xd.checked, shown = 0;
+        xRows.forEach(function (r) {
+          var hit = (!onlyDiff || r.getAttribute("data-m") !== "same") &&
+            words.every(function (w) { return r._t.indexOf(w) !== -1; });
+          r.classList.toggle("xc-hide", !hit);
+          if (hit) shown++;
+        });
+        xSecs.forEach(function (s) { s.classList.toggle("xc-hide", !s.querySelector(".xc-row:not(.xc-head):not(.xc-hide)")); });
+        var filtered = words.length || onlyDiff;
+        xStatus.textContent = filtered
+          ? (shown ? shown + " of " + xRows.length + " rows" + (words.length ? " match “" + xf.value.trim() + "”" : "") + (onlyDiff ? " (differences only)" : "")
+                   : "No match for “" + xf.value.trim() + "”. Try a shorter word or another cloud's name.")
+          : xRows.length + " rows";
+      };
+      xf.addEventListener("input", runX);
+      xd.addEventListener("change", runX);
+
+      var setFirst = function (c) {
+        xp.setAttribute("data-first", c);
+        xBtns.forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-xc-first") === c ? "true" : "false"); });
+      };
+      xBtns.forEach(function (b) {
+        b.addEventListener("click", function () {
+          var c = b.getAttribute("data-xc-first");
+          setFirst(c);
+          try { localStorage.setItem("az305-xc-first", c); } catch (e) { /* storage unavailable */ }
+        });
+      });
+      var savedFirst = null;
+      try { savedFirst = localStorage.getItem("az305-xc-first"); } catch (e) { /* storage unavailable */ }
+      if (savedFirst === "az" || savedFirst === "aws" || savedFirst === "gcp") setFirst(savedFirst);
+    }
+
     // ----- TOC: open on desktop, highlight current section -----
     var tocDetails = document.querySelector(".toc details");
     if (tocDetails && window.matchMedia("(min-width: 1021px)").matches) tocDetails.open = true;
