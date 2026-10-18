@@ -213,6 +213,186 @@
       if (savedFirst === "az" || savedFirst === "aws" || savedFirst === "gcp") setFirst(savedFirst);
     }
 
+    // ----- Casebook: one case visible at a time (tabs), #case-n deep links, "next case" buttons -----
+    var cbPanels = Array.prototype.slice.call(document.querySelectorAll("[data-cb-case]"));
+    var cbTabs = Array.prototype.slice.call(document.querySelectorAll("[data-cb-tab]"));
+    if (cbPanels.length && cbTabs.length) {
+      var cbIds = cbPanels.map(function (p) { return p.id; });
+      var showCase = function (id, scroll) {
+        cbPanels.forEach(function (p) { p.hidden = p.id !== id; });
+        cbTabs.forEach(function (t) {
+          var on = t.getAttribute("data-cb-tab") === id;
+          t.setAttribute("aria-selected", on ? "true" : "false");
+          t.tabIndex = on ? 0 : -1;
+        });
+        if (history.replaceState) history.replaceState(null, "", "#" + id);
+        if (scroll) document.getElementById(id).scrollIntoView();
+      };
+      cbTabs.forEach(function (t, i) {
+        t.addEventListener("click", function () { showCase(t.getAttribute("data-cb-tab"), false); });
+        t.addEventListener("keydown", function (e) {
+          var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+          if (!d) return;
+          var nt = cbTabs[(i + d + cbTabs.length) % cbTabs.length];
+          showCase(nt.getAttribute("data-cb-tab"), false); nt.focus();
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-cb-goto]"), function (el) {
+        el.addEventListener("click", function (e) {
+          var id = el.getAttribute("data-cb-goto");
+          e.preventDefault();
+          if (cbIds.indexOf(id) !== -1) showCase(id, true);
+          else { var target = document.getElementById(id); if (target) target.scrollIntoView(); }
+        });
+      });
+      var fromHash = function () {
+        var h = location.hash.slice(1);
+        if (cbIds.indexOf(h) !== -1) { showCase(h, true); return true; }
+        return false;
+      };
+      if (!fromHash()) showCase(cbIds[0], false);
+      window.addEventListener("hashchange", fromHash);
+    }
+
+    // ----- Casebook: grade on submit, reveal answers and architecture, cross-cloud toggle, retry -----
+    Array.prototype.forEach.call(document.querySelectorAll("[data-cb-case]"), function (cs) {
+      var form = cs.querySelector(".cb-quiz"), reveal = cs.querySelector(".cb-reveal"), score = cs.querySelector(".cb-score");
+      var submitBtn = cs.querySelector("[data-cb-submit]"), resetBtn = cs.querySelector("[data-cb-reset]");
+      var warn = cs.querySelector(".cb-warn"), spotRes = cs.querySelector(".cb-spot-res");
+      var crossBtn = cs.querySelector("[data-cb-cross]"), cross = cs.querySelector(".cb-cross");
+      var each = function (sel, fn) { Array.prototype.forEach.call(form.querySelectorAll(sel), fn); };
+      var label = "Submit my design", armed = false;
+      var brief = cs.querySelector(".cb-brief-text"), hintsUsed = 0;
+
+      // Hints: show a guiding question and highlight this decision's key phrases in the brief.
+      var highlight = function (phrase, tag) {
+        var walker = document.createTreeWalker(brief, NodeFilter.SHOW_TEXT), nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(function (n) {
+          var i = n.nodeValue.toLowerCase().indexOf(phrase);
+          if (i === -1) return;
+          var r = document.createRange(), m = document.createElement("mark");
+          m.className = "cb-hl"; m.setAttribute("data-hl", tag);
+          r.setStart(n, i); r.setEnd(n, i + phrase.length);
+          r.surroundContents(m);
+        });
+      };
+      var unhighlight = function (tag) {
+        Array.prototype.forEach.call(brief.querySelectorAll('mark[data-hl="' + tag + '"]'), function (m) {
+          var parent = m.parentNode;
+          while (m.firstChild) parent.insertBefore(m.firstChild, m);
+          parent.removeChild(m);
+        });
+        brief.normalize();
+      };
+      Array.prototype.forEach.call(cs.querySelectorAll("[data-cb-hint]"), function (btn, idx) {
+        var box = btn.parentNode.nextElementSibling, tag = cs.id + "-h" + idx;
+        var phrases = JSON.parse(btn.getAttribute("data-triggers") || "[]");
+        btn.addEventListener("click", function () {
+          var open = box.hidden;
+          box.hidden = !open;
+          btn.setAttribute("aria-expanded", open ? "true" : "false");
+          btn.textContent = open ? "Hide hint" : "Reveal hint";
+          if (open) {
+            if (!btn.hasAttribute("data-used")) { btn.setAttribute("data-used", ""); hintsUsed++; }
+            phrases.forEach(function (p) { highlight(p, tag); });
+          } else unhighlight(tag);
+        });
+        var jump = box.querySelector("[data-cb-jump]");
+        if (jump) jump.addEventListener("click", function () {
+          var first = brief.querySelector('mark[data-hl="' + tag + '"]');
+          if (first) first.scrollIntoView({ block: "center" });
+        });
+      });
+
+      form.addEventListener("change", function () {
+        if (!armed) return;
+        armed = false; warn.hidden = true; submitBtn.textContent = label;
+      });
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var open = Array.prototype.filter.call(form.querySelectorAll(".cb-q"), function (q) { return !q.querySelector("input:checked"); }).length;
+        if (open && !armed) {
+          armed = true;
+          warn.textContent = open + (open === 1 ? " decision is" : " decisions are") + " still unanswered. Answer them, or press again to submit anyway.";
+          warn.hidden = false; submitBtn.textContent = "Submit anyway";
+          return;
+        }
+        grade();
+      });
+
+      function grade() {
+        var spots = form.querySelectorAll(".cb-spot input"), spotRight = 0;
+        Array.prototype.forEach.call(spots, function (inp) {
+          var ok = inp.getAttribute("data-ok") === "1", lab = inp.closest(".cb-opt");
+          if (ok && inp.checked) { lab.classList.add("is-right"); spotRight++; }
+          else if (ok) lab.classList.add("is-missed");
+          else if (inp.checked) lab.classList.add("is-wrong");
+          else { lab.classList.add("is-fine"); spotRight++; }
+        });
+        spotRes.textContent = spotRight + " of " + spots.length + " phrases classified correctly. Green: constraints you caught. Amber: constraints you missed. Red: background you ticked as a constraint.";
+        spotRes.hidden = false;
+
+        var qs = form.querySelectorAll(".cb-q"), qRight = 0;
+        Array.prototype.forEach.call(qs, function (q) {
+          var chosen = q.querySelector("input:checked"), res = q.querySelector(".cb-res");
+          Array.prototype.forEach.call(q.querySelectorAll("input"), function (inp) {
+            var lab = inp.closest(".cb-opt");
+            if (inp.getAttribute("data-ok") === "1") lab.classList.add("is-right");
+            else if (inp.checked) lab.classList.add("is-wrong");
+          });
+          if (!chosen) { res.textContent = "Not answered"; res.className = "cb-res skip"; }
+          else if (chosen.getAttribute("data-ok") === "1") { res.textContent = "Correct"; res.className = "cb-res ok"; qRight++; }
+          else { res.textContent = "Not quite"; res.className = "cb-res no"; }
+          res.hidden = false;
+          q.querySelector(".cb-after").hidden = false;
+        });
+
+        each(".cb-why", function (w) { w.hidden = false; });
+        each("input", function (i) { i.disabled = true; });
+        form.classList.add("is-done");
+        submitBtn.hidden = true; resetBtn.hidden = false; warn.hidden = true; armed = false;
+
+        var pct = qRight / qs.length;
+        var verdict = pct === 1 ? "Every decision matches the reference design. Now check the configuration table: the details are where real designs differ."
+          : pct >= 0.7 ? "A solid design. For each decision marked 'Not quite', read the trigger words: they show the sentence in the brief that decides it."
+          : "Worth a second pass. Read the explanation under every option above, re-read the brief, then try the case again.";
+        score.innerHTML = '<p class="cb-big">' + qRight + " of " + qs.length + " design decisions right · " + spotRight + " of " + spots.length + " phrases classified correctly</p>" +
+          "<p>" + verdict + "</p>" +
+          (hintsUsed ? "<p>Hints used: " + hintsUsed + ". Fine while learning; in the exam you'll spot those phrases on your own.</p>" : "") +
+          "<p>Scroll up: every decision now explains the service, why it fits and how to reason to it. Read on for the reference architecture.</p>";
+        reveal.hidden = false;
+        score.focus();
+      }
+
+      resetBtn.addEventListener("click", function () {
+        form.reset();
+        each(".cb-opt", function (l) { l.classList.remove("is-right", "is-wrong", "is-missed", "is-fine"); });
+        each(".cb-why, .cb-after, .cb-res", function (el) { el.hidden = true; });
+        each("input", function (i) { i.disabled = false; });
+        form.classList.remove("is-done");
+        spotRes.hidden = true; reveal.hidden = true; cross.hidden = true;
+        crossBtn.setAttribute("aria-expanded", "false");
+        crossBtn.textContent = "Show how AWS and Google Cloud would do it";
+        submitBtn.hidden = false; submitBtn.textContent = label; resetBtn.hidden = true;
+        Array.prototype.forEach.call(cs.querySelectorAll("[data-cb-hint]"), function (btn, idx) {
+          btn.removeAttribute("data-used"); btn.setAttribute("aria-expanded", "false"); btn.textContent = "Reveal hint";
+          btn.parentNode.nextElementSibling.hidden = true;
+          unhighlight(cs.id + "-h" + idx);
+        });
+        hintsUsed = 0;
+        cs.scrollIntoView();
+      });
+
+      crossBtn.addEventListener("click", function () {
+        var show = cross.hidden;
+        cross.hidden = !show;
+        crossBtn.setAttribute("aria-expanded", show ? "true" : "false");
+        crossBtn.textContent = show ? "Hide the AWS and Google Cloud comparison" : "Show how AWS and Google Cloud would do it";
+      });
+    });
+
     // ----- TOC: open on desktop, highlight current section -----
     var tocDetails = document.querySelector(".toc details");
     if (tocDetails && window.matchMedia("(min-width: 1021px)").matches) tocDetails.open = true;
