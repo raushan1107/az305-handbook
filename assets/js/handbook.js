@@ -213,6 +213,114 @@
       if (savedFirst === "az" || savedFirst === "aws" || savedFirst === "gcp") setFirst(savedFirst);
     }
 
+    // ----- Knowledge check: one Part test per tab, grade on submit, reveal explanations, retake -----
+    var qzPanels = Array.prototype.slice.call(document.querySelectorAll("[data-qz-test]"));
+    var qzTabs = Array.prototype.slice.call(document.querySelectorAll("[data-qz-tab]"));
+    if (qzPanels.length && qzTabs.length) {
+      var qzIds = qzPanels.map(function (p) { return p.id; });
+      var showPart = function (id, scroll) {
+        qzPanels.forEach(function (p) { p.hidden = p.id !== id; });
+        qzTabs.forEach(function (t) {
+          var on = t.getAttribute("data-qz-tab") === id;
+          t.setAttribute("aria-selected", on ? "true" : "false"); t.tabIndex = on ? 0 : -1;
+        });
+        if (history.replaceState) history.replaceState(null, "", "#" + id);
+        if (scroll) document.getElementById(id).scrollIntoView();
+      };
+      qzTabs.forEach(function (t, i) {
+        t.addEventListener("click", function () { showPart(t.getAttribute("data-qz-tab"), false); });
+        t.addEventListener("keydown", function (e) {
+          var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+          if (!d) return;
+          var nt = qzTabs[(i + d + qzTabs.length) % qzTabs.length];
+          showPart(nt.getAttribute("data-qz-tab"), false); nt.focus();
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-qz-goto]"), function (b) {
+        b.addEventListener("click", function () { showPart(b.getAttribute("data-qz-goto"), true); });
+      });
+      var qzFromHash = function () {
+        var h = location.hash.slice(1);
+        if (qzIds.indexOf(h) !== -1) { showPart(h, true); return true; }
+        return false;
+      };
+      if (!qzFromHash()) showPart(qzIds[0], false);
+      window.addEventListener("hashchange", qzFromHash);
+
+      qzPanels.forEach(function (pt) {
+        var form = pt.querySelector(".cb-quiz"), score = pt.querySelector(".cb-score"), warn = pt.querySelector(".cb-warn");
+        var submitBtn = pt.querySelector("[data-qz-submit]"), allBtn = pt.querySelector("[data-qz-all]"), resetBtn = pt.querySelector("[data-qz-reset]");
+        var qs = Array.prototype.slice.call(pt.querySelectorAll(".cb-q")), label = submitBtn.textContent, armed = false;
+        var setReveal = function (q, open) {
+          var btn = q.querySelector("[data-qz-reveal]");
+          q.querySelector(".qz-explain").hidden = !open;
+          btn.setAttribute("aria-expanded", open ? "true" : "false");
+          btn.textContent = open ? "Hide explanation" : "Reveal explanation";
+        };
+        qs.forEach(function (q) {
+          q.querySelector("[data-qz-reveal]").addEventListener("click", function () {
+            setReveal(q, q.querySelector(".qz-explain").hidden);
+          });
+        });
+        form.addEventListener("change", function () {
+          if (armed) { armed = false; warn.hidden = true; submitBtn.textContent = label; }
+        });
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var open = qs.filter(function (q) { return !q.querySelector("input:checked"); }).length;
+          if (open && !armed) {
+            armed = true; warn.hidden = false; submitBtn.textContent = "Submit anyway";
+            warn.textContent = open + (open === 1 ? " question is" : " questions are") + " unanswered. Answer them, or press again to submit anyway.";
+            return;
+          }
+          var right = 0, byLevel = {};
+          qs.forEach(function (q) {
+            var lv = q.getAttribute("data-level"), chosen = q.querySelector("input:checked"), res = q.querySelector(".cb-res");
+            byLevel[lv] = byLevel[lv] || [0, 0]; byLevel[lv][1]++;
+            Array.prototype.forEach.call(q.querySelectorAll("input"), function (inp) {
+              var lab = inp.closest(".cb-opt");
+              if (inp.getAttribute("data-ok") === "1") lab.classList.add("is-right");
+              else if (inp.checked) lab.classList.add("is-wrong");
+              inp.disabled = true;
+            });
+            if (!chosen) { res.textContent = "Not answered"; res.className = "cb-res skip"; }
+            else if (chosen.getAttribute("data-ok") === "1") { res.textContent = "Correct"; res.className = "cb-res ok"; right++; byLevel[lv][0]++; }
+            else { res.textContent = "Not quite"; res.className = "cb-res no"; }
+            res.hidden = false;
+            q.querySelector(".qz-revealrow").hidden = false;
+          });
+          form.classList.add("is-done");
+          submitBtn.hidden = true; allBtn.hidden = false; resetBtn.hidden = false; warn.hidden = true; armed = false;
+          var pct = right / qs.length;
+          var verdict = pct >= 0.9 ? "Excellent. You read scenarios like an architect. Skim the explanations to confirm your reasoning."
+            : pct >= 0.7 ? "Good grasp. Open the explanations for the questions marked 'Not quite': the keywords show what to look for."
+            : pct >= 0.5 ? "A fair start. Read every explanation, revise the linked module sections, then retake the test."
+            : "Worth revisiting this Part. Use the 'Revise' links under each explanation, then retake the test.";
+          var levels = Object.keys(byLevel).map(function (k) { return k + " " + byLevel[k][0] + "/" + byLevel[k][1]; }).join(" · ");
+          score.innerHTML = '<p class="cb-big">' + right + " of " + qs.length + " correct (" + Math.round(pct * 100) + "%)</p>" +
+            "<p><b>By level:</b> " + levels + "</p><p>" + verdict + "</p>" +
+            "<p>Press <em>Reveal explanation</em> under any question, or <em>Reveal all explanations</em>.</p>";
+          score.hidden = false; score.focus();
+        });
+        allBtn.addEventListener("click", function () {
+          var anyClosed = qs.some(function (q) { return q.querySelector(".qz-explain").hidden; });
+          qs.forEach(function (q) { setReveal(q, anyClosed); });
+          allBtn.textContent = anyClosed ? "Hide all explanations" : "Reveal all explanations";
+        });
+        resetBtn.addEventListener("click", function () {
+          form.reset(); form.classList.remove("is-done");
+          qs.forEach(function (q) {
+            Array.prototype.forEach.call(q.querySelectorAll(".cb-opt"), function (l) { l.classList.remove("is-right", "is-wrong"); });
+            Array.prototype.forEach.call(q.querySelectorAll("input"), function (i) { i.disabled = false; });
+            q.querySelector(".cb-res").hidden = true; q.querySelector(".qz-revealrow").hidden = true; setReveal(q, false);
+          });
+          score.hidden = true; submitBtn.hidden = false; submitBtn.textContent = label;
+          allBtn.hidden = true; allBtn.textContent = "Reveal all explanations"; resetBtn.hidden = true;
+          pt.scrollIntoView();
+        });
+      });
+    }
+
     // ----- Casebook: one case visible at a time (tabs), #case-n deep links, "next case" buttons -----
     var cbPanels = Array.prototype.slice.call(document.querySelectorAll("[data-cb-case]"));
     var cbTabs = Array.prototype.slice.call(document.querySelectorAll("[data-cb-tab]"));
