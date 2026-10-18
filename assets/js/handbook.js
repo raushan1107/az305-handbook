@@ -372,6 +372,18 @@
       var label = "Submit my design", armed = false;
       var brief = cs.querySelector(".cb-brief-text"), hintsUsed = 0;
 
+      // Case brief / Discovery session toggle, and the locked recommendations stage.
+      var viewBtns = Array.prototype.slice.call(cs.querySelectorAll("[data-cb-view]"));
+      var setView = function (v) {
+        Array.prototype.forEach.call(cs.querySelectorAll(".cb-view"), function (el) { el.hidden = el.getAttribute("data-view") !== v; });
+        viewBtns.forEach(function (b) { b.setAttribute("aria-selected", b.getAttribute("data-cb-view") === v ? "true" : "false"); });
+      };
+      viewBtns.forEach(function (b) { b.addEventListener("click", function () { setView(b.getAttribute("data-cb-view")); }); });
+      var lock = cs.querySelector(".cv-lock"), spoiler = cs.querySelector(".cv-spoiler");
+      var setLocked = function (locked) { if (lock) { lock.hidden = !locked; spoiler.hidden = locked; } };
+      var unlockBtn = cs.querySelector("[data-cv-unlock]");
+      if (unlockBtn) unlockBtn.addEventListener("click", function () { setLocked(false); });
+
       // Hints: show a guiding question and highlight this decision's key phrases in the brief.
       var highlight = function (phrase, tag) {
         var walker = document.createTreeWalker(brief, NodeFilter.SHOW_TEXT), nodes = [];
@@ -408,6 +420,7 @@
         });
         var jump = box.querySelector("[data-cb-jump]");
         if (jump) jump.addEventListener("click", function () {
+          setView("brief");
           var first = brief.querySelector('mark[data-hl="' + tag + '"]');
           if (first) first.scrollIntoView({ block: "center" });
         });
@@ -471,6 +484,7 @@
           (hintsUsed ? "<p>Hints used: " + hintsUsed + ". Fine while learning; in the exam you'll spot those phrases on your own.</p>" : "") +
           "<p>Scroll up: every decision now explains the service, why it fits and how to reason to it. Read on for the reference architecture.</p>";
         reveal.hidden = false;
+        setLocked(false);
         score.focus();
       }
 
@@ -490,6 +504,7 @@
           unhighlight(cs.id + "-h" + idx);
         });
         hintsUsed = 0;
+        setLocked(true);
         cs.scrollIntoView();
       });
 
