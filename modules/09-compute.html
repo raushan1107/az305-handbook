@@ -389,7 +389,7 @@
 
       <div class="callout plain">
         <div class="c-label">In plain words</div>
-        <p>You push code from GitHub; Azure gives you a URL with HTTPS, patched servers, autoscale and a staging slot. The <strong>plan</strong> is the hardware you pay for; the <strong>apps</strong> are tenants living on it. Several small apps can share one plan, and therefore one bill.</p>
+        <p>You push code from GitHub; Azure gives you a URL with <abbr data-g="g-http-https" title="Hypertext Transfer Protocol (Secure): The layer 7 protocol of the web; HTTPS is HTTP encrypted with TLS.">HTTPS</abbr>, patched servers, autoscale and a staging slot. The <strong>plan</strong> is the hardware you pay for; the <strong>apps</strong> are tenants living on it. Several small apps can share one plan, and therefore one bill.</p>
       </div>
 
       <div class="table-wrap min">
@@ -397,7 +397,7 @@
           <thead><tr><th>Plan tier</th><th>What you get</th><th>Use it for</th></tr></thead>
           <tbody>
             <tr><td><strong>Free / Shared</strong></td><td>Shared hardware, no <abbr data-g="g-sla" title="Service Level Agreement: A provider&#x27;s contractual promise, such as 99.99% uptime a month, backed by service credits.">SLA</abbr>, no custom scale</td><td>Learning and quick prototypes</td></tr>
-            <tr><td><strong>Basic</strong></td><td>Dedicated instances, manual scale, custom domains and TLS</td><td>Dev/test, low-traffic sites</td></tr>
+            <tr><td><strong>Basic</strong></td><td>Dedicated instances, manual scale, custom domains and <abbr data-g="g-tls" title="Transport Layer Security: The encryption behind HTTPS. A layer 7 device must decrypt it (terminate TLS) to read the request.">TLS</abbr></td><td>Dev/test, low-traffic sites</td></tr>
             <tr><td><strong>Standard</strong></td><td>Autoscale, <strong>deployment slots</strong>, daily backups</td><td>Production web apps</td></tr>
             <tr><td><strong>Premium (v3 and newer)</strong></td><td>Faster hardware, more slots and instances, <strong>zone redundancy</strong></td><td>Busy or business-critical production</td></tr>
             <tr><td><strong>Isolated v2</strong> (App Service Environment v3)</td><td>A <strong>single-tenant</strong> deployment inside your <abbr data-g="g-vnet" title="Virtual Network: Your private, isolated network in one Azure region, divided into subnets.">VNet</abbr>, very high scale</td><td>Strict isolation and compliance, internal-only apps at scale</td></tr>

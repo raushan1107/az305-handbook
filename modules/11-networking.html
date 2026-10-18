@@ -55,6 +55,7 @@
       <ol>
         <li><a href="#map">The mental map</a></li>
         <li><a href="#why">Why the network is designed first</a></li>
+        <li class="toc-sub"><a href="#layers">The seven layers (L1–L7)</a></li>
         <li><a href="#vnet">Virtual networks and address planning</a></li>
         <li><a href="#nsg">Filtering traffic: NSGs and ASGs</a></li>
         <li><a href="#topology">Topology: hub and spoke, Virtual WAN</a></li>
@@ -135,12 +136,12 @@
         <div class="c-label">End-to-end: what each service protects or routes</div>
         <p>A shopper clicks "buy." Here is every hop through the networking layers this module covers — and <em>which service owns it</em>:</p>
         <ol style="margin:.5em 0 .5em 1.3em;line-height:1.8">
-          <li><strong>Browser → Azure Front Door</strong> (global edge): WAF checks for OWASP attacks, TLS terminates, nearest edge location selected, static content served from cache.</li>
+          <li><strong>Browser → Azure Front Door</strong> (global edge): <abbr data-g="g-waf-web-application-firewall" title="Web Application Firewall: Protects web apps from attacks such as SQL injection; runs on Front Door or Application Gateway.">WAF</abbr> checks for <abbr data-g="g-owasp" title="Open Worldwide Application Security Project: A community that publishes the top web-app attack types that WAF rules block.">OWASP</abbr> attacks, <abbr data-g="g-tls" title="Transport Layer Security: The encryption behind HTTPS. A layer 7 device must decrypt it (terminate TLS) to read the request.">TLS</abbr> terminates, nearest edge location selected, static content served from cache.</li>
           <li><strong>Front Door → Application Gateway</strong> (regional): URL path routing sends <code>/api/*</code> to the API pool and <code>/images/*</code> to the image pool; WAF runs again at the regional layer.</li>
-          <li><strong>App Gateway → App VMs / App Service</strong>: NSG rules on the subnet allow port 443 from App Gateway only; all other inbound is denied.</li>
+          <li><strong>App Gateway → App VMs / App Service</strong>: <abbr data-g="g-nsg" title="Network Security Group: Allow and deny rules by IP, port and protocol on a subnet or network card.">NSG</abbr> rules on the subnet allow port 443 from App Gateway only; all other inbound is denied.</li>
           <li><strong>App resolves the database hostname</strong>: the private DNS zone answers with a private IP → traffic goes to the <strong>private endpoint</strong> in the data subnet, over Private Link, never touching the internet.</li>
-          <li><strong>Admin needs RDP to a VM</strong>: goes through <strong>Azure Bastion</strong> in the hub over HTTPS — no public IP on the VM, no open RDP port anywhere.</li>
-          <li><strong>Spoke VM needs internet</strong> (e.g. OS updates): route table sends traffic to the <strong>Azure Firewall</strong> in the hub, which applies FQDN rules before letting it out through <strong>NAT Gateway</strong>.</li>
+          <li><strong>Admin needs RDP to a VM</strong>: goes through <strong>Azure Bastion</strong> in the hub over <abbr data-g="g-http-https" title="Hypertext Transfer Protocol (Secure): The layer 7 protocol of the web; HTTPS is HTTP encrypted with TLS.">HTTPS</abbr> — no public IP on the VM, no open RDP port anywhere.</li>
+          <li><strong>Spoke VM needs internet</strong> (e.g. OS updates): route table sends traffic to the <strong>Azure Firewall</strong> in the hub, which applies FQDN rules before letting it out through <strong><abbr data-g="g-nat-snat-dnat" title="Network / Source / Destination Address Translation: Rewriting addresses: SNAT for outbound traffic from private IPs, DNAT to publish an inside service.">NAT</abbr> Gateway</strong>.</li>
         </ol>
         <p>Every service in this module owns exactly one of these hops. Once you see the path, any exam question becomes "which hop does the requirement belong to?"</p>
       </div>
@@ -192,6 +193,199 @@
         <div class="c-label">Mindset takeaway</div>
         <p>Three network decisions are close to one-way doors (Module 01): the <strong>address plan</strong>, the <strong>topology</strong> (hub-spoke or Virtual WAN), and the <strong>hybrid link</strong>. Take them early, together, and write them down.</p>
       </div>
+
+      <div class="topic" id="layers">
+      <div class="topic-head">
+        <span class="t-icon tone-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="17" width="18" height="4" rx="1"/></svg></span>
+        <h3>The seven layers: what "layer 4" and "layer 7" mean</h3>
+      </div>
+
+      <p>Networking people describe every device by a <em>layer number</em>: "the NSG works at layer 3–4", "Application Gateway is a layer 7 load balancer". Those numbers come from one model. Once you know it, the rest of this module reads much more easily.</p>
+
+      <div class="callout definition">
+        <div class="c-label">Definition</div>
+        <p>The <strong><abbr data-g="g-osi-model" title="Open Systems Interconnection model: The seven-layer model of network communication, from the physical wire (layer 1) to the application&#x27;s data (layer 7).">OSI</abbr> model</strong> (Open Systems Interconnection) divides network communication into <strong>seven layers</strong>, each with one job, from the physical signal (layer 1) up to the application's own data (layer 7). Each layer relies on the one below it and serves the one above. Real networks run the simpler <strong>TCP/IP model</strong>, but engineers, exam questions and Azure documentation still use the OSI numbers: <strong>L3</strong> for IP addresses, <strong><abbr data-g="g-l4-l7" title="Layer 4 / Layer 7: Load balancing by IP and port (L4) versus by HTTP details such as the URL path (L7).">L4</abbr></strong> for TCP/UDP ports, <strong>L7</strong> for application protocols such as HTTP.</p>
+      </div>
+
+      <div class="callout plain">
+        <div class="c-label">In plain words</div>
+        <p>A layer number tells you <strong>how much of the traffic a device can read</strong>. A layer 3 device reads only the IP addresses. A layer 4 device also reads the <strong>port</strong> (443 means web, 1433 means SQL, 3389 means remote desktop) and whether it's <strong><abbr data-g="g-tcp" title="Transmission Control Protocol: The reliable layer 4 protocol: every piece of data is confirmed and resent if lost. Used by web, SQL and remote desktop.">TCP</abbr></strong> (reliable: every piece is confirmed) or <strong><abbr data-g="g-udp" title="User Datagram Protocol: The fast layer 4 protocol with no delivery confirmation. Used by DNS, video calls and streaming.">UDP</abbr></strong> (fast: no confirmations, used for video calls and DNS). A layer 7 device reads the request itself: the URL path, the host name, headers and cookies. The higher the layer, the smarter the decisions it can make, and the more work it does per request.</p>
+      </div>
+
+      <div class="callout analogy">
+        <div class="c-label">Imagine this</div>
+        <p>A <strong>courier parcel</strong> from Bengaluru to a flat in Pune. The <strong>road and truck</strong> are layer 1. The <strong>van's hop between two neighbouring hubs</strong> is layer 2. The <strong>PIN code and city</strong> that decide which sorting hub it goes to are layer 3. The <strong>flat number</strong>, and the promise that every box in the shipment arrives, are layer 4. The <strong>sealed gift wrap</strong> is layer 6, and the <strong>letter inside</strong> is layer 7. A layer 4 device is the sorter reading the label. A layer 7 device opens the parcel and reads the letter, which is why it can make decisions based on what the letter says.</p>
+      </div>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 540" role="img" aria-labelledby="osiT osiD">
+            <title id="osiT">The seven OSI layers and where Azure services work</title>
+            <desc id="osiD">Seven stacked rows from layer 7 at the top to layer 1 at the bottom. Layer 7, Application: HTTP, DNS, URL paths, headers and cookies; in Azure, Front Door, Application Gateway, WAF and API Management. Layer 6, Presentation: format and encryption such as TLS; in Azure, TLS termination on Front Door and Application Gateway. Layer 5, Session: keeping a conversation going; rarely named in Azure. Layer 4, Transport: TCP or UDP and port numbers; in Azure, Load Balancer, NSG port rules and Firewall network rules. Layer 3, Network: IP addresses and routing; in Azure, VNets, subnets, peering, route tables and VPN Gateway. Layer 2, Data link: MAC addresses and switches; run by Azure. Layer 1, Physical: cables and fibre; Microsoft's datacentres, and ExpressRoute Direct ports.</desc>
+            <text x="52" y="30" class="t-m mid">LAYER</text>
+            <text x="250" y="30" class="t-m">WHAT IT DEALS WITH</text>
+            <text x="500" y="30" class="t-m">THE PARCEL</text>
+            <text x="720" y="30" class="t-m">IN AZURE</text>
+
+            <rect x="20" y="48" width="960" height="62" rx="10" class="s-teal"/>
+            <text x="52" y="86" class="t-h mid t-teal">L7</text>
+            <text x="88" y="74" class="t-b">Application</text>
+            <text x="88" y="94" class="t-s">what the app says</text>
+            <text x="250" y="74" class="t-s">HTTP(S), DNS, SMTP</text>
+            <text x="250" y="94" class="t-s">URL path, host name, headers, cookies</text>
+            <text x="500" y="74" class="t-s">The letter inside the parcel,</text>
+            <text x="500" y="94" class="t-s">read by the person it's for</text>
+            <text x="720" y="74" class="t-b">Front Door, Application Gateway,</text>
+            <text x="720" y="94" class="t-s">WAF, API Management</text>
+
+            <rect x="20" y="118" width="960" height="62" rx="10" class="s-teal"/>
+            <text x="52" y="156" class="t-h mid t-teal">L6</text>
+            <text x="88" y="144" class="t-b">Presentation</text>
+            <text x="88" y="164" class="t-s">how it's written</text>
+            <text x="250" y="144" class="t-s">Format and encryption</text>
+            <text x="250" y="164" class="t-s">TLS, JSON, JPEG, character sets</text>
+            <text x="500" y="144" class="t-s">The language, and the sealed</text>
+            <text x="500" y="164" class="t-s">gift wrap around the letter</text>
+            <text x="720" y="144" class="t-b">TLS termination on Front Door</text>
+            <text x="720" y="164" class="t-s">and Application Gateway</text>
+
+            <rect x="20" y="188" width="960" height="62" rx="10" class="s-teal"/>
+            <text x="52" y="226" class="t-h mid t-teal">L5</text>
+            <text x="88" y="214" class="t-b">Session</text>
+            <text x="88" y="234" class="t-s">the conversation</text>
+            <text x="250" y="214" class="t-s">Opening and keeping a</text>
+            <text x="250" y="234" class="t-s">conversation going</text>
+            <text x="500" y="214" class="t-s">An ongoing exchange of letters</text>
+            <text x="500" y="234" class="t-s">with the same person</text>
+            <text x="720" y="214" class="t-s">Rarely named in Azure; session</text>
+            <text x="720" y="234" class="t-s">affinity is set at layer 7</text>
+
+            <rect x="20" y="258" width="960" height="62" rx="10" class="s-blue"/>
+            <text x="52" y="296" class="t-h mid t-blue">L4</text>
+            <text x="88" y="284" class="t-b">Transport</text>
+            <text x="88" y="304" class="t-s">port and reliability</text>
+            <text x="250" y="284" class="t-s">TCP (reliable) or UDP (fast),</text>
+            <text x="250" y="304" class="t-s">and port numbers: 443, 1433, 3389</text>
+            <text x="500" y="284" class="t-s">The flat number on the label,</text>
+            <text x="500" y="304" class="t-s">and "confirm every box arrived"</text>
+            <text x="720" y="284" class="t-b">Azure Load Balancer,</text>
+            <text x="720" y="304" class="t-s">NSG and Firewall port rules</text>
+
+            <rect x="20" y="328" width="960" height="62" rx="10" class="s-violet"/>
+            <text x="52" y="366" class="t-h mid t-violet">L3</text>
+            <text x="88" y="354" class="t-b">Network</text>
+            <text x="88" y="374" class="t-s">address and route</text>
+            <text x="250" y="354" class="t-s">IP addresses and routing</text>
+            <text x="250" y="374" class="t-s">between networks: 10.10.1.4</text>
+            <text x="500" y="354" class="t-s">The PIN code and city: which</text>
+            <text x="500" y="374" class="t-s">sorting hub sends it where</text>
+            <text x="720" y="354" class="t-b">VNets, subnets, peering,</text>
+            <text x="720" y="374" class="t-s">route tables, VPN Gateway</text>
+
+            <rect x="20" y="398" width="960" height="62" rx="10" class="s-surface2"/>
+            <text x="52" y="436" class="t-h mid">L2</text>
+            <text x="88" y="424" class="t-b">Data link</text>
+            <text x="88" y="444" class="t-s">the next hop</text>
+            <text x="250" y="424" class="t-s">MAC addresses, frames,</text>
+            <text x="250" y="444" class="t-s">switches on one local network</text>
+            <text x="500" y="424" class="t-s">The van's hop between two</text>
+            <text x="500" y="444" class="t-s">neighbouring hubs</text>
+            <text x="720" y="424" class="t-s">Run by Azure; you never</text>
+            <text x="720" y="444" class="t-s">configure it</text>
+
+            <rect x="20" y="468" width="960" height="62" rx="10" class="s-surface2"/>
+            <text x="52" y="506" class="t-h mid">L1</text>
+            <text x="88" y="494" class="t-b">Physical</text>
+            <text x="88" y="514" class="t-s">the wire</text>
+            <text x="250" y="494" class="t-s">Cables, fibre, radio signals,</text>
+            <text x="250" y="514" class="t-s">electrical pulses</text>
+            <text x="500" y="494" class="t-s">The roads and the truck itself</text>
+            <text x="720" y="494" class="t-s">Microsoft's datacentres;</text>
+            <text x="720" y="514" class="t-s">ExpressRoute Direct ports</text>
+          </svg>
+        </div>
+        <figcaption><b>Read it top-down for content, bottom-up for delivery.</b> Layers 5–7 are about what is being said, layer 4 about which program and how reliably, layer 3 about which address, and layers 1–2 about the physical journey that Azure runs for you.</figcaption>
+      </figure>
+
+      <p>The clearest way to see the difference is one real request. When a customer opens <code>https://shop.meridian.in/api/orders</code>, the packet carries every layer's information, wrapped one inside the other. Each Azure device reads only as deep as its layer allows.</p>
+
+      <figure class="diagram">
+        <div class="frame">
+          <svg viewBox="0 0 1000 300" role="img" aria-labelledby="pktT pktD">
+            <title id="pktT">How much of one HTTPS request each device reads</title>
+            <desc id="pktD">One HTTPS request is drawn as four wrapped parts: the IP header with source and destination addresses (layer 3), the TCP header with ports (layer 4), the TLS encryption (layer 6), and the HTTP request with path, host and cookie (layer 7). Route tables and peering read only the IP header. NSGs and Azure Load Balancer read the IP and TCP headers. Application Gateway and Front Door terminate TLS and read the whole HTTP request.</desc>
+            <path d="M40 54 V44 H260 V54" class="s-line"/>
+            <text x="40" y="36" class="t-b">Route tables, peering, VPN routing</text>
+            <text x="300" y="36" class="t-s">read the addresses only (L3)</text>
+            <path d="M40 94 V84 H440 V94" class="s-line"/>
+            <text x="40" y="76" class="t-b">NSG, Azure Load Balancer</text>
+            <text x="230" y="76" class="t-s">add ports and protocol (L3–L4)</text>
+            <path d="M40 134 V124 H960 V134" class="s-arrow-accent"/>
+            <text x="40" y="116" class="t-b">Application Gateway, Front Door</text>
+            <text x="276" y="116" class="t-s">decrypt TLS and read the whole request (L7)</text>
+
+            <rect x="40" y="146" width="220" height="70" rx="8" class="s-violet"/>
+            <text x="150" y="174" class="t-b mid">L3 · IP header</text>
+            <text x="150" y="196" class="t-s mid">203.0.113.5 → 20.40.1.10</text>
+            <rect x="260" y="146" width="180" height="70" rx="8" class="s-blue"/>
+            <text x="350" y="174" class="t-b mid">L4 · TCP header</text>
+            <text x="350" y="196" class="t-s mid">port 51514 → 443</text>
+            <rect x="440" y="146" width="150" height="70" rx="8" class="s-amber"/>
+            <text x="515" y="174" class="t-b mid">L6 · TLS</text>
+            <text x="515" y="196" class="t-s mid">encrypted</text>
+            <rect x="590" y="146" width="370" height="70" rx="8" class="s-teal"/>
+            <text x="775" y="174" class="t-b mid">L7 · HTTP request</text>
+            <text x="775" y="196" class="t-s mid">GET /api/orders · Host: shop.meridian.in · cookie</text>
+
+            <text x="40" y="252" class="t-s">A layer 4 device passes the encrypted part through untouched: it can't see the URL even if it wanted to.</text>
+            <text x="40" y="274" class="t-s">A layer 7 device must <tspan class="t-b">terminate TLS</tspan> (decrypt) before it can route on the path, host or cookie, and re-encrypt to the back end if required.</text>
+          </svg>
+        </div>
+        <figcaption><b>The deeper it reads, the more it can decide.</b> This is why only layer 7 services offer URL routing, cookie affinity and a web application firewall.</figcaption>
+      </figure>
+
+      <div class="table-wrap min">
+        <table>
+          <thead><tr><th>You'll hear</th><th>Azure service</th><th>It can decide on</th><th>It can't see</th></tr></thead>
+          <tbody>
+            <tr><td>Layer 3</td><td>Route tables (<abbr data-g="g-udr" title="User-Defined Route: A route table you write to override Azure&#x27;s routing, such as sending traffic via a firewall.">UDRs</abbr>), VNet peering, VPN Gateway, ExpressRoute routing</td><td>Where a packet goes next, by IP address range</td><td>Ports, URLs, who the user is</td></tr>
+            <tr><td>Layer 3–4</td><td>NSG; Azure Firewall network rules</td><td>Allow or deny by source, destination, port and protocol</td><td>Which website or URL is requested</td></tr>
+            <tr><td>Layer 4</td><td>Azure Load Balancer</td><td>Spreading TCP and UDP connections across healthy servers</td><td>URL path, host name, cookies</td></tr>
+            <tr><td>Layer 7</td><td>Application Gateway, Front Door</td><td>Routing by URL path, host, header or cookie; TLS termination; WAF rules</td><td>Nothing in the request, once TLS is terminated</td></tr>
+            <tr><td>Layer 7</td><td>Azure Firewall application rules</td><td>Allowing outbound traffic by name, such as <code>*.windowsupdate.com</code>; Premium adds TLS inspection</td><td>The content of encrypted traffic, unless TLS inspection is on</td></tr>
+            <tr><td>DNS (a layer 7 protocol)</td><td>Traffic Manager, Azure DNS</td><td>Which endpoint a name resolves to</td><td>The traffic itself: Traffic Manager is never in the data path</td></tr>
+            <tr><td>Layer 3–4 vs 7</td><td><abbr data-g="g-ddos" title="Distributed Denial of Service: Flooding a service with traffic from many machines to knock it offline.">DDoS</abbr> Protection vs WAF</td><td>DDoS absorbs floods at layers 3–4; WAF blocks attacks inside requests (SQL injection, cross-site scripting) at layer 7</td><td>Each misses what the other covers, so internet-facing apps use both</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <div class="c-label">Good practice: two ways to remember</div>
+        <p><strong>Memory aid, top to bottom:</strong> "<strong>A</strong>ll <strong>P</strong>eople <strong>S</strong>eem <strong>T</strong>o <strong>N</strong>eed <strong>D</strong>ata <strong>P</strong>rocessing" = Application, Presentation, Session, Transport, Network, Data link, Physical.</p>
+        <p style="margin-top:.5em"><strong>The TCP/IP model</strong> that real networks run has four layers, which map onto OSI like this: <em>Application</em> = OSI 5–7, <em>Transport</em> = 4, <em>Internet</em> = 3, <em>Network access</em> = 1–2. That's why people jump straight from "layer 4" to "layer 7": layers 5 and 6 are folded into the application.</p>
+      </div>
+
+      <div class="lens">
+        <div>
+          <h5>Developer view</h5>
+          <p>"It's all just the network. A load balancer is a load balancer; I'll take whichever is cheapest."</p>
+        </div>
+        <div>
+          <h5>Architect view</h5>
+          <p>"First I ask what the decision depends on. An IP range is a layer 3 job (a route or peering). A port is layer 4 (an NSG or Load Balancer). A URL, host name, cookie or an attack hidden in a request is layer 7 (Application Gateway, Front Door, WAF). Pick the lowest layer that can make the decision; it's simpler, faster and cheaper."</p>
+        </div>
+      </div>
+
+      <div class="callout pitfall">
+        <div class="c-label">Common trap</div>
+        <p>Expecting <strong>Azure Load Balancer</strong> to route <code>/api</code> and <code>/images</code> to different servers, or to block SQL injection. It's layer 4: it never sees the URL or the request body. Equally, an <strong>NSG</strong> can't allow "only *.microsoft.com"; names are layer 7, so that needs Azure Firewall application rules.</p>
+      </div>
+
+      <div class="callout exam">
+        <div class="c-label">Exam cue</div>
+        <p><strong>"URL path", "host header", "cookie affinity", "SSL/TLS offload", "WAF"</strong> → layer 7 (Application Gateway regionally, Front Door globally). <strong>"TCP/UDP", "any port", "non-HTTP", "lowest latency"</strong> → layer 4 (Load Balancer). <strong>"IP address range", "next hop", "force traffic through the firewall"</strong> → layer 3 (route tables). <strong>"Allow by port and IP between subnets"</strong> → layer 3–4 (NSG).</p>
+      </div>
+      </div>
     </section>
 
     <!-- ======================= VNET ======================= -->
@@ -219,7 +413,7 @@
         <li>Some services need a <strong>dedicated subnet</strong> with a fixed name: <code>GatewaySubnet</code> (VPN/ExpressRoute, /27 or larger), <code>AzureFirewallSubnet</code> (/26), <code>AzureBastionSubnet</code> (/26 or larger). Others need a <strong>delegated</strong> subnet (App Service VNet integration, Container Apps, SQL <abbr data-g="g-mi" title="SQL Managed Instance: Azure SQL Managed Instance: near-100% SQL Server compatibility as a PaaS service.">MI</abbr>).</li>
         <li><strong>Address spaces must not overlap</strong> with peered VNets or on-premises ranges you connect to. This is the most expensive mistake to fix later.</li>
         <li>Plan for growth: a /16 per region hub-and-spokes, carved into /22–/24 spokes, leaves room for years.</li>
-        <li>Outbound internet: new virtual networks use <strong>private subnets</strong> by default (the old <strong>default outbound access</strong> is gone). Every subnet now needs explicit egress: use <strong><abbr data-g="g-nat-snat-dnat" title="Network / Source / Destination Address Translation: Rewriting addresses: SNAT for outbound traffic from private IPs, DNAT to publish an inside service.">NAT</abbr> Gateway</strong> for simple outbound with a fixed public IP, a hub firewall for central inspection, or Load Balancer outbound rules.</li>
+        <li>Outbound internet: new virtual networks use <strong>private subnets</strong> by default (the old <strong>default outbound access</strong> is gone). Every subnet now needs explicit egress: use <strong>NAT Gateway</strong> for simple outbound with a fixed public IP, a hub firewall for central inspection, or Load Balancer outbound rules.</li>
       </ul>
 
       <div class="table-wrap min" style="margin:1.2em 0 0.4em">
@@ -272,7 +466,7 @@
 
       <div class="callout definition">
         <div class="c-label">Definition</div>
-        <p>A <strong>network security group (<abbr data-g="g-nsg" title="Network Security Group: Allow and deny rules by IP, port and protocol on a subnet or network card.">NSG</abbr>)</strong> contains prioritised allow and deny rules that filter inbound and outbound traffic by source, destination, port and protocol (layer 3–4). It can be associated with a <strong>subnet</strong> or a <strong>network interface</strong>. An <strong>application security group (<abbr data-g="g-asg" title="Application Security Group: A role label for VMs (web, db) that NSG rules can use instead of IP addresses.">ASG</abbr>)</strong> groups VMs by role (for example "web" or "db") so NSG rules can refer to the group instead of IP addresses.</p>
+        <p>A <strong>network security group (NSG)</strong> contains prioritised allow and deny rules that filter inbound and outbound traffic by source, destination, port and protocol (layer 3–4; see <a href="#layers">the seven layers</a>). It can be associated with a <strong>subnet</strong> or a <strong>network interface</strong>. An <strong>application security group (<abbr data-g="g-asg" title="Application Security Group: A role label for VMs (web, db) that NSG rules can use instead of IP addresses.">ASG</abbr>)</strong> groups VMs by role (for example "web" or "db") so NSG rules can refer to the group instead of IP addresses.</p>
       </div>
 
       <div class="callout plain">
@@ -384,7 +578,7 @@
         <table>
           <thead><tr><th></th><th>Hub and spoke</th><th>Virtual WAN</th></tr></thead>
           <tbody>
-            <tr><td><strong>Who builds the hub</strong></td><td>You (a VNet with gateways, firewall, <abbr data-g="g-udr" title="User-Defined Route: A route table you write to override Azure&#x27;s routing, such as sending traffic via a firewall.">UDRs</abbr>)</td><td>Microsoft (a managed hub resource)</td></tr>
+            <tr><td><strong>Who builds the hub</strong></td><td>You (a VNet with gateways, firewall, UDRs)</td><td>Microsoft (a managed hub resource)</td></tr>
             <tr><td><strong>Transit between spokes</strong></td><td>Through a firewall or <abbr data-g="g-nva" title="Network Virtual Appliance: A third-party firewall or router running as a VM.">NVA</abbr> with UDRs</td><td>Built in (any-to-any), optionally via secured hub</td></tr>
             <tr><td><strong>Branch sites</strong></td><td>Tens of site-to-site tunnels per gateway</td><td>Hundreds to <strong>thousands</strong> of sites, <abbr data-g="g-sd-wan" title="Software-Defined Wide Area Network: Branch networking that picks the best link automatically; integrates with Virtual WAN.">SD-WAN</abbr> partner integration</td></tr>
             <tr><td><strong>Best for</strong></td><td>One or two regions, custom routing, NVAs</td><td>Many regions and branches, global transit</td></tr>
@@ -491,7 +685,7 @@
       <h4>VPN Gateway options worth knowing</h4>
       <ul>
         <li><strong>Active-active mode</strong> deploys two gateway instances simultaneously, each with its own public IP, so both are actively forwarding traffic. Compared to the default active-standby (one instance active, one waiting), active-active gives higher throughput and faster failover — if one instance fails, traffic keeps flowing through the other without waiting for a standby to promote. Costs double the SKU price.</li>
-        <li><strong>BGP (Border Gateway Protocol)</strong> lets the gateway and your on-premises router exchange route information dynamically, instead of you manually listing every address range on both sides. Required for active-active and useful when your on-premises address space changes frequently.</li>
+        <li><strong><abbr data-g="g-bgp" title="Border Gateway Protocol: How routers exchange routes automatically, used by VPN and ExpressRoute.">BGP</abbr> (Border Gateway Protocol)</strong> lets the gateway and your on-premises router exchange route information dynamically, instead of you manually listing every address range on both sides. Required for active-active and useful when your on-premises address space changes frequently.</li>
       </ul>
 
       <div class="callout pitfall">
@@ -636,7 +830,7 @@
           <li><strong>Layer 4 (transport layer)</strong> sees only the IP address and port number. It knows "this is a TCP connection to port 443 from 203.0.113.5" — enough to pick a server and forward it. It cannot look inside the HTTPS payload.</li>
           <li><strong>Layer 7 (application layer)</strong> sees the full HTTP request — the URL path (<code>/api/orders</code>), headers (<code>Host: shop.meridian.in</code>), cookies. It can route <code>/api/*</code> to one server pool and <code>/images/*</code> to another, or stick a user to the same backend based on a session cookie.</li>
         </ul>
-        <p><strong>Rule of thumb:</strong> if your routing decision depends on what's <em>inside</em> the request (URL, host header, cookie), you need L7. If you only need to spread load across identical servers, L4 is simpler and faster.</p>
+        <p><strong>Rule of thumb:</strong> if your routing decision depends on what's <em>inside</em> the request (URL, host header, cookie), you need L7. If you only need to spread load across identical servers, L4 is simpler and faster. All seven layers, and where every Azure network service sits, are in <a href="#layers">11.1</a>.</p>
       </div>
 
       <p>Four services, two questions. <strong>Is the traffic HTTP(S)?</strong> (layer 7 or layer 4) and <strong>Is it global or regional?</strong> Answer both and there's only one box left.</p>
@@ -679,8 +873,8 @@
         <table>
           <thead><tr><th>Service</th><th>Layer and scope</th><th>Pick it when the question says…</th></tr></thead>
           <tbody>
-            <tr><td><strong>Load Balancer</strong> (Standard)</td><td><abbr data-g="g-l4-l7" title="Layer 4 / Layer 7: Load balancing by IP and port (L4) versus by HTTP details such as the URL path (L7).">L4</abbr>, regional (a cross-region tier exists)</td><td>"TCP/UDP", "non-HTTP", "internal load balancer", "high performance, low latency", "HA ports for NVAs" (HA ports = balance every port at once, used in front of firewall appliances)</td></tr>
-            <tr><td><strong>Application Gateway</strong> (v2)</td><td>L7, regional</td><td>"URL path-based routing", "TLS/SSL offload", "<abbr data-g="g-waf-web-application-firewall" title="Web Application Firewall: Protects web apps from attacks such as SQL injection; runs on Front Door or Application Gateway.">WAF</abbr> in the region", "multiple sites on one gateway", "cookie-based affinity"</td></tr>
+            <tr><td><strong>Load Balancer</strong> (Standard)</td><td>L4, regional (a cross-region tier exists)</td><td>"TCP/UDP", "non-HTTP", "internal load balancer", "high performance, low latency", "HA ports for NVAs" (HA ports = balance every port at once, used in front of firewall appliances)</td></tr>
+            <tr><td><strong>Application Gateway</strong> (v2)</td><td>L7, regional</td><td>"URL path-based routing", "TLS/SSL offload", "WAF in the region", "multiple sites on one gateway", "cookie-based affinity"</td></tr>
             <tr><td><strong>Front Door</strong> (Standard / Premium)</td><td>L7, global</td><td>"global users", "multi-region failover", "edge caching/CDN", "WAF at the edge", "Private Link to origins" (Premium)</td></tr>
             <tr><td><strong>Traffic Manager</strong></td><td>DNS, global</td><td>"DNS-based", "non-HTTP global", "geographic routing", "on-premises endpoints too"</td></tr>
           </tbody>
@@ -754,8 +948,8 @@
           <tbody>
             <tr><td><strong>NSG</strong></td><td>L3–4 allow/deny per subnet or <abbr data-g="g-nic" title="Network Interface Card: A VM&#x27;s network card; in Azure, a resource with its own IP addresses.">NIC</abbr></td><td>"port", "subnet", "IP range"</td></tr>
             <tr><td><strong>Azure Firewall</strong></td><td>Central stateful firewall, FQDN and threat-intel filtering, logging</td><td>"centrally", "FQDN", "outbound filtering", "spoke-to-spoke inspection"</td></tr>
-            <tr><td><strong>Web Application Firewall</strong></td><td>L7 protection against SQL injection, <abbr data-g="g-xss" title="Cross-Site Scripting: An attack that injects malicious script into a web page other users see.">XSS</abbr> and the <abbr data-g="g-owasp" title="Open Worldwide Application Security Project: A community that publishes the top web-app attack types that WAF rules block.">OWASP</abbr> top 10; runs on <strong>Front Door</strong> or <strong>Application Gateway</strong></td><td>"OWASP", "SQL injection", "protect the web app"</td></tr>
-            <tr><td><strong><abbr data-g="g-ddos" title="Distributed Denial of Service: Flooding a service with traffic from many machines to knock it offline.">DDoS</abbr> Protection</strong></td><td>Infrastructure protection is free for all; <strong>DDoS Network Protection</strong> (per VNet) or <strong>IP Protection</strong> (per public IP) adds adaptive tuning, telemetry, rapid response and cost protection</td><td>"volumetric attack", "DDoS", "cost protection"</td></tr>
+            <tr><td><strong>Web Application Firewall</strong></td><td>L7 protection against SQL injection, <abbr data-g="g-xss" title="Cross-Site Scripting: An attack that injects malicious script into a web page other users see.">XSS</abbr> and the OWASP top 10; runs on <strong>Front Door</strong> or <strong>Application Gateway</strong></td><td>"OWASP", "SQL injection", "protect the web app"</td></tr>
+            <tr><td><strong>DDoS Protection</strong></td><td>Infrastructure protection is free for all; <strong>DDoS Network Protection</strong> (per VNet) or <strong>IP Protection</strong> (per public IP) adds adaptive tuning, telemetry, rapid response and cost protection</td><td>"volumetric attack", "DDoS", "cost protection"</td></tr>
             <tr><td><strong>Azure Bastion</strong></td><td>Browser-based RDP/SSH to VMs over TLS, with <strong>no public IP</strong> on the VMs</td><td>"no public IP", "secure RDP/SSH", "jump box"</td></tr>
             <tr><td><strong>NAT Gateway</strong></td><td>Outbound internet for a subnet through a fixed set of public IPs, at scale</td><td>"outbound", "fixed egress IP", "SNAT port exhaustion" (each outbound connection borrows a source port on a public IP; too many connections run the ports out)</td></tr>
           </tbody>
@@ -904,6 +1098,7 @@
         <li>A topology chosen: hub-and-spoke, or Virtual WAN for many branches and regions.</li>
         <li>Hybrid link sized and made redundant: ExpressRoute with VPN backup, or VPN alone where enough.</li>
         <li>PaaS reached through private endpoints, public access disabled, DNS designed centrally.</li>
+        <li>Each service placed at the right layer: routes and peering at L3, NSGs and Load Balancer at L3–4, Application Gateway, Front Door and WAF at L7.</li>
         <li>Load balancer picked by protocol and scope; Front Door for global web, App Gateway for regional.</li>
         <li>Layers of protection: WAF and DDoS at the edge, firewall in the hub, NSGs per subnet.</li>
         <li>No management ports on the internet; Bastion or JIT for admins; explicit egress via NAT or firewall.</li>

@@ -45,7 +45,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <input type="search" data-gloss-filter placeholder="Filter: RPO, private endpoint, Cosmos…" aria-label="Filter the glossary">
     </label>
-    <p class="tree-status" data-gloss-status aria-live="polite">208 terms</p>
+    <p class="tree-status" data-gloss-status aria-live="polite">213 terms</p>
   </div>
   <nav class="g-bar" aria-label="Jump to letter"><a href="#letter-A">A</a><a href="#letter-B">B</a><a href="#letter-C">C</a><a href="#letter-D">D</a><a href="#letter-E">E</a><a href="#letter-F">F</a><a href="#letter-G">G</a><a href="#letter-H">H</a><a href="#letter-I">I</a><a href="#letter-J">J</a><a href="#letter-K">K</a><a href="#letter-L">L</a><a href="#letter-M">M</a><a href="#letter-N">N</a><a href="#letter-O">O</a><a href="#letter-P">P</a><a href="#letter-Q">Q</a><a href="#letter-R">R</a><a href="#letter-S">S</a><a href="#letter-T">T</a><a href="#letter-U">U</a><a href="#letter-V">V</a><a href="#letter-W">W</a><a href="#letter-X">X</a><span>Y</span><a href="#letter-Z">Z</a></nav>
 
@@ -395,6 +395,10 @@
           <dt>HSM<small>Hardware Security Module</small></dt>
           <dd>A tamper-resistant device that stores encryption keys so they never leave it. <a href="03-identity.html#kv">Module 03 · Identity &amp; Access →</a></dd>
         </div>
+        <div class="g-item" id="g-http-https">
+          <dt>HTTP / HTTPS<small>Hypertext Transfer Protocol (Secure)</small></dt>
+          <dd>The layer 7 protocol of the web; HTTPS is HTTP encrypted with TLS. <a href="11-networking.html#layers">Module 11 · Networking →</a></dd>
+        </div>
         <div class="g-item" id="g-hub-and-spoke">
           <dt>Hub and spoke</dt>
           <dd>A central hub VNet with shared services, connected to workload spoke VNets. <a href="11-networking.html#topology">Module 11 · Networking →</a></dd>
@@ -489,7 +493,7 @@
       <dl class="g-list">
         <div class="g-item" id="g-l4-l7">
           <dt>L4 / L7<small>Layer 4 / Layer 7</small></dt>
-          <dd>Load balancing by IP and port (L4) versus by HTTP details such as the URL path (L7). <a href="11-networking.html#lb">Module 11 · Networking →</a></dd>
+          <dd>Load balancing by IP and port (L4) versus by HTTP details such as the URL path (L7). <a href="11-networking.html#layers">Module 11 · Networking →</a></dd>
         </div>
         <div class="g-item" id="g-lakehouse">
           <dt>Lakehouse</dt>
@@ -633,6 +637,10 @@
         <div class="g-item" id="g-one-way-door">
           <dt>One-way door</dt>
           <dd>A decision that is expensive to reverse later, such as the region, tenant or IP address plan. <a href="01-architect-mindset.html#tradeoffs">Module 01 · Architect mindset →</a></dd>
+        </div>
+        <div class="g-item" id="g-osi-model">
+          <dt>OSI model<small>Open Systems Interconnection model</small></dt>
+          <dd>The seven-layer model of network communication, from the physical wire (layer 1) to the application&#x27;s data (layer 7). <a href="11-networking.html#layers">Module 11 · Networking →</a></dd>
         </div>
         <div class="g-item" id="g-ou">
           <dt>OU<small>Organizational Unit</small></dt>
@@ -887,6 +895,10 @@
           <dt>TCO<small>Total Cost of Ownership</small></dt>
           <dd>Everything a system costs over its life: hardware, licences, power, people, not just the monthly bill. <a href="01-architect-mindset.html#toolkit">Module 01 · Architect mindset →</a></dd>
         </div>
+        <div class="g-item" id="g-tcp">
+          <dt>TCP<small>Transmission Control Protocol</small></dt>
+          <dd>The reliable layer 4 protocol: every piece of data is confirmed and resent if lost. Used by web, SQL and remote desktop. <a href="11-networking.html#layers">Module 11 · Networking →</a></dd>
+        </div>
         <div class="g-item" id="g-tde">
           <dt>TDE<small>Transparent Data Encryption</small></dt>
           <dd>Encrypts database files and backups at rest, with no app changes. <a href="06-databases.html#security">Module 06 · Databases →</a></dd>
@@ -915,6 +927,10 @@
           <dt>Tier 0</dt>
           <dd>The most critical systems, such as identity, whose compromise or outage breaks everything else. <a href="03-identity.html#hybrid">Module 03 · Identity &amp; Access →</a></dd>
         </div>
+        <div class="g-item" id="g-tls">
+          <dt>TLS<small>Transport Layer Security</small></dt>
+          <dd>The encryption behind HTTPS. A layer 7 device must decrypt it (terminate TLS) to read the request. <a href="11-networking.html#layers">Module 11 · Networking →</a></dd>
+        </div>
         <div class="g-item" id="g-token">
           <dt>Token</dt>
           <dd>A short-lived signed pass that proves who you are to other services, issued after sign-in. <a href="03-identity.html#entra">Module 03 · Identity &amp; Access →</a></dd>
@@ -932,6 +948,10 @@
     <section class="g-group" id="letter-U">
       <h2 class="g-letter">U</h2>
       <dl class="g-list">
+        <div class="g-item" id="g-udp">
+          <dt>UDP<small>User Datagram Protocol</small></dt>
+          <dd>The fast layer 4 protocol with no delivery confirmation. Used by DNS, video calls and streaming. <a href="11-networking.html#layers">Module 11 · Networking →</a></dd>
+        </div>
         <div class="g-item" id="g-udr">
           <dt>UDR<small>User-Defined Route</small></dt>
           <dd>A route table you write to override Azure&#x27;s routing, such as sending traffic via a firewall. <a href="11-networking.html#topology">Module 11 · Networking →</a></dd>
