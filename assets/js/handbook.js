@@ -452,7 +452,7 @@
           else if (inp.checked) lab.classList.add("is-wrong");
           else { lab.classList.add("is-fine"); spotRight++; }
         });
-        spotRes.textContent = spotRight + " of " + spots.length + " phrases classified correctly. Green: constraints you caught. Amber: constraints you missed. Red: background you ticked as a constraint.";
+        spotRes.textContent = spotRight + " of " + spots.length + " phrases classified correctly. Green: constraints you caught. Amber: constraints you missed. Red: ticked, but not a constraint (background, or a pain point that shapes the solution).";
         spotRes.hidden = false;
 
         var qs = form.querySelectorAll(".cb-q"), qRight = 0;
